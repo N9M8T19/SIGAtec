@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — SIGA-Tec{% endblock %}
+{% block header %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Alertas de demora -->
+{% if alertas %}
+<div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+    <div class="flex items-center gap-2 mb-3">
+        <i class="fas fa-exclamation-triangle text-red-600 alerta-pulse"></i>
+        <span class="font-bold text-red-700">{{ alertas|length }} prestamo(s) con demora</span>
+    </div>
+    <div class="space-y-2">
+        {% for a in alertas %}
+        <div class="flex items-center gap-4 text-sm text-red-700 bg-red-100 rounded-lg px-3 py-2">
+            <span class="font-semibold">{{ a.tipo }}</span>
+            <span>{{ a.docente }}</span>
+            <span class="text-gray-500">|</span>
+            <span>{{ a.item }}</span>
+            <span class="ml-auto font-bold">{{ a.tiempo }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Stats cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
+        <div class="text-3xl font-bold text-blue-900">{{ stats.total_carros }}</div>
+        <div class="text-sm text-gray-500 mt-1"><i class="fas fa-box mr-1"></i>Carros</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+        <div class="text-3xl font-bold text-green-700">{{ stats.operativas }}</div>
+        <div class="text-sm text-gray-500 mt-1"><i class="fas fa-laptop mr-1"></i>Netbooks operativas</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-orange-500">
+        <div class="text-3xl font-bold text-orange-600">{{ stats.en_servicio }}</div>
+        <div class="text-sm text-gray-500 mt-1"><i class="fas fa-wrench mr-1"></i>En servicio tecnico</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
+        <div class="text-3xl font-bold text-purple-700">{{ stats.prestamos_activos }}</div>
+        <div class="text-sm text-gray-500 mt-1"><i class="fas fa-key mr-1"></i>Prestamos activos</div>
+    </div>
+</div>
+
+<!-- Segunda fila de stats -->
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-teal-500">
+        <div class="text-3xl font-bold text-teal-700">{{ stats.nb_prestadas }}</div>
+        <div class="text-sm text-gray-500 mt-1"><i class="fas fa-desktop mr-1"></i>Netbooks prestadas</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-indigo-500">
+        <div class="text-3xl font-bold text-indigo-700">{{ stats.total_docentes }}</div>
+        <div class="text-sm text-gray-500 mt-1"><i class="fas fa-chalkboard-teacher mr-1"></i>Docentes activos</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-gray-400">
+        <div class="text-3xl font-bold text-gray-700">{{ stats.total_netbooks }}</div>
+        <div class="text-sm text-gray-500 mt-1"><i class="fas fa-laptop-code mr-1"></i>Total netbooks</div>
+    </div>
+</div>
+
+<!-- Accesos rapidos -->
+<div class="bg-white rounded-xl shadow-sm p-6">
+    <h2 class="text-lg font-bold text-gray-800 mb-4">Accesos rapidos</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <a href="{{ url_for('prestamos.retiro_carro') }}"
+           class="flex flex-col items-center gap-2 p-4 bg-green-50 hover:bg-green-100 rounded-xl transition-colors text-center">
+            <i class="fas fa-key text-2xl text-green-600"></i>
+            <span class="text-sm font-medium text-green-800">Registrar Retiro</span>
+        </a>
+        <a href="{{ url_for('prestamos.espacio_digital') }}"
+           class="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors text-center">
+            <i class="fas fa-desktop text-2xl text-blue-600"></i>
+            <span class="text-sm font-medium text-blue-800">Espacio Digital</span>
+        </a>
+        <a href="{{ url_for('docentes.index') }}"
+           class="flex flex-col items-center gap-2 p-4 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors text-center">
+            <i class="fas fa-users text-2xl text-purple-600"></i>
+            <span class="text-sm font-medium text-purple-800">Docentes</span>
+        </a>
+        <a href="{{ url_for('prestamos.historial') }}"
+           class="flex flex-col items-center gap-2 p-4 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors text-center">
+            <i class="fas fa-history text-2xl text-orange-600"></i>
+            <span class="text-sm font-medium text-orange-800">Historial</span>
+        </a>
+    </div>
+</div>
+
+{% endblock %}
