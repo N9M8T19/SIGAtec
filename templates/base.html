@@ -9,8 +9,6 @@
     <style>
         .sidebar-link.active { background-color: #1e40af; }
         .sidebar-link:hover  { background-color: #1d4ed8; }
-        .alerta-pulse        { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -18,19 +16,14 @@
 {% if current_user.is_authenticated %}
 <div class="flex h-screen overflow-hidden">
 
-    <!-- Sidebar -->
     <aside class="w-64 bg-blue-900 text-white flex flex-col flex-shrink-0">
-        <!-- Logo -->
         <div class="p-4 border-b border-blue-800 flex items-center gap-3">
-            <img src="{{ url_for('static', filename='img/logo_escuela.png') }}"
-                 class="h-10 w-10 object-contain" alt="Logo">
             <div>
                 <div class="font-bold text-sm">SIGA-Tec</div>
-                <div class="text-xs text-blue-300">E.T. N°7 D.E. 5</div>
+                <div class="text-xs text-blue-300">E.T. N7 D.E. 5</div>
             </div>
         </div>
 
-        <!-- Usuario -->
         <div class="p-4 border-b border-blue-800">
             <div class="text-xs text-blue-300">Sesion activa</div>
             <div class="font-semibold text-sm truncate">{{ current_user.nombre_completo }}</div>
@@ -42,7 +35,6 @@
             </span>
         </div>
 
-        <!-- Navegacion -->
         <nav class="flex-1 overflow-y-auto p-2 space-y-1">
             <a href="{{ url_for('main.dashboard') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
@@ -51,11 +43,11 @@
 
             <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Inventario</div>
             <a href="{{ url_for('carros.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'carros' in request.endpoint %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
                 <i class="fas fa-box w-5"></i> Carros
             </a>
             <a href="{{ url_for('netbooks.servicio_tecnico') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'netbooks' in request.endpoint %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
                 <i class="fas fa-laptop w-5"></i> Servicio Tecnico
             </a>
 
@@ -98,7 +90,6 @@
             {% endif %}
         </nav>
 
-        <!-- Logout -->
         <div class="p-3 border-t border-blue-800">
             <a href="{{ url_for('auth.logout') }}"
                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-blue-800 text-red-300">
@@ -107,9 +98,7 @@
         </div>
     </aside>
 
-    <!-- Contenido principal -->
     <main class="flex-1 overflow-y-auto">
-        <!-- Header -->
         <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
             <h1 class="text-xl font-bold text-gray-800">{% block header %}{% endblock %}</h1>
             <div class="text-sm text-gray-500">
@@ -118,7 +107,6 @@
             </div>
         </header>
 
-        <!-- Flash messages -->
         <div class="px-6 pt-4">
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -135,7 +123,6 @@
             {% endwith %}
         </div>
 
-        <!-- Contenido -->
         <div class="px-6 py-4">
             {% block content %}{% endblock %}
         </div>
@@ -143,7 +130,7 @@
 </div>
 
 {% else %}
-    {% block content %}{% endblock %}
+{% block auth_content %}{% endblock %}
 {% endif %}
 
 <script>
