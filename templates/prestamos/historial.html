@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Historial — SIGA-Tec{% endblock %}
+{% block header %}Historial de Prestamos{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-center">
+    <div class="flex gap-2">
+        {% for val, label in [('hoy','Hoy'),('semana','Semana'),('mes','Mes'),('todo','Todo')] %}
+        <a href="?periodo={{ val }}&tipo={{ tipo }}&q={{ busqueda }}"
+           class="px-3 py-1 rounded-full text-sm font-medium
+               {% if periodo == val %}bg-blue-900 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+            {{ label }}
+        </a>
+        {% endfor %}
+    </div>
+    <div class="flex gap-2 ml-4">
+        <a href="?periodo={{ periodo }}&tipo=carros&q={{ busqueda }}"
+           class="px-3 py-1 rounded-full text-sm font-medium
+               {% if tipo == 'carros' %}bg-green-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+            <i class="fas fa-key mr-1"></i>Carros
+        </a>
+        <a href="?periodo={{ periodo }}&tipo=netbooks&q={{ busqueda }}"
+           class="px-3 py-1 rounded-full text-sm font-medium
+               {% if tipo == 'netbooks' %}bg-blue-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+            <i class="fas fa-laptop mr-1"></i>Espacio Digital
+        </a>
+    </div>
+    <form class="flex gap-2 ml-auto" method="GET">
+        <input type="hidden" name="periodo" value="{{ periodo }}">
+        <input type="hidden" name="tipo" value="{{ tipo }}">
+        <input type="text" name="q" value="{{ busqueda }}"
+               placeholder="Buscar docente..."
+               class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        <button type="submit" class="bg-blue-900 text-white px-3 py-1 rounded-lg text-sm">
+            <i class="fas fa-search"></i>
+        </button>
+    </form>
+</div>
+
+<!-- Tabla -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b text-sm text-gray-500">
+        {{ prestamos|length }} registro(s)
+    </div>
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3 text-left">ID</th>
+                <th class="px-4 py-3 text-left">Docente</th>
+                {% if tipo == 'carros' %}
+                <th class="px-4 py-3 text-left">Carro</th>
+                {% else %}
+                <th class="px-4 py-3 text-center">Netbooks</th>
+                {% endif %}
+                <th class="px-4 py-3 text-left">Retiro</th>
+                <th class="px-4 py-3 text-left">Devolucion</th>
+                <th class="px-4 py-3 text-left">Duracion</th>
+                <th class="px-4 py-3 text-left">Autorizo</th>
+                <th class="px-4 py-3 text-center">Estado</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for p in prestamos %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-mono text-xs">{{ p.codigo }}</td>
+                <td class="px-4 py-3 font-medium">{{ p.docente.nombre_completo }}</td>
+                {% if tipo == 'carros' %}
+                <td class="px-4 py-3">{{ p.carro.display }}</td>
+                {% else %}
+                <td class="px-4 py-3 text-center">{{ p.items|length }}</td>
+                {% endif %}
+                <td class="px-4 py-3 text-gray-500">{{ p.hora_retiro.strftime('%d/%m %H:%M') }}</td>
+                <td class="px-4 py-3 text-gray-500">
+                    {{ p.hora_devolucion.strftime('%d/%m %H:%M') if p.hora_devolucion else '—' }}
+                </td>
+                <td class="px-4 py-3 text-gray-500">
+                    {% if p.hora_devolucion %}
+                        {% set mins = ((p.hora_devolucion - p.hora_retiro).total_seconds() / 60)|int %}
+                        {{ '%dh %dm'|format(mins//60, mins%60) if mins >= 60 else '%dm'|format(mins) }}
+                    {% else %}
+                        {{ p.tiempo_transcurrido }}
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-400 text-xs">{{ p.encargado_retiro }}</td>
+                <td class="px-4 py-3 text-center">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold
+                        {% if p.estado == 'activo' %}bg-yellow-100 text-yellow-700
+                        {% else %}bg-green-100 text-green-700{% endif %}">
+                        {{ 'Activo' if p.estado == 'activo' else 'Devuelto' }}
+                    </span>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                    No hay registros para este periodo
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

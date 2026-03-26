@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Docentes — SIGA-Tec{% endblock %}
+{% block header %}Docentes{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <form class="flex gap-2" method="GET">
+        <input type="hidden" name="filtro" value="{{ filtro }}">
+        <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar..."
+               class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        <button type="submit" class="bg-blue-900 text-white px-3 py-2 rounded-lg text-sm">
+            <i class="fas fa-search"></i>
+        </button>
+        <div class="flex gap-1 ml-2">
+            {% for val, label in [('activos','Activos'),('inactivos','Inactivos'),('todos','Todos')] %}
+            <a href="?filtro={{ val }}"
+               class="px-3 py-2 rounded-lg text-sm font-medium
+                   {% if filtro == val %}bg-blue-900 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                {{ label }}
+            </a>
+            {% endfor %}
+        </div>
+    </form>
+    <a href="{{ url_for('docentes.nuevo') }}"
+       class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        <i class="fas fa-plus mr-2"></i>Nuevo Docente
+    </a>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-blue-900 text-white">
+            <tr>
+                <th class="px-4 py-3 text-left">Apellido y Nombre</th>
+                <th class="px-4 py-3 text-left">DNI</th>
+                <th class="px-4 py-3 text-left">Materia</th>
+                <th class="px-4 py-3 text-left">Turno</th>
+                <th class="px-4 py-3 text-left">Correo</th>
+                <th class="px-4 py-3 text-center">Estado</th>
+                <th class="px-4 py-3 text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for d in docentes %}
+            <tr class="hover:bg-gray-50 {% if not d.activo %}opacity-50{% endif %}">
+                <td class="px-4 py-3 font-medium">{{ d.nombre_completo }}</td>
+                <td class="px-4 py-3 font-mono text-xs">{{ d.dni }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ d.materia or '—' }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ d.turno or '—' }}</td>
+                <td class="px-4 py-3 text-gray-400 text-xs">{{ d.correo or '—' }}</td>
+                <td class="px-4 py-3 text-center">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold
+                        {% if d.activo %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        {{ 'Activo' if d.activo else 'Inactivo' }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <div class="flex justify-center gap-2">
+                        <a href="{{ url_for('docentes.editar', id=d.id) }}"
+                           class="text-blue-600 hover:text-blue-800" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        {% if current_user.tiene_permiso('estadisticas') %}
+                        {% if d.activo %}
+                        <form method="POST" action="{{ url_for('docentes.dar_baja', id=d.id) }}"
+                              onsubmit="return confirm('Dar de baja a {{ d.nombre_completo }}?')">
+                            <button type="submit" class="text-red-400 hover:text-red-600" title="Dar de baja">
+                                <i class="fas fa-user-times"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('docentes.reactivar', id=d.id) }}">
+                            <button type="submit" class="text-green-500 hover:text-green-700" title="Reactivar">
+                                <i class="fas fa-user-check"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="px-4 py-8 text-center text-gray-400">
+                    No hay docentes registrados
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

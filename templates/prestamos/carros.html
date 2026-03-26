@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Prestamos de Carros — SIGA-Tec{% endblock %}
+{% block header %}Prestamos de Carros{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <p class="text-gray-500">{{ prestamos|length }} prestamo(s) activo(s)</p>
+    <a href="{{ url_for('prestamos.retiro_carro') }}"
+       class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        <i class="fas fa-plus mr-2"></i>Registrar Retiro
+    </a>
+</div>
+
+<!-- Prestamos activos -->
+{% if prestamos %}
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+    <table class="w-full text-sm">
+        <thead class="bg-blue-900 text-white">
+            <tr>
+                <th class="px-4 py-3 text-left">ID</th>
+                <th class="px-4 py-3 text-left">Carro</th>
+                <th class="px-4 py-3 text-left">Docente</th>
+                <th class="px-4 py-3 text-left">Hora Retiro</th>
+                <th class="px-4 py-3 text-left">Tiempo</th>
+                <th class="px-4 py-3 text-left">Autorizo</th>
+                <th class="px-4 py-3 text-center">Devolucion</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for p in prestamos %}
+            {% set mins = ((now - p.hora_retiro).total_seconds() / 60)|int %}
+            <tr class="hover:bg-gray-50 {% if mins >= 120 %}bg-red-50{% endif %}">
+                <td class="px-4 py-3 font-mono text-xs">{{ p.codigo }}</td>
+                <td class="px-4 py-3 font-semibold text-blue-900">{{ p.carro.display }}</td>
+                <td class="px-4 py-3">{{ p.docente.nombre_completo }}</td>
+                <td class="px-4 py-3">{{ p.hora_retiro.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td class="px-4 py-3 {% if mins >= 120 %}text-red-600 font-bold{% endif %}">
+                    {{ p.tiempo_transcurrido }}
+                    {% if mins >= 120 %}<i class="fas fa-exclamation-triangle ml-1"></i>{% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ p.encargado_retiro }}</td>
+                <td class="px-4 py-3 text-center">
+                    <form method="POST" action="{{ url_for('prestamos.devolucion_carro', id=p.id) }}"
+                          onsubmit="return confirm('Registrar devolucion de {{ p.docente.nombre_completo }}?')">
+                        <button type="submit"
+                                class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs font-semibold">
+                            <i class="fas fa-undo mr-1"></i>Devolucion
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow-sm p-8 text-center text-gray-400">
+    <i class="fas fa-key text-4xl mb-3"></i>
+    <p>No hay prestamos activos</p>
+</div>
+{% endif %}
+
+<!-- Lista de carros disponibles -->
+<h2 class="text-lg font-bold text-gray-800 mb-3">Estado de Carros</h2>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    {% for carro in carros %}
+    {% set prestamo = prestamos|selectattr('carro_id', 'equalto', carro.id)|list %}
+    <div class="bg-white rounded-xl shadow-sm p-4 border-l-4
+        {% if prestamo %}border-red-400{% else %}border-green-400{% endif %}">
+        <div class="font-bold text-lg text-blue-900">{{ carro.display }}</div>
+        <div class="text-xs text-gray-500">{{ carro.aula or 'Sin aula' }}</div>
+        <div class="mt-2">
+            {% if prestamo %}
+            <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-semibold">Prestado</span>
+            {% else %}
+            <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">Disponible</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh cada 60 segundos
+    setTimeout(() => location.reload(), 60000);
+</script>
+{% endblock %}

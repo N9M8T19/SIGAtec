@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Servicio Tecnico — SIGA-Tec{% endblock %}
+{% block header %}Netbooks en Servicio Tecnico{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <span class="text-orange-600 font-semibold">{{ netbooks|length }} netbook(s) en servicio</span>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-orange-500 text-white">
+            <tr>
+                <th class="px-4 py-3 text-left">Carro</th>
+                <th class="px-4 py-3 text-left">Aula</th>
+                <th class="px-4 py-3 text-left">N° Interno</th>
+                <th class="px-4 py-3 text-left">N° Serie</th>
+                <th class="px-4 py-3 text-left">Alumno</th>
+                <th class="px-4 py-3 text-left">Problema</th>
+                <th class="px-4 py-3 text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for nb in netbooks %}
+            <tr class="hover:bg-orange-50">
+                <td class="px-4 py-3 font-semibold">{{ nb.carro.display }}</td>
+                <td class="px-4 py-3">{{ nb.carro.aula or '—' }}</td>
+                <td class="px-4 py-3">{{ nb.numero_interno or '—' }}</td>
+                <td class="px-4 py-3 font-mono text-xs">{{ nb.numero_serie or 'Sin serie' }}</td>
+                <td class="px-4 py-3">{{ nb.alumno or '—' }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ nb.problema or '—' }}</td>
+                <td class="px-4 py-3 text-center">
+                    <form method="POST" action="{{ url_for('netbooks.marcar_reparada', id=nb.id) }}"
+                          onsubmit="return confirm('Marcar como operativa?')">
+                        <button type="submit"
+                                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-semibold">
+                            <i class="fas fa-check mr-1"></i>Reparada
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="px-4 py-8 text-center text-gray-400">
+                    No hay netbooks en servicio tecnico
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

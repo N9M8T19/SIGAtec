@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Nueva' if not netbook else 'Editar' }} Netbook — SIGA-Tec{% endblock %}
+{% block header %}{{ 'Nueva Netbook' if not netbook else 'Editar Netbook' }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm p-6">
+        <p class="text-sm text-gray-500 mb-4">Carro: <strong>{{ carro.display }}</strong> — {{ carro.division or 'Sin division' }}</p>
+        <form method="POST">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">N° Interno</label>
+                    <input type="text" name="numero_interno"
+                           value="{{ netbook.numero_interno if netbook else '' }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">N° Serie</label>
+                    <input type="text" name="numero_serie"
+                           value="{{ netbook.numero_serie if netbook else '' }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Alumno asignado</label>
+                <input type="text" name="alumno"
+                       value="{{ netbook.alumno if netbook else '' }}"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="flex gap-3">
+                <button type="submit"
+                        class="bg-blue-900 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold">
+                    Guardar
+                </button>
+                <a href="{{ url_for('carros.netbooks', id=carro.id) }}"
+                   class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

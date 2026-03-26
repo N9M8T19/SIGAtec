@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Prestamo Netbooks — SIGA-Tec{% endblock %}
+{% block header %}Registrar Prestamo de Netbooks{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm p-6">
+
+        <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-6 flex items-center gap-3">
+            <i class="fas fa-user-check text-green-600"></i>
+            <div>
+                <div class="text-xs text-green-600">Encargado en sesion</div>
+                <div class="font-semibold text-green-800">{{ current_user.nombre_completo }}</div>
+            </div>
+        </div>
+
+        {% if carro %}
+        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6">
+            <div class="text-xs text-blue-500">Carro Espacio Digital</div>
+            <div class="font-semibold text-blue-800">{{ carro.display }} — {{ carro.aula or 'Sin aula' }}</div>
+            <div class="text-xs text-gray-500">{{ disponibles|length }} netbook(s) disponibles</div>
+        </div>
+        {% endif %}
+
+        <form method="POST">
+            <div class="mb-5">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-search mr-1"></i>Buscar Docente
+                </label>
+                <input type="text" id="buscar-docente" placeholder="Apellido o DNI..."
+                       autocomplete="off"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-2">
+                <div id="resultados-docente" class="border border-gray-200 rounded-lg overflow-hidden hidden"></div>
+                <input type="hidden" name="docente_id" id="docente_id" required>
+                <div id="docente-seleccionado" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mt-2">
+                    <div class="text-xs text-blue-500">Docente seleccionado</div>
+                    <div id="docente-nombre" class="font-semibold text-blue-800"></div>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-laptop mr-1"></i>Seleccionar Netbooks (podés elegir varias)
+                </label>
+                {% if disponibles %}
+                <div class="border border-gray-200 rounded-lg overflow-hidden max-h-60 overflow-y-auto">
+                    {% for nb in disponibles %}
+                    <label class="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-0">
+                        <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
+                               class="w-4 h-4 text-blue-600">
+                        <div>
+                            <span class="font-semibold">N°{{ nb.numero_interno }}</span>
+                            <span class="text-gray-400 text-xs ml-2">{{ nb.numero_serie or 'Sin serie' }}</span>
+                            <div class="text-xs text-gray-500">{{ nb.alumno or 'Sin asignar' }}</div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-600 text-sm">
+                    No hay netbooks disponibles en este momento.
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="flex gap-3">
+                <button type="submit"
+                        class="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold">
+                    <i class="fas fa-check mr-2"></i>Confirmar Prestamo
+                </button>
+                <a href="{{ url_for('prestamos.espacio_digital') }}"
+                   class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const input = document.getElementById('buscar-docente');
+    const results = document.getElementById('resultados-docente');
+    const hiddenId = document.getElementById('docente_id');
+    const selBox = document.getElementById('docente-seleccionado');
+    const selNombre = document.getElementById('docente-nombre');
+    let timer;
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        const q = input.value.trim();
+        if (q.length < 2) { results.classList.add('hidden'); return; }
+        timer = setTimeout(async () => {
+            const res = await fetch(`/docentes/buscar?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            results.innerHTML = '';
+            data.forEach(d => {
+                const div = document.createElement('div');
+                div.className = 'px-4 py-3 hover:bg-blue-50 cursor-pointer text-sm border-b last:border-0';
+                div.innerHTML = `<strong>${d.nombre}</strong> <span class="text-gray-400 ml-2">DNI: ${d.dni}</span>`;
+                div.addEventListener('click', () => {
+                    hiddenId.value = d.id;
+                    selNombre.textContent = d.nombre;
+                    selBox.classList.remove('hidden');
+                    results.classList.add('hidden');
+                    input.value = d.nombre;
+                });
+                results.appendChild(div);
+            });
+            results.classList.remove('hidden');
+        }, 300);
+    });
+</script>
+{% endblock %}
