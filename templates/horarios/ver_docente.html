@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Horarios — {{ docente.nombre_completo }} — SIGA-Tec{% endblock %}
+{% block header %}Horarios de {{ docente.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div class="text-sm text-gray-500">
+        {{ docente.materia or 'Sin materia' }} | Turno: {{ docente.turno or '—' }}
+    </div>
+    <div class="flex gap-2">
+        <a href="{{ url_for('docentes.index') }}"
+           class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-arrow-left mr-1"></i>Volver
+        </a>
+        {% if current_user.tiene_permiso('estadisticas') %}
+        <a href="{{ url_for('horarios.agregar', docente_id=docente.id) }}"
+           class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-plus mr-1"></i>Agregar Módulo
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if not por_dia.values()|sum(start=[]) %}
+<div class="bg-white rounded-xl shadow-sm p-8 text-center text-gray-400">
+    <i class="fas fa-calendar-times text-4xl mb-3"></i>
+    <p>No hay horarios cargados para este docente.</p>
+    <a href="{{ url_for('horarios.agregar', docente_id=docente.id) }}"
+       class="mt-4 inline-block bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        Agregar primer módulo
+    </a>
+</div>
+{% else %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for dia in dias %}
+    {% if por_dia[dia] %}
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="bg-blue-900 text-white px-4 py-3 font-bold text-sm">
+            <i class="fas fa-calendar-day mr-2"></i>{{ dia }}
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% for h in por_dia[dia] %}
+            <div class="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full">
+                            Módulo {{ h.modulo }}
+                        </span>
+                        <span class="text-xs text-gray-500">{{ h.hora_inicio }} - {{ h.hora_fin }}</span>
+                    </div>
+                    <div class="text-sm font-medium text-gray-700 mt-1">{{ h.materia or '—' }}</div>
+                    {% if h.aula %}
+                    <div class="text-xs text-gray-400">Aula: {{ h.aula }}</div>
+                    {% endif %}
+                </div>
+                {% if current_user.tiene_permiso('estadisticas') %}
+                <form method="POST" action="{{ url_for('horarios.eliminar', id=h.id) }}"
+                      onsubmit="return confirm('Eliminar este módulo?')">
+                    <button type="submit" class="text-red-400 hover:text-red-600 ml-4">
+                        <i class="fas fa-trash text-xs"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

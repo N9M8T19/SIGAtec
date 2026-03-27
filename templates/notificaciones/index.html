@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}Notificaciones — SIGA-Tec{% endblock %}
+{% block header %}Notificaciones y Alertas{% endblock %}
+
+{% block content %}
+
+<!-- Destinatarios -->
+<div class="flex justify-between items-center mb-4">
+    <h2 class="text-lg font-bold text-gray-800">
+        <i class="fas fa-envelope mr-2 text-blue-700"></i>Destinatarios configurados
+    </h2>
+    <a href="{{ url_for('notificaciones.nuevo') }}"
+       class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        <i class="fas fa-plus mr-2"></i>Agregar destinatario
+    </a>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+    <table class="w-full text-sm">
+        <thead class="bg-blue-900 text-white">
+            <tr>
+                <th class="px-4 py-3 text-left">Nombre</th>
+                <th class="px-4 py-3 text-left">Correo</th>
+                <th class="px-4 py-3 text-left">Eventos que recibe</th>
+                <th class="px-4 py-3 text-center">Estado</th>
+                <th class="px-4 py-3 text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for c in configs %}
+            <tr class="hover:bg-gray-50 {% if not c.activo %}opacity-50{% endif %}">
+                <td class="px-4 py-3 font-medium">{{ c.nombre }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ c.correo }}</td>
+                <td class="px-4 py-3">
+                    <div class="flex flex-wrap gap-1">
+                        {% for ev in c.lista_eventos %}
+                        <span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                            {% for val, label in eventos %}{% if val == ev %}{{ label }}{% endif %}{% endfor %}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold
+                        {% if c.activo %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        {{ 'Activo' if c.activo else 'Inactivo' }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <div class="flex justify-center gap-2">
+                        <a href="{{ url_for('notificaciones.editar', id=c.id) }}"
+                           class="text-blue-600 hover:text-blue-800" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <form method="POST" action="{{ url_for('notificaciones.eliminar', id=c.id) }}"
+                              onsubmit="return confirm('Eliminar a {{ c.nombre }}?')">
+                            <button type="submit" class="text-red-400 hover:text-red-600">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-400">
+                    No hay destinatarios configurados
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Log de últimas notificaciones -->
+<div class="flex justify-between items-center mb-4">
+    <h2 class="text-lg font-bold text-gray-800">
+        <i class="fas fa-history mr-2 text-gray-500"></i>Últimas notificaciones enviadas
+    </h2>
+    <a href="{{ url_for('notificaciones.backup_index') }}"
+       class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        <i class="fas fa-database mr-2"></i>Gestionar Backups
+    </a>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-100 text-gray-600">
+            <tr>
+                <th class="px-4 py-3 text-left">Fecha</th>
+                <th class="px-4 py-3 text-left">Evento</th>
+                <th class="px-4 py-3 text-left">Destinatario</th>
+                <th class="px-4 py-3 text-left">Asunto</th>
+                <th class="px-4 py-3 text-center">Estado</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for log in logs %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-2 text-xs text-gray-400">{{ log.created_at.strftime('%d/%m %H:%M') }}</td>
+                <td class="px-4 py-2">
+                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ log.evento }}</span>
+                </td>
+                <td class="px-4 py-2 text-xs">{{ log.destinatario }}</td>
+                <td class="px-4 py-2 text-xs text-gray-600">{{ log.asunto[:60] }}{% if log.asunto|length > 60 %}...{% endif %}</td>
+                <td class="px-4 py-2 text-center">
+                    {% if log.enviado %}
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Enviado</span>
+                    {% else %}
+                    <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full" title="{{ log.error }}">Error</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="px-4 py-6 text-center text-gray-400 text-sm">Sin notificaciones enviadas</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

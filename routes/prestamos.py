@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from models import db, Carro, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, Netbook, ConfigEspacioDigital
 from datetime import datetime
@@ -27,8 +27,9 @@ def _gen_codigo(prefijo='P'):
 def carros():
     prestamos = PrestamoCarro.query.filter_by(estado='activo').all()
     carros    = Carro.query.filter(Carro.estado != 'baja').order_by(Carro.numero_fisico).all()
+    now       = datetime.utcnow()
     return render_template('prestamos/carros.html',
-                           prestamos=prestamos, carros=carros)
+                           prestamos=prestamos, carros=carros, now=now)
 
 
 @prestamos_bp.route('/carros/retiro', methods=['GET', 'POST'])
@@ -56,6 +57,14 @@ def retiro_carro():
         )
         db.session.add(prestamo)
         db.session.commit()
+
+        # Notificar retiro por mail
+        try:
+            from services.mail import enviar_notificacion_retiro_carro
+            enviar_notificacion_retiro_carro(prestamo)
+        except Exception as e:
+            current_app.logger.error(f'Error notificando retiro de carro: {e}')
+
         flash(f'Retiro registrado: {docente.nombre_completo} — {carro.display}', 'success')
         return redirect(url_for('prestamos.carros'))
 
@@ -73,6 +82,14 @@ def devolucion_carro(id):
     prestamo.estado               = 'devuelto'
     prestamo.encargado_devolucion = current_user.nombre_completo
     db.session.commit()
+
+    # Notificar devolución por mail
+    try:
+        from services.mail import enviar_notificacion_devolucion_carro
+        enviar_notificacion_devolucion_carro(prestamo)
+    except Exception as e:
+        current_app.logger.error(f'Error notificando devolucion de carro: {e}')
+
     flash(f'Devolucion registrada: {prestamo.docente.nombre_completo} — {prestamo.carro.display}', 'success')
     return redirect(url_for('prestamos.carros'))
 
@@ -84,11 +101,12 @@ def devolucion_carro(id):
 @prestamos_bp.route('/espacio-digital')
 @login_required
 def espacio_digital():
-    config   = ConfigEspacioDigital.query.first()
-    carro    = config.carro if config else None
+    config    = ConfigEspacioDigital.query.first()
+    carro     = config.carro if config else None
     prestamos = PrestamoNetbook.query.filter_by(estado='activo').all()
+    now       = datetime.utcnow()
     return render_template('prestamos/espacio_digital.html',
-                           prestamos=prestamos, carro=carro, config=config)
+                           prestamos=prestamos, carro=carro, config=config, now=now)
 
 
 @prestamos_bp.route('/espacio-digital/retiro', methods=['GET', 'POST'])
@@ -130,6 +148,14 @@ def retiro_netbooks():
             db.session.add(item)
 
         db.session.commit()
+
+        # Notificar retiro por mail
+        try:
+            from services.mail import enviar_notificacion_retiro_netbook
+            enviar_notificacion_retiro_netbook(prestamo)
+        except Exception as e:
+            current_app.logger.error(f'Error notificando retiro de netbooks: {e}')
+
         flash(f'Prestamo registrado: {docente.nombre_completo} — {len(netbook_ids)} netbook(s)', 'success')
         return redirect(url_for('prestamos.espacio_digital'))
 
@@ -152,6 +178,14 @@ def devolucion_netbooks(id):
     prestamo.estado               = 'devuelto'
     prestamo.encargado_devolucion = current_user.nombre_completo
     db.session.commit()
+
+    # Notificar devolución por mail
+    try:
+        from services.mail import enviar_notificacion_devolucion_netbook
+        enviar_notificacion_devolucion_netbook(prestamo)
+    except Exception as e:
+        current_app.logger.error(f'Error notificando devolucion de netbooks: {e}')
+
     flash(f'Devolucion registrada: {prestamo.docente.nombre_completo} — {len(prestamo.items)} netbook(s)', 'success')
     return redirect(url_for('prestamos.espacio_digital'))
 

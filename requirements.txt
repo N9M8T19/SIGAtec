@@ -2,9 +2,11 @@ Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
 Flask-Login==0.6.2
 Flask-WTF==1.1.1
+Flask-Mail==0.9.1
 Werkzeug==2.3.7
 SQLAlchemy==1.4.50
 WTForms==3.0.1
 reportlab==4.0.8
 gunicorn==21.2.0
 python-dotenv==1.0.0
+psycopg2-binary==2.9.9

@@ -43,36 +43,36 @@
 
             <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Inventario</div>
             <a href="{{ url_for('carros.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'carros' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-box w-5"></i> Carros
             </a>
             <a href="{{ url_for('netbooks.servicio_tecnico') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'netbooks.servicio_tecnico' %}active{% endif %}">
                 <i class="fas fa-laptop w-5"></i> Servicio Tecnico
             </a>
 
             <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Prestamos</div>
             <a href="{{ url_for('prestamos.carros') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.carros' %}active{% endif %}">
                 <i class="fas fa-key w-5"></i> Prestamos Carros
             </a>
             <a href="{{ url_for('prestamos.espacio_digital') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.espacio_digital' %}active{% endif %}">
                 <i class="fas fa-desktop w-5"></i> Espacio Digital
             </a>
             <a href="{{ url_for('prestamos.historial') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.historial' %}active{% endif %}">
                 <i class="fas fa-history w-5"></i> Historial
             </a>
 
             <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Personas</div>
             <a href="{{ url_for('docentes.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'docentes' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-chalkboard-teacher w-5"></i> Docentes
             </a>
             {% if current_user.tiene_permiso('estadisticas') %}
             <a href="{{ url_for('usuarios.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'usuarios' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-users w-5"></i> Usuarios
             </a>
             {% endif %}
@@ -80,12 +80,24 @@
             {% if current_user.tiene_permiso('reportes') %}
             <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Reportes</div>
             <a href="{{ url_for('reportes.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'reportes.index' %}active{% endif %}">
                 <i class="fas fa-chart-bar w-5"></i> Reportes
             </a>
             <a href="{{ url_for('reportes.estadisticas') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'reportes.estadisticas' %}active{% endif %}">
                 <i class="fas fa-chart-pie w-5"></i> Estadisticas
+            </a>
+            {% endif %}
+
+            {% if current_user.tiene_permiso('configuracion') %}
+            <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Sistema</div>
+            <a href="{{ url_for('notificaciones.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'notificaciones' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-bell w-5"></i> Notificaciones
+            </a>
+            <a href="{{ url_for('notificaciones.backup_index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'notificaciones.backup_index' %}active{% endif %}">
+                <i class="fas fa-database w-5"></i> Backups
             </a>
             {% endif %}
         </nav>
