@@ -7,3 +7,6 @@ instance/
 .DS_Store
 venv/
 .venv/
+credentials.json
+service_account.json
+token.json
