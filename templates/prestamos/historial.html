@@ -1,48 +1,90 @@
 {% extends 'base.html' %}
-{% block title %}Historial — SIGA-Tec{% endblock %}
-{% block header %}Historial de Prestamos{% endblock %}
+{% block title %}HISTORIAL — SIGA-Tec{% endblock %}
+{% block header %}HISTORIAL DE PRESTAMOS{% endblock %}
 
 {% block content %}
-<!-- Filtros -->
-<div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-center">
-    <div class="flex gap-2">
-        {% for val, label in [('hoy','Hoy'),('semana','Semana'),('mes','Mes'),('todo','Todo')] %}
-        <a href="?periodo={{ val }}&tipo={{ tipo }}&q={{ busqueda }}"
-           class="px-3 py-1 rounded-full text-sm font-medium
-               {% if periodo == val %}bg-blue-900 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
-            {{ label }}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-6">
+    <div class="flex flex-wrap gap-3 items-center mb-3">
+        <div class="flex gap-2 flex-wrap">
+            {% for val, label in [('hoy','Hoy'),('semana','Semana'),('mes','Mes'),('todo','Todo')] %}
+            <a href="?periodo={{ val }}&tipo={{ tipo }}"
+               class="px-3 py-1 rounded-full text-sm font-medium
+                   {% if periodo == val and not fecha_desde %}bg-blue-900 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                {{ label }}
+            </a>
+            {% endfor %}
+        </div>
+        <div class="flex gap-2 ml-2">
+            <a href="?periodo={{ periodo }}&tipo=carros&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}"
+               class="px-3 py-1 rounded-full text-sm font-medium
+                   {% if tipo == 'carros' %}bg-green-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                <i class="fas fa-key mr-1"></i>Carros
+            </a>
+            <a href="?periodo={{ periodo }}&tipo=netbooks&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}"
+               class="px-3 py-1 rounded-full text-sm font-medium
+                   {% if tipo == 'netbooks' %}bg-blue-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                <i class="fas fa-laptop mr-1"></i>Espacio Digital
+            </a>
+        </div>
+        <form class="flex gap-2 ml-auto" method="GET">
+            <input type="hidden" name="periodo" value="{{ periodo }}">
+            <input type="hidden" name="tipo" value="{{ tipo }}">
+            <input type="hidden" name="fecha_desde" value="{{ fecha_desde }}">
+            <input type="hidden" name="fecha_hasta" value="{{ fecha_hasta }}">
+            <input type="text" name="q" value="{{ busqueda }}"
+                   placeholder="Buscar docente..."
+                   class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <button type="submit" class="bg-blue-900 text-white px-3 py-1 rounded-lg text-sm">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+        {% if tipo == 'carros' %}
+        <a href="{{ url_for('reportes.pdf_hist_carros', periodo=periodo, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta) }}"
+           class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm font-semibold">
+            <i class="fas fa-file-pdf mr-1"></i>PDF
         </a>
-        {% endfor %}
+        {% else %}
+        <a href="{{ url_for('reportes.pdf_hist_netbooks', periodo=periodo, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta) }}"
+           class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm font-semibold">
+            <i class="fas fa-file-pdf mr-1"></i>PDF
+        </a>
+        {% endif %}
     </div>
-    <div class="flex gap-2 ml-4">
-        <a href="?periodo={{ periodo }}&tipo=carros&q={{ busqueda }}"
-           class="px-3 py-1 rounded-full text-sm font-medium
-               {% if tipo == 'carros' %}bg-green-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
-            <i class="fas fa-key mr-1"></i>Carros
-        </a>
-        <a href="?periodo={{ periodo }}&tipo=netbooks&q={{ busqueda }}"
-           class="px-3 py-1 rounded-full text-sm font-medium
-               {% if tipo == 'netbooks' %}bg-blue-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
-            <i class="fas fa-laptop mr-1"></i>Espacio Digital
-        </a>
-    </div>
-    <form class="flex gap-2 ml-auto" method="GET">
-        <input type="hidden" name="periodo" value="{{ periodo }}">
+
+    <form method="GET" class="flex flex-wrap gap-3 items-end pt-3 border-t border-gray-100">
         <input type="hidden" name="tipo" value="{{ tipo }}">
-        <input type="text" name="q" value="{{ busqueda }}"
-               placeholder="Buscar docente..."
-               class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-        <button type="submit" class="bg-blue-900 text-white px-3 py-1 rounded-lg text-sm">
-            <i class="fas fa-search"></i>
+        <input type="hidden" name="periodo" value="custom">
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+            <input type="date" name="fecha_desde" value="{{ fecha_desde }}"
+                   class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}"
+                   class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <button type="submit"
+                class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-1 rounded-lg text-sm font-semibold">
+            <i class="fas fa-filter mr-1"></i>Filtrar por fechas
         </button>
+        {% if fecha_desde or fecha_hasta %}
+        <a href="?tipo={{ tipo }}&periodo=todo" class="text-gray-400 hover:text-gray-600 text-sm">
+            <i class="fas fa-times mr-1"></i>Limpiar
+        </a>
+        {% endif %}
     </form>
+
+    {% if fecha_desde or fecha_hasta %}
+    <div class="mt-2 text-xs text-blue-700 bg-blue-50 rounded px-3 py-1 inline-block">
+        <i class="fas fa-calendar mr-1"></i>
+        Desde {{ fecha_desde or '—' }} hasta {{ fecha_hasta or 'hoy' }}
+    </div>
+    {% endif %}
 </div>
 
-<!-- Tabla -->
 <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-    <div class="px-4 py-3 border-b text-sm text-gray-500">
-        {{ prestamos|length }} registro(s)
-    </div>
+    <div class="px-4 py-3 border-b text-sm text-gray-500">{{ prestamos|length }} registro(s)</div>
     <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
             <tr>
@@ -54,9 +96,9 @@
                 <th class="px-4 py-3 text-center">Netbooks</th>
                 {% endif %}
                 <th class="px-4 py-3 text-left">Retiro</th>
-                <th class="px-4 py-3 text-left">Devolucion</th>
-                <th class="px-4 py-3 text-left">Duracion</th>
-                <th class="px-4 py-3 text-left">Autorizo</th>
+                <th class="px-4 py-3 text-left">Devolución</th>
+                <th class="px-4 py-3 text-left">Duración</th>
+                <th class="px-4 py-3 text-left">Autorizó</th>
                 <th class="px-4 py-3 text-center">Estado</th>
             </tr>
         </thead>
@@ -70,9 +112,9 @@
                 {% else %}
                 <td class="px-4 py-3 text-center">{{ p.items|length }}</td>
                 {% endif %}
-                <td class="px-4 py-3 text-gray-500">{{ p.hora_retiro.strftime('%d/%m %H:%M') }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ p.hora_retiro|arg_datetime }}</td>
                 <td class="px-4 py-3 text-gray-500">
-                    {{ p.hora_devolucion.strftime('%d/%m %H:%M') if p.hora_devolucion else '—' }}
+                    {{ p.hora_devolucion|arg_datetime if p.hora_devolucion else '—' }}
                 </td>
                 <td class="px-4 py-3 text-gray-500">
                     {% if p.hora_devolucion %}
@@ -94,7 +136,7 @@
             {% else %}
             <tr>
                 <td colspan="8" class="px-4 py-8 text-center text-gray-400">
-                    No hay registros para este periodo
+                    No hay registros para este período
                 </td>
             </tr>
             {% endfor %}

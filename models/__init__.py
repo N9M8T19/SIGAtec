@@ -9,27 +9,29 @@ db = SQLAlchemy()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  USUARIO (encargados, directivos, admin)
+#  USUARIO
 # ─────────────────────────────────────────────────────────────────────────────
 
 class Usuario(UserMixin, db.Model):
     __tablename__ = 'usuarios'
 
-    id              = db.Column(db.Integer, primary_key=True)
-    dni             = db.Column(db.String(20), unique=True, nullable=False)
-    nombre          = db.Column(db.String(100), nullable=False)
-    apellido        = db.Column(db.String(100), nullable=False)
-    username        = db.Column(db.String(50), unique=True, nullable=False)
-    password_hash   = db.Column(db.String(255))
+    id                = db.Column(db.Integer, primary_key=True)
+    dni               = db.Column(db.String(20), unique=True, nullable=False)
+    nombre            = db.Column(db.String(100), nullable=False)
+    apellido          = db.Column(db.String(100), nullable=False)
+    username          = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash     = db.Column(db.String(255))
+    correo            = db.Column(db.String(150), unique=True)   # mail de Google para login
     codigo_credencial = db.Column(db.String(20), unique=True)
-    rol             = db.Column(db.String(30), default='Encargado')
-    activo          = db.Column(db.Boolean, default=True)
-    created_at      = db.Column(db.DateTime, default=datetime.utcnow)
+    rol               = db.Column(db.String(30), default='Encargado')
+    activo            = db.Column(db.Boolean, default=True)
+    created_at        = db.Column(db.DateTime, default=datetime.utcnow)
 
     ROLES = ['Encargado', 'Directivo', 'Administrador']
+
     PERMISOS = {
         'Encargado':     ['prestamos'],
-        'Directivo':     ['prestamos', 'estadisticas', 'reportes'],
+        'Directivo':     ['prestamos', 'estadisticas', 'reportes', 'configuracion', 'todo'],
         'Administrador': ['prestamos', 'estadisticas', 'reportes', 'configuracion', 'todo'],
     }
 
@@ -94,7 +96,7 @@ class Carro(db.Model):
     division          = db.Column(db.String(100))
     aula              = db.Column(db.String(100))
     sheet_url         = db.Column(db.String(500))
-    estado            = db.Column(db.String(30), default='activo')  # activo/reparacion/baja
+    estado            = db.Column(db.String(30), default='activo')
     problema          = db.Column(db.Text)
     fecha_reparacion  = db.Column(db.String(50))
 
@@ -120,19 +122,47 @@ class Carro(db.Model):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  ALUMNO
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Alumno(db.Model):
+    __tablename__ = 'alumnos'
+
+    id       = db.Column(db.Integer, primary_key=True)
+    nombre   = db.Column(db.String(100), nullable=False)
+    apellido = db.Column(db.String(100), nullable=False)
+    dni      = db.Column(db.String(20), unique=True, nullable=False)
+    curso    = db.Column(db.String(20), nullable=False)   # ej: "N1G1"
+    turno    = db.Column(db.String(10), nullable=False, default='M')  # 'M' o 'T'
+
+    @property
+    def nombre_completo(self):
+        return f"{self.apellido}, {self.nombre}"
+
+    def __repr__(self):
+        return f'<Alumno {self.apellido} {self.nombre} ({self.curso} {self.turno})>'
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  NETBOOK
 # ─────────────────────────────────────────────────────────────────────────────
 
 class Netbook(db.Model):
     __tablename__ = 'netbooks'
 
-    id             = db.Column(db.Integer, primary_key=True)
-    carro_id       = db.Column(db.Integer, db.ForeignKey('carros.id'), nullable=False)
-    numero_interno = db.Column(db.String(20))
-    numero_serie   = db.Column(db.String(100))
-    alumno         = db.Column(db.String(200))
-    estado         = db.Column(db.String(30), default='operativa')  # operativa/servicio_tecnico
-    problema       = db.Column(db.Text)
+    id                = db.Column(db.Integer, primary_key=True)
+    carro_id          = db.Column(db.Integer, db.ForeignKey('carros.id'), nullable=False)
+    numero_interno    = db.Column(db.String(20))
+    numero_serie      = db.Column(db.String(100))
+    alumno            = db.Column(db.String(200))   # campo legacy
+    alumno_manana_id  = db.Column(db.Integer, db.ForeignKey('alumnos.id'), nullable=True)
+    alumno_tarde_id   = db.Column(db.Integer, db.ForeignKey('alumnos.id'), nullable=True)
+    estado            = db.Column(db.String(30), default='operativa')
+    problema          = db.Column(db.Text)
+    nro_reclamo       = db.Column(db.String(50))   # N° reclamo Mi BA Colaborativa
+
+    alumno_manana = db.relationship('Alumno', foreign_keys=[alumno_manana_id])
+    alumno_tarde  = db.relationship('Alumno', foreign_keys=[alumno_tarde_id])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -162,7 +192,6 @@ class PrestamoCarro(db.Model):
 
     @property
     def tiempo_transcurrido(self):
-        from datetime import timezone
         ahora = datetime.utcnow()
         delta = ahora - self.hora_retiro
         mins  = int(delta.total_seconds() / 60)
@@ -172,7 +201,7 @@ class PrestamoCarro(db.Model):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  PRESTAMO NETBOOK (Espacio Digital)
+#  PRESTAMO NETBOOK
 # ─────────────────────────────────────────────────────────────────────────────
 
 class PrestamoNetbook(db.Model):
@@ -203,22 +232,96 @@ class PrestamoNetbook(db.Model):
 class PrestamoNetbookItem(db.Model):
     __tablename__ = 'prestamo_netbook_items'
 
-    id           = db.Column(db.Integer, primary_key=True)
-    prestamo_id  = db.Column(db.Integer, db.ForeignKey('prestamos_netbooks.id'), nullable=False)
-    netbook_id   = db.Column(db.Integer, db.ForeignKey('netbooks.id'))
+    id             = db.Column(db.Integer, primary_key=True)
+    prestamo_id    = db.Column(db.Integer, db.ForeignKey('prestamos_netbooks.id'), nullable=False)
+    netbook_id     = db.Column(db.Integer, db.ForeignKey('netbooks.id'))
     numero_interno = db.Column(db.String(20))
     numero_serie   = db.Column(db.String(100))
     alumno         = db.Column(db.String(200))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  CARRO ESPACIO DIGITAL (configuración)
+#  CARRO ESPACIO DIGITAL
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ConfigEspacioDigital(db.Model):
     __tablename__ = 'config_espacio_digital'
 
-    id            = db.Column(db.Integer, primary_key=True)
-    carro_id      = db.Column(db.Integer, db.ForeignKey('carros.id'))
-    nombre        = db.Column(db.String(200), default='Carro Espacio Digital')
+    id             = db.Column(db.Integer, primary_key=True)
+    carro_id       = db.Column(db.Integer, db.ForeignKey('carros.id'))
+    nombre         = db.Column(db.String(200), default='Carro Espacio Digital')
     minutos_alerta = db.Column(db.Integer, default=120)
+    carro = db.relationship('Carro', foreign_keys=[carro_id])
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  PANTALLA DIGITAL
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PantallaDigital(db.Model):
+    __tablename__ = 'pantallas_digitales'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    aula           = db.Column(db.String(100), nullable=False)
+    numero_serie   = db.Column(db.String(100), unique=True, nullable=False)
+    marca          = db.Column(db.String(100))
+    modelo         = db.Column(db.String(100))
+    estado         = db.Column(db.String(30), default='operativa')
+    problema       = db.Column(db.Text)
+    fecha_problema = db.Column(db.DateTime)
+    observaciones  = db.Column(db.Text)
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+
+    historial = db.relationship('HistorialPantalla', backref='pantalla',
+                                 lazy=True, cascade='all, delete-orphan',
+                                 order_by='HistorialPantalla.fecha.desc()')
+
+    @property
+    def display(self):
+        return f"Aula {self.aula}"
+
+    @property
+    def estado_badge(self):
+        badges = {
+            'operativa':        ('bg-green-100 text-green-700',   'Operativa'),
+            'servicio_tecnico': ('bg-orange-100 text-orange-700', 'Servicio Técnico'),
+            'baja':             ('bg-red-100 text-red-700',        'Baja'),
+        }
+        return badges.get(self.estado, ('bg-gray-100 text-gray-600', self.estado))
+
+
+class HistorialPantalla(db.Model):
+    __tablename__ = 'historial_pantallas'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    pantalla_id = db.Column(db.Integer, db.ForeignKey('pantallas_digitales.id'), nullable=False)
+    evento      = db.Column(db.String(50))
+    descripcion = db.Column(db.Text)
+    usuario     = db.Column(db.String(200))
+    fecha       = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TICKET BA COLABORATIVA
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TicketBA(db.Model):
+    __tablename__ = 'tickets_ba'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    nro_reclamo    = db.Column(db.String(50), nullable=False)
+    usuario        = db.Column(db.String(200))
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    observaciones  = db.Column(db.Text)
+
+    netbooks = db.relationship('TicketBANetbook', backref='ticket',
+                                lazy=True, cascade='all, delete-orphan')
+
+
+class TicketBANetbook(db.Model):
+    __tablename__ = 'tickets_ba_netbooks'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    ticket_id  = db.Column(db.Integer, db.ForeignKey('tickets_ba.id'), nullable=False)
+    netbook_id = db.Column(db.Integer, db.ForeignKey('netbooks.id'), nullable=True)
+
+    netbook = db.relationship('Netbook', foreign_keys=[netbook_id])

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
-{% block title %}Espacio Digital — SIGA-Tec{% endblock %}
-{% block header %}Espacio Digital{% endblock %}
+{% block title %}ESPACIO DIGITAL — SIGA-Tec{% endblock %}
+{% block header %}ESPACIO DIGITAL{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
@@ -36,7 +36,7 @@
                         {{ p.items|length }}
                     </span>
                 </td>
-                <td class="px-4 py-3">{{ p.hora_retiro.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td class="px-4 py-3">{{ p.hora_retiro|arg_datetime }}</td>
                 <td class="px-4 py-3 {% if mins >= 120 %}text-red-600 font-bold{% endif %}">
                     {{ p.tiempo_transcurrido }}
                     {% if mins >= 120 %}<i class="fas fa-exclamation-triangle ml-1"></i>{% endif %}

@@ -1,46 +1,71 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session
+from flask import Blueprint, render_template, redirect, url_for, flash, session, request
 from flask_login import login_user, logout_user, login_required, current_user
-from models import Usuario
+from flask_dance.contrib.google import make_google_blueprint, google
+from models import db, Usuario
+import os
 
 auth_bp = Blueprint('auth', __name__)
 
+# ── Blueprint de Google OAuth ─────────────────────────────────────────────────
+google_bp = make_google_blueprint(
+    client_id     = os.environ.get('GOOGLE_CLIENT_ID'),
+    client_secret = os.environ.get('GOOGLE_CLIENT_SECRET'),
+    scope         = ['openid', 'https://www.googleapis.com/auth/userinfo.email',
+                     'https://www.googleapis.com/auth/userinfo.profile'],
+    redirect_url  = '/auth/google/callback'
+)
 
-@auth_bp.route('/login', methods=['GET', 'POST'])
+
+@auth_bp.route('/login')
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
-
-    if request.method == 'POST':
-        metodo = request.form.get('metodo', 'password')
-
-        if metodo == 'credencial':
-            codigo = request.form.get('codigo', '').strip().upper()
-            usuario = Usuario.query.filter_by(codigo_credencial=codigo, activo=True).first()
-            if usuario:
-                login_user(usuario, remember=False)
-                flash(f'Bienvenido, {usuario.nombre_completo}!', 'success')
-                return redirect(url_for('main.dashboard'))
-            else:
-                flash('Credencial no reconocida.', 'danger')
-
-        else:  # password
-            username = request.form.get('username', '').strip()
-            password = request.form.get('password', '')
-            usuario  = Usuario.query.filter_by(username=username, activo=True).first()
-            if usuario and usuario.check_password(password):
-                login_user(usuario, remember=request.form.get('remember'))
-                flash(f'Bienvenido, {usuario.nombre_completo}!', 'success')
-                next_page = request.args.get('next')
-                return redirect(next_page or url_for('main.dashboard'))
-            else:
-                flash('Usuario o contrasena incorrectos.', 'danger')
-
     return render_template('auth/login.html')
+
+
+@auth_bp.route('/auth/google/callback')
+def google_callback():
+    if not google.authorized:
+        flash('No se pudo autenticar con Google.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    # Obtener info del usuario de Google
+    resp = google.get('/oauth2/v2/userinfo')
+    if not resp.ok:
+        flash('Error al obtener información de Google.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    info   = resp.json()
+    correo = info.get('email', '').lower().strip()
+
+    # Buscar usuario en el sistema por correo
+    usuario = Usuario.query.filter_by(correo=correo, activo=True).first()
+
+    if not usuario:
+        flash(f'El correo {correo} no tiene acceso al sistema. '
+              f'Contactá al administrador.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    login_user(usuario, remember=True)
+    flash(f'Bienvenido, {usuario.nombre_completo}!', 'success')
+    return redirect(url_for('main.dashboard'))
 
 
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    # Limpiar token de Google
+    if google.authorized:
+        try:
+            token = google_bp.token
+            if token:
+                google.post('/o/oauth2/revoke',
+                            params={'token': token['access_token']},
+                            headers={'Content-Type': 'application/x-www-form-urlencoded'})
+        except Exception:
+            pass
+        del google_bp.token
+
     logout_user()
-    flash('Sesion cerrada correctamente.', 'info')
+    flash('Sesión cerrada correctamente.', 'info')
     return redirect(url_for('auth.login'))

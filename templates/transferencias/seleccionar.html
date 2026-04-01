@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Seleccionar Netbooks — SIGA-Tec{% endblock %}
+{% block header %}Seleccionar Netbooks a Transferir{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm p-6">
+
+        <!-- Resumen de la transferencia -->
+        <div class="flex items-center gap-4 mb-6 bg-gray-50 rounded-xl p-4">
+            <div class="text-center flex-1">
+                <div class="text-xs text-gray-400 mb-1">Origen</div>
+                <div class="font-bold text-red-600 text-lg">{{ carro_origen.display }}</div>
+                <div class="text-xs text-gray-500">{{ carro_origen.aula or 'Sin aula' }}</div>
+            </div>
+            <div class="text-3xl text-gray-400">
+                <i class="fas fa-arrow-right"></i>
+            </div>
+            <div class="text-center flex-1">
+                <div class="text-xs text-gray-400 mb-1">Destino</div>
+                <div class="font-bold text-green-600 text-lg">{{ carro_destino.display }}</div>
+                <div class="text-xs text-gray-500">{{ carro_destino.aula or 'Sin aula' }}</div>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('transferencias.ejecutar') }}">
+            <input type="hidden" name="carro_origen_id" value="{{ carro_origen.id }}">
+            <input type="hidden" name="carro_destino_id" value="{{ carro_destino.id }}">
+
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-sm font-semibold text-gray-700">
+                        Netbooks operativas en {{ carro_origen.display }}
+                    </label>
+                    <button type="button" onclick="seleccionarTodas()"
+                            class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                        Seleccionar todas
+                    </button>
+                </div>
+
+                {% if netbooks %}
+                <div class="border border-gray-200 rounded-lg overflow-hidden max-h-72 overflow-y-auto">
+                    {% for nb in netbooks %}
+                    <label class="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-0">
+                        <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
+                               class="w-4 h-4 text-blue-600 rounded nb-check">
+                        <div>
+                            <span class="font-semibold">N°{{ nb.numero_interno or '—' }}</span>
+                            <span class="font-mono text-xs text-gray-400 ml-2">{{ nb.numero_serie or 'Sin serie' }}</span>
+                            {% if nb.alumno %}
+                            <div class="text-xs text-gray-500">{{ nb.alumno }}</div>
+                            {% endif %}
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-800">
+                    No hay netbooks operativas en {{ carro_origen.display }}.
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-6">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" name="generar_pdf" value="1"
+                           class="w-4 h-4 text-green-600 rounded" checked>
+                    <span class="text-sm font-medium text-gray-700">
+                        <i class="fas fa-file-pdf text-red-500 mr-1"></i>
+                        Generar PDF de informe de transferencia
+                    </span>
+                </label>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="submit"
+                        class="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-lg font-semibold"
+                        onclick="return confirm('¿Confirmás la transferencia de las netbooks seleccionadas?')">
+                    <i class="fas fa-exchange-alt mr-2"></i>Confirmar transferencia
+                </button>
+                <a href="{{ url_for('transferencias.index') }}"
+                   class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function seleccionarTodas() {
+    const checks = document.querySelectorAll('.nb-check');
+    const todas = Array.from(checks).every(c => c.checked);
+    checks.forEach(c => c.checked = !todas);
+}
+</script>
+{% endblock %}

@@ -5,23 +5,49 @@
 {% block content %}
 <div class="max-w-2xl mx-auto">
     <div class="bg-white rounded-xl shadow-sm p-6">
+
+        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6 text-sm text-blue-800">
+            <i class="fas fa-info-circle mr-2"></i>
+            El <strong>correo de Google</strong> es obligatorio para que el usuario pueda iniciar sesión.
+            {% if usuario %}
+            El <strong>nombre de usuario</strong> y el <strong>correo</strong> pueden modificarse desde acá.
+            {% endif %}
+        </div>
+
         <form method="POST">
+
+            {# ── Fila 1: DNI (siempre readonly al editar) + Usuario (editable al editar) ── #}
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">DNI *</label>
                     <input type="text" name="dni" required
                            value="{{ usuario.dni if usuario else '' }}"
-                           {% if usuario %}readonly class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50"
-                           {% else %}class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"{% endif %}>
+                           {% if usuario %}
+                           readonly
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                           {% else %}
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                           {% endif %}>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Usuario *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Usuario *
+                        {% if usuario %}
+                        <span class="text-xs font-normal text-orange-600 ml-1">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>Cambiar con cuidado
+                        </span>
+                        {% endif %}
+                    </label>
                     <input type="text" name="username" required
                            value="{{ usuario.username if usuario else '' }}"
-                           {% if usuario %}readonly class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50"
-                           {% else %}class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"{% endif %}>
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    {% if usuario %}
+                    <p class="text-xs text-gray-400 mt-1">El usuario usa este nombre para identificarse</p>
+                    {% endif %}
                 </div>
             </div>
+
+            {# ── Fila 2: Nombre + Apellido ── #}
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
@@ -36,34 +62,46 @@
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                    <select name="rol"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                        {% for rol in ['Encargado', 'Directivo', 'Administrador'] %}
-                        <option value="{{ rol }}" {% if usuario and usuario.rol == rol %}selected{% endif %}>{{ rol }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Contraseña {{ '(dejar vacio para no cambiar)' if usuario else '*' }}
-                    </label>
-                    <input type="password" name="password" {% if not usuario %}required{% endif %}
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
+
+            {# ── Correo (editable, con advertencia al editar) ── #}
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <i class="fab fa-google text-blue-500 mr-1"></i>Correo de Google *
+                    {% if usuario %}
+                    <span class="text-xs font-normal text-orange-600 ml-1">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Cambiar afecta el acceso al sistema
+                    </span>
+                    {% endif %}
+                </label>
+                <input type="email" name="correo" required
+                       value="{{ usuario.correo if usuario else '' }}"
+                       placeholder="usuario@bue.edu.ar"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                <p class="text-xs text-gray-400 mt-1">
+                    {% if usuario %}
+                    Si cambiás el correo, el usuario deberá ingresar con la nueva cuenta de Google.
+                    {% else %}
+                    Este correo se usa para iniciar sesión con Google.
+                    {% endif %}
+                </p>
             </div>
-            {% if usuario and usuario.codigo_credencial %}
-            <div class="mb-6 bg-gray-50 rounded-lg px-4 py-3">
-                <div class="text-xs text-gray-500">Codigo de credencial (solo lectura)</div>
-                <div class="font-mono font-bold text-lg text-blue-900">{{ usuario.codigo_credencial }}</div>
+
+            {# ── Rol ── #}
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                <select name="rol"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    {% for rol in ['Encargado', 'Directivo', 'Administrador'] %}
+                    <option value="{{ rol }}" {% if usuario and usuario.rol == rol %}selected{% endif %}>{{ rol }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            {% endif %}
+
+            {# ── Botones ── #}
             <div class="flex gap-3">
                 <button type="submit"
                         class="bg-blue-900 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold">
-                    Guardar
+                    <i class="fas fa-save mr-2"></i>Guardar
                 </button>
                 <a href="{{ url_for('usuarios.index') }}"
                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold">

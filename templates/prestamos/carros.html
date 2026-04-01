@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
-{% block title %}Prestamos de Carros — SIGA-Tec{% endblock %}
-{% block header %}Prestamos de Carros{% endblock %}
+{% block title %}PRESTAMOS DE CARROS — SIGA-Tec{% endblock %}
+{% block header %}PRESTAMOS DE CARROS{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
@@ -11,7 +11,6 @@
     </a>
 </div>
 
-<!-- Prestamos activos -->
 {% if prestamos %}
 <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
     <table class="w-full text-sm">
@@ -33,7 +32,7 @@
                 <td class="px-4 py-3 font-mono text-xs">{{ p.codigo }}</td>
                 <td class="px-4 py-3 font-semibold text-blue-900">{{ p.carro.display }}</td>
                 <td class="px-4 py-3">{{ p.docente.nombre_completo }}</td>
-                <td class="px-4 py-3">{{ p.hora_retiro.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td class="px-4 py-3">{{ p.hora_retiro|arg_datetime }}</td>
                 <td class="px-4 py-3 {% if mins >= 120 %}text-red-600 font-bold{% endif %}">
                     {{ p.tiempo_transcurrido }}
                     {% if mins >= 120 %}<i class="fas fa-exclamation-triangle ml-1"></i>{% endif %}
@@ -60,7 +59,6 @@
 </div>
 {% endif %}
 
-<!-- Lista de carros disponibles -->
 <h2 class="text-lg font-bold text-gray-800 mb-3">Estado de Carros</h2>
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
     {% for carro in carros %}
@@ -82,8 +80,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    // Auto-refresh cada 60 segundos
-    setTimeout(() => location.reload(), 60000);
-</script>
+<script>setTimeout(() => location.reload(), 60000);</script>
 {% endblock %}

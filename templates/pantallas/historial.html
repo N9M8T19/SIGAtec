@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Historial — Pantalla Aula {{ pantalla.aula }} — SIGA-Tec{% endblock %}
+{% block header %}Historial — Pantalla Aula {{ pantalla.aula }}{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div class="bg-white rounded-xl shadow-sm px-4 py-3 flex gap-6 text-sm">
+        <div>
+            <span class="text-gray-400">N° Serie:</span>
+            <span class="font-mono font-semibold ml-1">{{ pantalla.numero_serie }}</span>
+        </div>
+        <div>
+            <span class="text-gray-400">Marca:</span>
+            <span class="ml-1">{{ pantalla.marca or '—' }} {{ pantalla.modelo or '' }}</span>
+        </div>
+        <div>
+            {% set badge_class, badge_label = pantalla.estado_badge %}
+            <span class="px-2 py-1 rounded-full text-xs font-semibold {{ badge_class }}">{{ badge_label }}</span>
+        </div>
+    </div>
+    <a href="{{ url_for('pantallas.index') }}"
+       class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
+        <i class="fas fa-arrow-left mr-1"></i>Volver
+    </a>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-blue-900 text-white">
+            <tr>
+                <th class="px-4 py-3 text-left">Fecha</th>
+                <th class="px-4 py-3 text-left">Evento</th>
+                <th class="px-4 py-3 text-left">Descripción</th>
+                <th class="px-4 py-3 text-left">Registrado por</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for h in pantalla.historial %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ h.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td class="px-4 py-3">
+                    {% if h.evento == 'alta' %}
+                    <span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-semibold">Alta</span>
+                    {% elif h.evento == 'servicio_tecnico' %}
+                    <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-semibold">Servicio</span>
+                    {% elif h.evento == 'reparada' %}
+                    <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-semibold">Reparada</span>
+                    {% elif h.evento == 'baja' %}
+                    <span class="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-semibold">Baja</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ h.descripcion or '—' }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ h.usuario }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="px-4 py-8 text-center text-gray-400">Sin historial registrado</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

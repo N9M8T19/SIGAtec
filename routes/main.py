@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
-from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, Usuario
+from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, Usuario, ConfigEspacioDigital
 from datetime import datetime
 
 main_bp = Blueprint('main', __name__)
@@ -55,3 +55,37 @@ def dashboard():
 
     return render_template('main/dashboard.html',
                            stats=stats, alertas=alertas, now=ahora)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CONFIGURACIÓN ESPACIO DIGITAL — asignar carro
+# ─────────────────────────────────────────────────────────────────────────────
+
+@main_bp.route('/configuracion/espacio-digital', methods=['GET', 'POST'])
+@login_required
+def config_espacio_digital():
+    if not current_user.tiene_permiso('configuracion'):
+        flash('Credenciales no válidas.', 'danger')
+        return redirect(url_for('main.dashboard'))
+
+    config = ConfigEspacioDigital.query.first()
+    carros = Carro.query.filter(Carro.estado != 'baja').order_by(Carro.numero_fisico).all()
+
+    if request.method == 'POST':
+        carro_id       = request.form.get('carro_id', type=int)
+        nombre         = request.form.get('nombre', 'Carro Espacio Digital').strip()
+        minutos_alerta = request.form.get('minutos_alerta', 120, type=int)
+
+        if not config:
+            config = ConfigEspacioDigital()
+            db.session.add(config)
+
+        config.carro_id       = carro_id
+        config.nombre         = nombre
+        config.minutos_alerta = minutos_alerta
+        db.session.commit()
+        flash('Configuración del Espacio Digital actualizada.', 'success')
+        return redirect(url_for('prestamos.espacio_digital'))
+
+    return render_template('main/config_espacio_digital.html',
+                           config=config, carros=carros)

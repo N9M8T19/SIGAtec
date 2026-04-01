@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Control de Stock — SIGA-Tec{% endblock %}
+{% block header %}Control de Stock{% endblock %}
+
+{% block content %}
+
+<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
+    <i class="fas fa-info-circle mr-2"></i>
+    Seleccioná un carro para iniciar el relevamiento físico. Vas a poder escanear o escribir
+    los números de serie de las netbooks que tenés físicamente. El sistema compara contra el inventario registrado.
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    {% for carro in carros %}
+    <a href="{{ url_for('stock.relevar', carro_id=carro.id) }}"
+       class="bg-white rounded-xl shadow-sm p-5 hover:shadow-md hover:border-blue-300 border-2 border-transparent transition-all">
+        <div class="text-2xl font-bold text-blue-900 mb-1">{{ carro.display }}</div>
+        <div class="text-xs text-gray-500 mb-3">{{ carro.aula or 'Sin aula' }} | {{ carro.division or '—' }}</div>
+        <div class="flex gap-3 text-xs">
+            <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
+                {{ carro.operativas }} op.
+            </span>
+            {% if carro.en_servicio > 0 %}
+            <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold">
+                {{ carro.en_servicio }} serv.
+            </span>
+            {% endif %}
+        </div>
+        <div class="mt-3 text-xs text-blue-600 font-semibold">
+            <i class="fas fa-clipboard-check mr-1"></i>Iniciar relevamiento →
+        </div>
+    </a>
+    {% else %}
+    <div class="col-span-4 text-center text-gray-400 py-8">
+        No hay carros registrados
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

@@ -1,10 +1,60 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from models import db, Carro, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, Netbook, ConfigEspacioDigital
-from datetime import datetime
+from datetime import datetime, timedelta
 import random, string
 
 prestamos_bp = Blueprint('prestamos', __name__, url_prefix='/prestamos')
+
+# Mapeo de hora actual a turno
+TURNO_MANANA = 'Manana'
+TURNO_TARDE  = 'Tarde'
+TURNO_NOCHE  = 'Noche'
+
+def _turno_actual():
+    """Retorna el turno según la hora actual."""
+    hora = datetime.now().hour
+    if 7 <= hora < 13:
+        return TURNO_MANANA
+    elif 13 <= hora < 18:
+        return TURNO_TARDE
+    else:
+        return TURNO_NOCHE
+
+
+def _docente_puede_pedir(docente):
+    """
+    Verifica si el docente puede pedir en el turno actual.
+    Retorna (puede, mensaje)
+    """
+    if not docente.turno:
+        return True, ''
+
+    turno_actual = _turno_actual()
+    turno_doc    = docente.turno.strip()
+
+    # Turnos que abarcan múltiples
+    if 'y' in turno_doc.lower() or turno_doc.lower() == 'varios':
+        return True, ''
+
+    # Turno único — verificar coincidencia
+    turnos_validos = {
+        TURNO_MANANA: ['manana', 'mañana', 'morning'],
+        TURNO_TARDE:  ['tarde', 'afternoon'],
+        TURNO_NOCHE:  ['noche', 'night', 'vespertino'],
+    }
+
+    turno_doc_lower = turno_doc.lower()
+    for turno, palabras in turnos_validos.items():
+        if any(p in turno_doc_lower for p in palabras):
+            if turno == turno_actual:
+                return True, ''
+            else:
+                return False, (f'{docente.nombre_completo} es docente del turno '
+                               f'{turno_doc} y actualmente es turno {turno_actual}. '
+                               f'No se puede registrar el préstamo.')
+
+    return True, ''
 
 
 def _gen_codigo(prefijo='P'):
@@ -42,10 +92,16 @@ def retiro_carro():
         carro   = Carro.query.get_or_404(carro_id)
         docente = Docente.query.get_or_404(docente_id)
 
+        # Verificar turno
+        puede, msg = _docente_puede_pedir(docente)
+        if not puede:
+            flash(msg, 'danger')
+            return redirect(url_for('prestamos.retiro_carro'))
+
         # Verificar que no esté prestado
         activo = PrestamoCarro.query.filter_by(carro_id=carro_id, estado='activo').first()
         if activo:
-            flash(f'El carro {carro.display} ya esta prestado.', 'danger')
+            flash(f'El carro {carro.display} ya está prestado.', 'danger')
             return redirect(url_for('prestamos.retiro_carro'))
 
         prestamo = PrestamoCarro(
@@ -58,7 +114,6 @@ def retiro_carro():
         db.session.add(prestamo)
         db.session.commit()
 
-        # Notificar retiro por mail
         try:
             from services.mail import enviar_notificacion_retiro_carro
             enviar_notificacion_retiro_carro(prestamo)
@@ -83,7 +138,6 @@ def devolucion_carro(id):
     prestamo.encargado_devolucion = current_user.nombre_completo
     db.session.commit()
 
-    # Notificar devolución por mail
     try:
         from services.mail import enviar_notificacion_devolucion_carro
         enviar_notificacion_devolucion_carro(prestamo)
@@ -116,7 +170,7 @@ def retiro_netbooks():
     carro  = config.carro if config else None
 
     if not carro:
-        flash('El carro del Espacio Digital no esta configurado.', 'danger')
+        flash('El carro del Espacio Digital no está configurado.', 'danger')
         return redirect(url_for('prestamos.espacio_digital'))
 
     if request.method == 'POST':
@@ -124,10 +178,17 @@ def retiro_netbooks():
         netbook_ids = request.form.getlist('netbook_ids')
 
         if not docente_id or not netbook_ids:
-            flash('Selecciona un docente y al menos una netbook.', 'danger')
+            flash('Seleccioná un docente y al menos una netbook.', 'danger')
             return redirect(url_for('prestamos.retiro_netbooks'))
 
-        docente  = Docente.query.get_or_404(docente_id)
+        docente = Docente.query.get_or_404(docente_id)
+
+        # Verificar turno
+        puede, msg = _docente_puede_pedir(docente)
+        if not puede:
+            flash(msg, 'danger')
+            return redirect(url_for('prestamos.retiro_netbooks'))
+
         prestamo = PrestamoNetbook(
             codigo           = _gen_codigo('NB'),
             docente_id       = docente.id,
@@ -149,7 +210,6 @@ def retiro_netbooks():
 
         db.session.commit()
 
-        # Notificar retiro por mail
         try:
             from services.mail import enviar_notificacion_retiro_netbook
             enviar_notificacion_retiro_netbook(prestamo)
@@ -159,7 +219,6 @@ def retiro_netbooks():
         flash(f'Prestamo registrado: {docente.nombre_completo} — {len(netbook_ids)} netbook(s)', 'success')
         return redirect(url_for('prestamos.espacio_digital'))
 
-    # Netbooks disponibles del carro
     prestadas_ids = {item.netbook_id for p in PrestamoNetbook.query.filter_by(estado='activo').all()
                      for item in p.items}
     disponibles   = [nb for nb in carro.netbooks
@@ -179,7 +238,6 @@ def devolucion_netbooks(id):
     prestamo.encargado_devolucion = current_user.nombre_completo
     db.session.commit()
 
-    # Notificar devolución por mail
     try:
         from services.mail import enviar_notificacion_devolucion_netbook
         enviar_notificacion_devolucion_netbook(prestamo)
@@ -191,27 +249,46 @@ def devolucion_netbooks(id):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  HISTORIAL
+#  HISTORIAL CON FECHAS PERSONALIZADAS
 # ─────────────────────────────────────────────────────────────────────────────
 
 @prestamos_bp.route('/historial')
 @login_required
 def historial():
-    periodo  = request.args.get('periodo', 'hoy')
-    busqueda = request.args.get('q', '').strip()
-    tipo     = request.args.get('tipo', 'carros')
+    periodo     = request.args.get('periodo', 'hoy')
+    busqueda    = request.args.get('q', '').strip()
+    tipo        = request.args.get('tipo', 'carros')
+    fecha_desde = request.args.get('fecha_desde', '').strip()
+    fecha_hasta = request.args.get('fecha_hasta', '').strip()
 
-    from datetime import timedelta
     ahora = datetime.utcnow()
+
+    def _aplicar_filtro_fecha(query, campo_fecha):
+        if fecha_desde and fecha_hasta:
+            try:
+                d_desde = datetime.strptime(fecha_desde, '%Y-%m-%d')
+                d_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                return query.filter(campo_fecha >= d_desde, campo_fecha <= d_hasta)
+            except ValueError:
+                pass
+        elif fecha_desde:
+            try:
+                d_desde = datetime.strptime(fecha_desde, '%Y-%m-%d')
+                return query.filter(campo_fecha >= d_desde)
+            except ValueError:
+                pass
+        else:
+            if periodo == 'hoy':
+                return query.filter(campo_fecha >= ahora.replace(hour=0, minute=0, second=0))
+            elif periodo == 'semana':
+                return query.filter(campo_fecha >= ahora - timedelta(days=7))
+            elif periodo == 'mes':
+                return query.filter(campo_fecha >= ahora - timedelta(days=30))
+        return query
 
     if tipo == 'carros':
         query = PrestamoCarro.query
-        if periodo == 'hoy':
-            query = query.filter(PrestamoCarro.hora_retiro >= ahora.replace(hour=0, minute=0))
-        elif periodo == 'semana':
-            query = query.filter(PrestamoCarro.hora_retiro >= ahora - timedelta(days=7))
-        elif periodo == 'mes':
-            query = query.filter(PrestamoCarro.hora_retiro >= ahora - timedelta(days=30))
+        query = _aplicar_filtro_fecha(query, PrestamoCarro.hora_retiro)
         if busqueda:
             query = query.join(Docente).filter(
                 db.or_(Docente.apellido.ilike(f'%{busqueda}%'),
@@ -220,12 +297,7 @@ def historial():
         prestamos = query.order_by(PrestamoCarro.hora_retiro.desc()).all()
     else:
         query = PrestamoNetbook.query
-        if periodo == 'hoy':
-            query = query.filter(PrestamoNetbook.hora_retiro >= ahora.replace(hour=0, minute=0))
-        elif periodo == 'semana':
-            query = query.filter(PrestamoNetbook.hora_retiro >= ahora - timedelta(days=7))
-        elif periodo == 'mes':
-            query = query.filter(PrestamoNetbook.hora_retiro >= ahora - timedelta(days=30))
+        query = _aplicar_filtro_fecha(query, PrestamoNetbook.hora_retiro)
         if busqueda:
             query = query.join(Docente).filter(
                 db.or_(Docente.apellido.ilike(f'%{busqueda}%'),
@@ -234,4 +306,5 @@ def historial():
 
     return render_template('prestamos/historial.html',
                            prestamos=prestamos, periodo=periodo,
-                           busqueda=busqueda, tipo=tipo)
+                           busqueda=busqueda, tipo=tipo,
+                           fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)

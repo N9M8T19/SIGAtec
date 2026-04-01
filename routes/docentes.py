@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from models import db, Docente
+from models_extra.horarios_notificaciones import MATERIAS
 
 docentes_bp = Blueprint('docentes', __name__, url_prefix='/docentes')
 
-TURNOS = ['Manana', 'Tarde', 'Noche', 'Manana y Tarde', 'Tarde y Noche', 'Varios']
+TURNOS = ['Mañana', 'Tarde', 'Noche', 'Mañana y Tarde', 'Tarde y Noche', 'Varios']
 
 
 @docentes_bp.route('/')
@@ -53,7 +54,8 @@ def nuevo():
         flash(f'Docente {docente.nombre_completo} agregado.', 'success')
         return redirect(url_for('docentes.index'))
 
-    return render_template('docentes/form.html', docente=None, turnos=TURNOS)
+    return render_template('docentes/form.html',
+                           docente=None, turnos=TURNOS, materias=MATERIAS)
 
 
 @docentes_bp.route('/<int:id>/editar', methods=['GET', 'POST'])
@@ -71,7 +73,8 @@ def editar(id):
         flash(f'Docente {docente.nombre_completo} actualizado.', 'success')
         return redirect(url_for('docentes.index'))
 
-    return render_template('docentes/form.html', docente=docente, turnos=TURNOS)
+    return render_template('docentes/form.html',
+                           docente=docente, turnos=TURNOS, materias=MATERIAS)
 
 
 @docentes_bp.route('/<int:id>/baja', methods=['POST'])
@@ -103,7 +106,7 @@ def reactivar(id):
 @docentes_bp.route('/buscar')
 @login_required
 def buscar_api():
-    """API para busqueda en tiempo real (AJAX)"""
+    """API para búsqueda en tiempo real (AJAX)"""
     from flask import jsonify
     q = request.args.get('q', '').strip()
     docentes = Docente.query.filter(
@@ -114,9 +117,9 @@ def buscar_api():
     ).order_by(Docente.apellido).limit(10).all()
 
     return jsonify([{
-        'id':       d.id,
-        'nombre':   d.nombre_completo,
-        'dni':      d.dni,
-        'materia':  d.materia or '',
-        'turno':    d.turno or ''
+        'id':      d.id,
+        'nombre':  d.nombre_completo,
+        'dni':     d.dni,
+        'materia': d.materia or '',
+        'turno':   d.turno or ''
     } for d in docentes])

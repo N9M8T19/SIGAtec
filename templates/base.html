@@ -7,113 +7,232 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        .sidebar-link.active { background-color: #1e40af; }
-        .sidebar-link:hover  { background-color: #1d4ed8; }
+        :root {
+            --azul-oscuro:  #1a2a6c;   /* fondo escudo          */
+            --azul-medio:   #2557a7;   /* interior escudo       */
+            --azul-hover:   #1e4d9a;   /* hover sidebar         */
+            --naranja:      #e8821a;   /* llama / acento        */
+            --naranja-claro:#f5a24b;   /* acento suave          */
+        }
+
+        body { background-color: #f0f4f8; }
+
+        /* ── Sidebar ───────────────────────────────────────────────── */
+        .sidebar        { background-color: var(--azul-oscuro); }
+        .sidebar-link   { transition: background .15s; }
+        .sidebar-link:hover  { background-color: var(--azul-hover); }
+        .sidebar-link.active { background-color: var(--azul-medio); border-left: 3px solid var(--naranja); }
+
+        .sidebar-section {
+            color: var(--naranja-claro);
+            font-size: .65rem;
+            letter-spacing: .08em;
+        }
+
+        /* ── Header principal ──────────────────────────────────────── */
+        .main-header {
+            background: linear-gradient(90deg, var(--azul-oscuro) 0%, var(--azul-medio) 100%);
+            border-bottom: 3px solid var(--naranja);
+        }
+        .main-header h1 {
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+        .main-header .reloj {
+            color: rgba(255,255,255,.75);
+            font-size: .8rem;
+        }
+
+        /* ── Logo / cabecera sidebar ───────────────────────────────── */
+        .sidebar-brand {
+            border-bottom: 1px solid rgba(255,255,255,.12);
+            background: rgba(0,0,0,.15);
+        }
+        .brand-title   { font-weight: 800; font-size: .95rem; color: #fff; letter-spacing:.03em; }
+        .brand-subtitle{ font-size: .7rem; color: var(--naranja-claro); }
+
+        /* ── Llama decorativa pequeña en el brand ──────────────────── */
+        .flame-icon { color: var(--naranja); font-size: 1.4rem; }
+
+        /* ── Badge de rol ──────────────────────────────────────────── */
+        .badge-admin    { background: #c0392b; }
+        .badge-directivo{ background: #7b2fa8; }
+        .badge-encargado{ background: var(--azul-medio); }
+
+        /* ── Scrollbar sidebar ─────────────────────────────────────── */
+        nav::-webkit-scrollbar       { width: 4px; }
+        nav::-webkit-scrollbar-track { background: transparent; }
+        nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius:2px; }
     </style>
 </head>
-<body class="bg-gray-100 font-sans">
+<body class="font-sans">
 
 {% if current_user.is_authenticated %}
 <div class="flex h-screen overflow-hidden">
 
-    <aside class="w-64 bg-blue-900 text-white flex flex-col flex-shrink-0">
-        <div class="p-4 border-b border-blue-800 flex items-center gap-3">
+    {# ══════════════════════════════════════════════════════════════
+       SIDEBAR
+    ══════════════════════════════════════════════════════════════ #}
+    <aside class="sidebar w-64 text-white flex flex-col flex-shrink-0">
+
+        {# Brand #}
+        <div class="sidebar-brand p-4 flex items-center gap-3">
+            <i class="fas fa-fire flame-icon"></i>
             <div>
-                <div class="font-bold text-sm">SIGA-Tec</div>
-                <div class="text-xs text-blue-300">E.T. N7 D.E. 5</div>
+                <div class="brand-title">SIGA-Tec</div>
+                <div class="brand-subtitle">E.T. N°7 D.E. 5 — Lavalle</div>
             </div>
         </div>
 
-        <div class="p-4 border-b border-blue-800">
-            <div class="text-xs text-blue-300">Sesion activa</div>
-            <div class="font-semibold text-sm truncate">{{ current_user.nombre_completo }}</div>
-            <span class="text-xs px-2 py-0.5 rounded-full mt-1 inline-block
-                {% if current_user.rol == 'Administrador' %}bg-red-600
-                {% elif current_user.rol == 'Directivo' %}bg-purple-600
-                {% else %}bg-blue-600{% endif %}">
+        {# Usuario activo #}
+        <div class="p-4 border-b border-white/10">
+            <div class="text-xs" style="color:rgba(255,255,255,.5)">Sesión activa</div>
+            <div class="font-semibold text-sm truncate mt-0.5">{{ current_user.nombre_completo }}</div>
+            <span class="text-xs px-2 py-0.5 rounded-full mt-1 inline-block font-medium
+                {% if current_user.rol == 'Administrador' %}badge-admin
+                {% elif current_user.rol == 'Directivo' %}badge-directivo
+                {% else %}badge-encargado{% endif %}">
                 {{ current_user.rol }}
             </span>
         </div>
 
-        <nav class="flex-1 overflow-y-auto p-2 space-y-1">
+        {# Navegación #}
+        <nav class="flex-1 overflow-y-auto p-2 space-y-0.5">
+
             <a href="{{ url_for('main.dashboard') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
                 <i class="fas fa-tachometer-alt w-5"></i> Dashboard
             </a>
 
-            <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Inventario</div>
+            <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Inventario</p>
             <a href="{{ url_for('carros.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'carros' in request.endpoint %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'carros' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-box w-5"></i> Carros
             </a>
             <a href="{{ url_for('netbooks.servicio_tecnico') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'netbooks.servicio_tecnico' %}active{% endif %}">
-                <i class="fas fa-laptop w-5"></i> Servicio Tecnico
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'netbooks.servicio_tecnico' %}active{% endif %}">
+                <i class="fas fa-laptop w-5"></i> Servicio Técnico
             </a>
+            <a href="{{ url_for('tickets_ba.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'tickets_ba' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-ticket-alt w-5"></i> Tickets BA Colaborativa
+            </a>
+            <a href="{{ url_for('pantallas.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'pantallas' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-tv w-5"></i> Pantallas Digitales
+            </a>
+            <a href="{{ url_for('stock.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'stock' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-clipboard-check w-5"></i> Control de Stock
+            </a>
+            {% if current_user.tiene_permiso('configuracion') %}
+            <a href="{{ url_for('transferencias.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'transferencias' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-exchange-alt w-5"></i> Transferir Netbooks
+            </a>
+            {% endif %}
 
-            <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Prestamos</div>
+            <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Préstamos</p>
             <a href="{{ url_for('prestamos.carros') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.carros' %}active{% endif %}">
-                <i class="fas fa-key w-5"></i> Prestamos Carros
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'prestamos.carros' %}active{% endif %}">
+                <i class="fas fa-key w-5"></i> Préstamos Carros
             </a>
             <a href="{{ url_for('prestamos.espacio_digital') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.espacio_digital' %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'prestamos.espacio_digital' %}active{% endif %}">
                 <i class="fas fa-desktop w-5"></i> Espacio Digital
             </a>
             <a href="{{ url_for('prestamos.historial') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.historial' %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'prestamos.historial' %}active{% endif %}">
                 <i class="fas fa-history w-5"></i> Historial
             </a>
 
-            <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Personas</div>
+            <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Personas</p>
             <a href="{{ url_for('docentes.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'docentes' in request.endpoint %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'docentes' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-chalkboard-teacher w-5"></i> Docentes
             </a>
             {% if current_user.tiene_permiso('estadisticas') %}
             <a href="{{ url_for('usuarios.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'usuarios' in request.endpoint %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'usuarios' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-users w-5"></i> Usuarios
             </a>
             {% endif %}
 
             {% if current_user.tiene_permiso('reportes') %}
-            <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Reportes</div>
+            <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Reportes</p>
             <a href="{{ url_for('reportes.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'reportes.index' %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'reportes.index' %}active{% endif %}">
                 <i class="fas fa-chart-bar w-5"></i> Reportes
             </a>
             <a href="{{ url_for('reportes.estadisticas') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'reportes.estadisticas' %}active{% endif %}">
-                <i class="fas fa-chart-pie w-5"></i> Estadisticas
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'reportes.estadisticas' %}active{% endif %}">
+                <i class="fas fa-chart-pie w-5"></i> Estadísticas
             </a>
             {% endif %}
 
             {% if current_user.tiene_permiso('configuracion') %}
-            <div class="pt-2 pb-1 px-3 text-xs text-blue-400 uppercase tracking-wide">Sistema</div>
+            <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Sistema</p>
+            <a href="{{ url_for('main.config_espacio_digital') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'main.config_espacio_digital' %}active{% endif %}">
+                <i class="fas fa-cog w-5"></i> Config. Espacio Digital
+            </a>
+            <a href="{{ url_for('importar.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'importar' in request.endpoint %}active{% endif %}">
+                <i class="fab fa-google-drive w-5"></i> Importar Drive
+            </a>
             <a href="{{ url_for('notificaciones.index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'notificaciones' in request.endpoint %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'notificaciones' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-bell w-5"></i> Notificaciones
             </a>
             <a href="{{ url_for('notificaciones.backup_index') }}"
-               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'notificaciones.backup_index' %}active{% endif %}">
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'notificaciones.backup_index' %}active{% endif %}">
                 <i class="fas fa-database w-5"></i> Backups
             </a>
             {% endif %}
         </nav>
 
-        <div class="p-3 border-t border-blue-800">
+        {# Pie del sidebar #}
+        <div class="p-3 border-t border-white/10 space-y-0.5">
+            <a href="{{ url_for('usuarios.mi_perfil') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-blue-200">
+                <i class="fas fa-user-cog w-5"></i> Mi Perfil
+            </a>
             <a href="{{ url_for('auth.logout') }}"
-               class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-blue-800 text-red-300">
-                <i class="fas fa-sign-out-alt w-5"></i> Cerrar sesion
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-300">
+                <i class="fas fa-sign-out-alt w-5"></i> Cerrar Sesión
             </a>
         </div>
     </aside>
 
+    {# ══════════════════════════════════════════════════════════════
+       CONTENIDO PRINCIPAL
+    ══════════════════════════════════════════════════════════════ #}
     <main class="flex-1 overflow-y-auto">
-        <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
-            <h1 class="text-xl font-bold text-gray-800">{% block header %}{% endblock %}</h1>
-            <div class="text-sm text-gray-500">
+
+        <header class="main-header px-6 py-4 flex items-center justify-between">
+            <h1>{% block header %}{% endblock %}</h1>
+            <div class="reloj">
                 <i class="fas fa-clock mr-1"></i>
                 <span id="reloj"></span>
             </div>
@@ -125,7 +244,7 @@
             {% for cat, msg in messages %}
             <div class="mb-3 px-4 py-3 rounded-lg text-sm font-medium
                 {% if cat == 'success' %}bg-green-100 text-green-800 border border-green-200
-                {% elif cat == 'danger' %}bg-red-100 text-red-800 border border-red-200
+                {% elif cat == 'danger'  %}bg-red-100   text-red-800   border border-red-200
                 {% elif cat == 'warning' %}bg-yellow-100 text-yellow-800 border border-yellow-200
                 {% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">
                 {{ msg }}

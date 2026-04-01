@@ -20,8 +20,8 @@
                 <th class="px-4 py-3 text-left">Nombre</th>
                 <th class="px-4 py-3 text-left">Usuario</th>
                 <th class="px-4 py-3 text-left">DNI</th>
+                <th class="px-4 py-3 text-left">Correo Google</th>
                 <th class="px-4 py-3 text-left">Rol</th>
-                <th class="px-4 py-3 text-left">Cod. Credencial</th>
                 <th class="px-4 py-3 text-center">Estado</th>
                 <th class="px-4 py-3 text-center">Acciones</th>
             </tr>
@@ -32,6 +32,13 @@
                 <td class="px-4 py-3 font-medium">{{ u.nombre_completo }}</td>
                 <td class="px-4 py-3 font-mono text-xs">{{ u.username }}</td>
                 <td class="px-4 py-3 font-mono text-xs">{{ u.dni }}</td>
+                <td class="px-4 py-3 text-xs text-gray-500">
+                    {% if u.correo %}
+                    <i class="fab fa-google text-blue-500 mr-1"></i>{{ u.correo }}
+                    {% else %}
+                    <span class="text-red-400"><i class="fas fa-exclamation-circle mr-1"></i>Sin correo</span>
+                    {% endif %}
+                </td>
                 <td class="px-4 py-3">
                     <span class="px-2 py-1 rounded-full text-xs font-semibold
                         {% if u.rol == 'Administrador' %}bg-red-100 text-red-700
@@ -40,7 +47,6 @@
                         {{ u.rol }}
                     </span>
                 </td>
-                <td class="px-4 py-3 font-mono text-xs">{{ u.codigo_credencial or '—' }}</td>
                 <td class="px-4 py-3 text-center">
                     <span class="px-2 py-1 rounded-full text-xs font-semibold
                         {% if u.activo %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">

@@ -3,8 +3,22 @@
 {% block header %}Netbooks en Servicio Tecnico{% endblock %}
 
 {% block content %}
-<div class="mb-4">
+<div class="flex justify-between items-center mb-4">
     <span class="text-orange-600 font-semibold">{{ netbooks|length }} netbook(s) en servicio</span>
+    <a href="{{ url_for('reportes.pdf_servicio') }}"
+       class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        <i class="fas fa-file-pdf mr-2"></i>Descargar PDF
+    </a>
+</div>
+
+<!-- Buscador -->
+<div class="mb-4">
+    <div class="relative">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        <input type="text" id="buscadorServicio"
+               placeholder="Buscar por N° interno, N° serie o carro..."
+               class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+    </div>
 </div>
 
 <div class="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -15,23 +29,23 @@
                 <th class="px-4 py-3 text-left">Aula</th>
                 <th class="px-4 py-3 text-left">N° Interno</th>
                 <th class="px-4 py-3 text-left">N° Serie</th>
-                <th class="px-4 py-3 text-left">Alumno</th>
                 <th class="px-4 py-3 text-left">Problema</th>
                 <th class="px-4 py-3 text-center">Acciones</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-100" id="tablaServicio">
             {% for nb in netbooks %}
-            <tr class="hover:bg-orange-50">
-                <td class="px-4 py-3 font-semibold">{{ nb.carro.display }}</td>
+            <tr class="hover:bg-orange-50 fila-servicio"
+                data-buscar="{{ nb.numero_interno or '' }} {{ nb.numero_serie or '' }} {{ nb.carro.display if nb.carro else '' }} {{ nb.carro.numero_fisico if nb.carro else '' }}">
+                <td class="px-4 py-3 font-semibold">{{ nb.carro.display if nb.carro else '—' }}</td>
                 <td class="px-4 py-3">{{ nb.carro.aula or '—' }}</td>
-                <td class="px-4 py-3">{{ nb.numero_interno or '—' }}</td>
+                <td class="px-4 py-3 font-semibold">{{ nb.numero_interno or '—' }}</td>
                 <td class="px-4 py-3 font-mono text-xs">{{ nb.numero_serie or 'Sin serie' }}</td>
-                <td class="px-4 py-3">{{ nb.alumno or '—' }}</td>
                 <td class="px-4 py-3 text-gray-500 text-xs">{{ nb.problema or '—' }}</td>
                 <td class="px-4 py-3 text-center">
                     <form method="POST" action="{{ url_for('netbooks.marcar_reparada', id=nb.id) }}"
-                          onsubmit="return confirm('Marcar como operativa?')">
+                          onsubmit="return confirm('¿Marcar como operativa?')">
+                        <input type="hidden" name="origen" value="servicio_tecnico">
                         <button type="submit"
                                 class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-semibold">
                             <i class="fas fa-check mr-1"></i>Reparada
@@ -41,7 +55,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" class="px-4 py-8 text-center text-gray-400">
+                <td colspan="6" class="px-4 py-8 text-center text-gray-400">
                     No hay netbooks en servicio tecnico
                 </td>
             </tr>
@@ -49,4 +63,14 @@
         </tbody>
     </table>
 </div>
+
+<script>
+document.getElementById('buscadorServicio').addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    document.querySelectorAll('.fila-servicio').forEach(fila => {
+        const texto = fila.getAttribute('data-buscar').toLowerCase();
+        fila.style.display = (!q || texto.includes(q)) ? '' : 'none';
+    });
+});
+</script>
 {% endblock %}

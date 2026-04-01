@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Resultado de importación — SIGA-Tec{% endblock %}
+{% block header %}Resultado de la importación{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+    {% set total_importados = resultados | sum(attribute='importados') %}
+    {% set total_actualizados = resultados | sum(attribute='actualizados') %}
+    {% set total_errores = resultados | map(attribute='errores') | sum(start=[]) | list %}
+
+    <!-- Resumen -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-green-700">{{ total_importados }}</div>
+            <div class="text-xs text-green-600 mt-1">Nuevos agregados</div>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-blue-700">{{ total_actualizados }}</div>
+            <div class="text-xs text-blue-600 mt-1">Actualizados</div>
+        </div>
+        <div class="bg-{% if total_errores %}red{% else %}gray{% endif %}-50 border border-{% if total_errores %}red{% else %}gray{% endif %}-200 rounded-xl p-4 text-center">
+            <div class="text-3xl font-bold text-{% if total_errores %}red{% else %}gray{% endif %}-700">{{ total_errores|length }}</div>
+            <div class="text-xs text-{% if total_errores %}red{% else %}gray{% endif %}-600 mt-1">Errores</div>
+        </div>
+    </div>
+
+    <!-- Detalle por pestaña -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+        <div class="bg-gray-50 px-4 py-3 border-b font-semibold text-sm text-gray-700">
+            Detalle por pestaña
+        </div>
+        {% for r in resultados %}
+        <div class="px-4 py-3 border-b last:border-0">
+            <div class="flex items-center justify-between">
+                <div class="font-medium text-gray-800">
+                    <i class="fas fa-table text-gray-400 mr-2"></i>{{ r.hoja }}
+                    {% if r.carro is defined and r.carro %}
+                    <span class="text-xs text-gray-400 ml-2">— Carro #{{ r.carro }}</span>
+                    {% endif %}
+                </div>
+                <div class="flex gap-3 text-xs">
+                    <span class="text-green-600 font-semibold">+{{ r.importados }} nuevos</span>
+                    <span class="text-blue-600 font-semibold">↻{{ r.actualizados }} actualizados</span>
+                    {% if r.errores %}
+                    <span class="text-red-600 font-semibold">⚠ {{ r.errores|length }} errores</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if r.errores %}
+            <div class="mt-2 space-y-1">
+                {% for err in r.errores %}
+                <div class="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">{{ err }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="flex gap-3">
+        <a href="{{ url_for('importar.index') }}"
+           class="bg-blue-900 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold">
+            <i class="fas fa-arrow-left mr-2"></i>Importar más
+        </a>
+        {% if tipo == 'carros' %}
+        <a href="{{ url_for('carros.index') }}"
+           class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold">
+            Ver carros
+        </a>
+        {% elif tipo == 'docentes' %}
+        <a href="{{ url_for('docentes.index') }}"
+           class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold">
+            Ver docentes
+        </a>
+        {% elif tipo == 'pantallas' %}
+        <a href="{{ url_for('pantallas.index') }}"
+           class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold">
+            Ver pantallas
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

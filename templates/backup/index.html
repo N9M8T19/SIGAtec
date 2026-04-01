@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Backups — SIGA-Tec{% endblock %}
+{% block header %}Copias de Seguridad{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div class="text-sm text-gray-500">
+        <i class="fas fa-database mr-1"></i>
+        {{ backups|length }} backup(s) almacenados | Se generan automáticamente cada 24hs
+    </div>
+    <a href="{{ url_for('notificaciones.backup_descargar') }}"
+       class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        <i class="fas fa-download mr-2"></i>Generar y Descargar Backup Ahora
+    </a>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-green-700 text-white">
+            <tr>
+                <th class="px-4 py-3 text-left">Archivo</th>
+                <th class="px-4 py-3 text-left">Fecha</th>
+                <th class="px-4 py-3 text-right">Tamaño</th>
+                <th class="px-4 py-3 text-center">Descargar</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for b in backups %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ b.nombre }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ b.fecha }}</td>
+                <td class="px-4 py-3 text-right text-gray-500">{{ b.size_kb }} KB</td>
+                <td class="px-4 py-3 text-center">
+                    <a href="{{ url_for('notificaciones.backup_descargar_archivo', nombre=b.nombre) }}"
+                       class="text-green-700 hover:text-green-900 font-semibold text-xs">
+                        <i class="fas fa-download mr-1"></i>Descargar
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="px-4 py-8 text-center text-gray-400">
+                    No hay backups generados todavía.<br>
+                    <a href="{{ url_for('notificaciones.backup_descargar') }}"
+                       class="text-green-700 font-semibold">Generá el primero ahora</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
+    <i class="fas fa-info-circle mr-2"></i>
+    Los backups se guardan en la carpeta <strong>backups/</strong> del servidor.
+    Se conservan los últimos 30 backups automáticamente.
+    <strong>Solo disponible con SQLite.</strong>
+</div>
+{% endblock %}
