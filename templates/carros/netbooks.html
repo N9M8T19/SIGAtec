@@ -386,4 +386,12 @@ document.getElementById('modalServicio').addEventListener('click', function(e) {
 });
 </script>
 
+<script>
+// Si viene de una baja, descarga el PDF automaticamente
+if (window.location.search.includes('descargar_baja=1')) {
+    window.location.href = '/netbooks/descargar-baja-pdf';
+    history.replaceState(null, '', window.location.pathname);
+}
+</script>
+
 {% endblock %}

@@ -177,10 +177,11 @@ def desasignar_alumno(netbook_id):
 @netbooks_bp.route('/<int:id>/dar-de-baja', methods=['POST'])
 @login_required
 def dar_de_baja(id):
-    """Da de baja una netbook: genera el PDF y la elimina de la BD."""
-    from services.pdf_reportes import generar_pdf_baja_netbook
-    from flask import send_file
+    """Da de baja una netbook: guarda el PDF en sesion, elimina la BD y redirige."""
     from datetime import datetime
+    import base64
+    from flask import session
+    from services.pdf_reportes import generar_pdf_baja_netbook
 
     nb     = Netbook.query.get_or_404(id)
     motivo = request.form.get('motivo_baja', '').strip()
@@ -189,20 +190,42 @@ def dar_de_baja(id):
         flash('El motivo de baja es obligatorio.', 'danger')
         return redirect(url_for('carros.netbooks', id=nb.carro_id))
 
-    # Guardar datos para el PDF antes de borrar
     nb.motivo_baja  = motivo
     nb.fecha_baja   = datetime.utcnow()
     nb.usuario_baja = current_user.nombre_completo
 
-    # Generar PDF con los datos completos
+    # Generar PDF antes de borrar
     buffer = generar_pdf_baja_netbook(nb)
     nombre = f'baja_netbook_{nb.numero_interno or nb.id}.pdf'
 
     carro_id = nb.carro_id
 
-    # Borrar el registro de la BD
+    # Guardar PDF en sesion (base64) para descargarlo luego
+    session['pdf_baja'] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    session['pdf_baja_nombre'] = nombre
+
     db.session.delete(nb)
     db.session.commit()
 
+    flash('Netbook dada de baja correctamente.', 'success')
+    return redirect(url_for('carros.netbooks', id=carro_id) + '?descargar_baja=1')
+
+
+@netbooks_bp.route('/descargar-baja-pdf')
+@login_required
+def descargar_baja_pdf():
+    """Descarga el PDF de baja guardado en sesion."""
+    import base64
+    from io import BytesIO
+    from flask import session, send_file
+
+    pdf_b64 = session.pop('pdf_baja', None)
+    nombre  = session.pop('pdf_baja_nombre', 'baja_netbook.pdf')
+
+    if not pdf_b64:
+        flash('No hay PDF de baja disponible.', 'warning')
+        return redirect(url_for('carros.index'))
+
+    buffer = BytesIO(base64.b64decode(pdf_b64))
     return send_file(buffer, mimetype='application/pdf',
                      as_attachment=True, download_name=nombre)
