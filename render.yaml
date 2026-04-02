@@ -2,6 +2,7 @@ services:
   - type: web
     name: sigatec-et7
     runtime: python
+    pythonVersion: "3.11"
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn "app:create_app()"
     envVars:
