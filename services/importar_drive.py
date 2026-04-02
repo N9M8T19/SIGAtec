@@ -10,6 +10,7 @@ Estructura de planilla de carros:
 
 import re
 import os
+import json
 from datetime import datetime
 from models import db, Docente, Netbook, Carro, PantallaDigital, HistorialPantalla, Alumno
 
@@ -28,14 +29,31 @@ def _get_service():
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
 
-    if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        raise FileNotFoundError(
-            f'No se encontró {SERVICE_ACCOUNT_FILE} en la raíz del proyecto.'
+    # Opción 1: variable de entorno SERVICE_ACCOUNT_JSON (producción en Render)
+    sa_json = os.environ.get('SERVICE_ACCOUNT_JSON')
+    if sa_json:
+        try:
+            sa_info = json.loads(sa_json)
+            creds = service_account.Credentials.from_service_account_info(
+                sa_info, scopes=SCOPES
+            )
+            return build('sheets', 'v4', credentials=creds)
+        except Exception as e:
+            raise ValueError(f'Error al leer SERVICE_ACCOUNT_JSON: {e}')
+
+    # Opción 2: archivo local service_account.json (desarrollo local)
+    if os.path.exists(SERVICE_ACCOUNT_FILE):
+        creds = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
-    creds = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        return build('sheets', 'v4', credentials=creds)
+
+    # Ninguna opción disponible
+    raise FileNotFoundError(
+        'No se encontró la cuenta de servicio. '
+        'En producción: configurá la variable de entorno SERVICE_ACCOUNT_JSON en Render. '
+        'En local: colocá el archivo service_account.json en la raíz del proyecto.'
     )
-    return build('sheets', 'v4', credentials=creds)
 
 
 def _leer_hoja(service, sheet_id, nombre_hoja):
@@ -72,7 +90,7 @@ def _extraer_numero_carro(nombre_hoja):
 def importar_carro_desde_hoja(sheet_id, nombre_hoja):
     """
     Importa un carro y sus netbooks desde una pestaña.
-    
+
     Estructura esperada:
     - Fila 1: COD CARRO (encabezado — se ignora, el número viene del nombre de pestaña)
     - Fila 2: N° INTERNO | N° DE SERIE (encabezados de columnas — se ignoran)
@@ -292,7 +310,6 @@ def importar_alumnos(sheet_id, nombre_hoja):
         turno = 'T'
         curso = nombre_hoja.strip()[:-2].strip()
     else:
-        # Sin sufijo → asumir mañana
         turno = 'M'
         curso = nombre_hoja.strip()
 
@@ -323,7 +340,6 @@ def importar_alumnos(sheet_id, nombre_hoja):
                 apellido = partes[0].strip().title()
                 nombre   = partes[1].strip().title() if len(partes) > 1 else ''
 
-            # Buscar por DNI y turno (un alumno puede aparecer en M y T si cambió)
             alumno = Alumno.query.filter_by(dni=dni, turno=turno).first()
             if alumno:
                 alumno.nombre   = nombre
