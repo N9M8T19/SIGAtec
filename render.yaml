@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sigartec
+    name: sigatec-et7
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn "app:create_app()"
