@@ -59,8 +59,13 @@ def _log(evento, destinatario, asunto, enviado, error=None):
     db.session.commit()
 
 
-def _enviar_a_todos(evento, asunto, cuerpo):
+def _enviar_a_todos(evento, asunto, cuerpo, correo_docente=None):
     destinatarios = _destinatarios_por_evento(evento)
+
+    # Agregar el correo del docente si existe y no está ya en la lista
+    if correo_docente and correo_docente not in destinatarios:
+        destinatarios.append(correo_docente)
+
     if not destinatarios:
         current_app.logger.warning(
             f'[mail] No hay destinatarios para el evento "{evento}".'
@@ -79,7 +84,10 @@ def _enviar_a_todos(evento, asunto, cuerpo):
 # ── Notificaciones de carros ───────────────────────────────────────────────────
 
 def enviar_notificacion_retiro_carro(prestamo):
-    evento = 'retiro_carro'
+    correo = prestamo.docente.correo
+    if not correo:
+        current_app.logger.warning(f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — retiro carro omitido.')
+        return
     asunto = f'Retiro de carro {prestamo.carro.display}'
     cuerpo = f"""Retiro de carro
 
@@ -89,11 +97,20 @@ Aula:      {prestamo.aula or '—'}
 Hora:      {_hora_ar(prestamo.hora_retiro)}
 Registró:  {prestamo.encargado_retiro}
 """
-    _enviar_a_todos(evento, asunto, cuerpo)
+    try:
+        _enviar_mail(correo, asunto, cuerpo)
+        _log('retiro_carro', correo, asunto, enviado=True)
+        current_app.logger.info(f'[mail] Enviado a {correo} — {asunto}')
+    except Exception as e:
+        _log('retiro_carro', correo, asunto, enviado=False, error=traceback.format_exc())
+        current_app.logger.error(f'[mail] Error enviando a {correo}: {e}')
 
 
 def enviar_notificacion_devolucion_carro(prestamo):
-    evento = 'devolucion_carro'
+    correo = prestamo.docente.correo
+    if not correo:
+        current_app.logger.warning(f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — devolución carro omitida.')
+        return
     asunto = f'Devolución de carro {prestamo.carro.display}'
     mins   = prestamo.duracion_minutos or 0
     cuerpo = f"""Devolución de carro
@@ -105,13 +122,22 @@ Devolución: {_hora_ar(prestamo.hora_devolucion)}
 Duración:   {mins // 60}h {mins % 60}m
 Registró:   {prestamo.encargado_devolucion}
 """
-    _enviar_a_todos(evento, asunto, cuerpo)
+    try:
+        _enviar_mail(correo, asunto, cuerpo)
+        _log('devolucion_carro', correo, asunto, enviado=True)
+        current_app.logger.info(f'[mail] Enviado a {correo} — {asunto}')
+    except Exception as e:
+        _log('devolucion_carro', correo, asunto, enviado=False, error=traceback.format_exc())
+        current_app.logger.error(f'[mail] Error enviando a {correo}: {e}')
 
 
 # ── Notificaciones de netbooks ─────────────────────────────────────────────────
 
 def enviar_notificacion_retiro_netbook(prestamo):
-    evento = 'retiro_netbook'
+    correo = prestamo.docente.correo
+    if not correo:
+        current_app.logger.warning(f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — retiro netbooks omitido.')
+        return
     asunto = f'Retiro de netbooks — {prestamo.docente.nombre_completo}'
     items  = '\n'.join(
         [f'  • N°{i.numero_interno} — {i.alumno or "Sin asignar"}' for i in prestamo.items]
@@ -125,11 +151,20 @@ Registró:  {prestamo.encargado_retiro}
 Netbooks:
 {items}
 """
-    _enviar_a_todos(evento, asunto, cuerpo)
+    try:
+        _enviar_mail(correo, asunto, cuerpo)
+        _log('retiro_netbook', correo, asunto, enviado=True)
+        current_app.logger.info(f'[mail] Enviado a {correo} — {asunto}')
+    except Exception as e:
+        _log('retiro_netbook', correo, asunto, enviado=False, error=traceback.format_exc())
+        current_app.logger.error(f'[mail] Error enviando a {correo}: {e}')
 
 
 def enviar_notificacion_devolucion_netbook(prestamo):
-    evento = 'devolucion_netbook'
+    correo = prestamo.docente.correo
+    if not correo:
+        current_app.logger.warning(f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — devolución netbooks omitida.')
+        return
     asunto = f'Devolución de netbooks — {prestamo.docente.nombre_completo}'
     mins   = int((prestamo.hora_devolucion - prestamo.hora_retiro).total_seconds() / 60)
     cuerpo = f"""Devolución de netbooks
@@ -141,7 +176,13 @@ Duración:   {mins // 60}h {mins % 60}m
 Registró:   {prestamo.encargado_devolucion}
 Netbooks:   {len(prestamo.items)}
 """
-    _enviar_a_todos(evento, asunto, cuerpo)
+    try:
+        _enviar_mail(correo, asunto, cuerpo)
+        _log('devolucion_netbook', correo, asunto, enviado=True)
+        current_app.logger.info(f'[mail] Enviado a {correo} — {asunto}')
+    except Exception as e:
+        _log('devolucion_netbook', correo, asunto, enviado=False, error=traceback.format_exc())
+        current_app.logger.error(f'[mail] Error enviando a {correo}: {e}')
 
 
 # ── Alertas ────────────────────────────────────────────────────────────────────
