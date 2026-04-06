@@ -1,56 +1,39 @@
 """
 services/mail.py
-Envío de mails usando Gmail API con OAuth2.
-Usa las mismas credenciales del sendMail.py existente.
+Envío de mails usando SMTP con Gmail App Password.
+No requiere token.json ni credenciales OAuth de escritorio.
+Funciona en Render con variables de entorno GMAIL_USER y GMAIL_APP_PASSWORD.
 """
 
 import os
-import base64
+import smtplib
 import traceback
 from email.mime.text import MIMEText
 from flask import current_app
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 from models import db
 
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-
-CREDENTIALS_FILE = 'credentials.json'
-TOKEN_FILE       = 'token.json'
-GMAIL_FROM       = 'det_7_de5@bue.edu.ar'
-
-
-def _get_credentials():
-    creds = None
-    if os.path.exists(TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            with open(TOKEN_FILE, 'w') as token:
-                token.write(creds.to_json())
-        else:
-            raise RuntimeError(
-                'No hay token válido. Ejecutá sendMail.py una vez para autorizar.'
-            )
-    return creds
-
-
-def _build_service():
-    creds = _get_credentials()
-    return build('gmail', 'v1', credentials=creds)
+# ── Configuración ──────────────────────────────────────────────────────────────
+GMAIL_USER     = os.environ.get('GMAIL_USER', 'aulamagnaespaciodigital@gmail.com')
+GMAIL_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
+GMAIL_FROM     = GMAIL_USER
 
 
 def _enviar_mail(destinatario, asunto, cuerpo):
-    service  = _build_service()
-    mensaje  = MIMEText(cuerpo)
-    mensaje['to']      = destinatario
-    mensaje['from']    = GMAIL_FROM
-    mensaje['subject'] = asunto
-    raw    = base64.urlsafe_b64encode(mensaje.as_bytes()).decode()
-    result = service.users().messages().send(userId='me', body={'raw': raw}).execute()
-    return result
+    """Envía un mail por SMTP usando la App Password de Gmail."""
+    if not GMAIL_PASSWORD:
+        raise RuntimeError(
+            'GMAIL_APP_PASSWORD no está configurada. '
+            'Agregala como variable de entorno en Render.'
+        )
+
+    mensaje = MIMEText(cuerpo, 'plain', 'utf-8')
+    mensaje['To']      = destinatario
+    mensaje['From']    = GMAIL_FROM
+    mensaje['Subject'] = asunto
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login(GMAIL_USER, GMAIL_PASSWORD)
+        smtp.sendmail(GMAIL_FROM, destinatario, mensaje.as_bytes())
 
 
 def _destinatarios_por_evento(evento):
@@ -75,15 +58,21 @@ def _log(evento, destinatario, asunto, enviado, error=None):
 def _enviar_a_todos(evento, asunto, cuerpo):
     destinatarios = _destinatarios_por_evento(evento)
     if not destinatarios:
+        current_app.logger.warning(
+            f'[mail] No hay destinatarios configurados para el evento "{evento}".'
+        )
         return
     for correo in destinatarios:
         try:
             _enviar_mail(correo, asunto, cuerpo)
             _log(evento, correo, asunto, enviado=True)
+            current_app.logger.info(f'[mail] Enviado a {correo} — {asunto}')
         except Exception as e:
             _log(evento, correo, asunto, enviado=False, error=traceback.format_exc())
-            current_app.logger.error(f'Error enviando mail a {correo}: {e}')
+            current_app.logger.error(f'[mail] Error enviando a {correo}: {e}')
 
+
+# ── Notificaciones de carros ───────────────────────────────────────────────────
 
 def enviar_notificacion_retiro_carro(prestamo):
     evento = 'retiro_carro'
@@ -123,10 +112,14 @@ Sistema SIGA-Tec — E.T. N°7 D.E. 5
     _enviar_a_todos(evento, asunto, cuerpo)
 
 
+# ── Notificaciones de netbooks ─────────────────────────────────────────────────
+
 def enviar_notificacion_retiro_netbook(prestamo):
     evento = 'retiro_netbook'
     asunto = f'[SIGA-Tec] Retiro de netbooks — {prestamo.docente.nombre_completo}'
-    items  = '\n'.join([f'  • N°{i.numero_interno} — {i.alumno or "Sin asignar"}' for i in prestamo.items])
+    items  = '\n'.join(
+        [f'  • N°{i.numero_interno} — {i.alumno or "Sin asignar"}' for i in prestamo.items]
+    )
     cuerpo = f"""
 Se registró un préstamo de netbooks en el Espacio Digital.
 
@@ -163,6 +156,8 @@ Sistema SIGA-Tec — E.T. N°7 D.E. 5
     _enviar_a_todos(evento, asunto, cuerpo)
 
 
+# ── Alertas ────────────────────────────────────────────────────────────────────
+
 def enviar_alerta_demora(prestamo, tipo='carro'):
     evento = 'alerta_demora'
     if tipo == 'carro':
@@ -170,7 +165,7 @@ def enviar_alerta_demora(prestamo, tipo='carro'):
         asunto = f'⚠️ [SIGA-Tec] DEMORA — carro {item} no devuelto'
     else:
         item   = f'{len(prestamo.items)} netbook(s)'
-        asunto = f'⚠️ [SIGA-Tec] DEMORA — netbooks no devueltas'
+        asunto = '⚠️ [SIGA-Tec] DEMORA — netbooks no devueltas'
     cuerpo = f"""
 ⚠️ ALERTA DE DEMORA
 
@@ -196,7 +191,7 @@ def enviar_alerta_horario(prestamo, horario, tipo='carro'):
         asunto = f'⚠️ [SIGA-Tec] CLASE TERMINADA — carro {item} no devuelto'
     else:
         item   = f'{len(prestamo.items)} netbook(s)'
-        asunto = f'⚠️ [SIGA-Tec] CLASE TERMINADA — netbooks no devueltas'
+        asunto = '⚠️ [SIGA-Tec] CLASE TERMINADA — netbooks no devueltas'
     cuerpo = f"""
 ⚠️ ALERTA DE HORARIO
 
@@ -217,5 +212,10 @@ Sistema SIGA-Tec — E.T. N°7 D.E. 5
 
 
 def init_mail(app):
-    """Compatibilidad con app.py. Con Gmail API no hay nada que inicializar."""
-    app.logger.info('Servicio de mail: Gmail API con OAuth2.')
+    """Compatibilidad con app.py."""
+    usuario = os.environ.get('GMAIL_USER', 'aulamagnaespaciodigital@gmail.com')
+    tiene   = bool(os.environ.get('GMAIL_APP_PASSWORD'))
+    app.logger.info(
+        f'Servicio de mail: SMTP Gmail. '
+        f'Usuario: {usuario} | App Password configurada: {tiene}'
+    )
