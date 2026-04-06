@@ -8,6 +8,7 @@ Funciona en Render con variables de entorno GMAIL_USER y GMAIL_APP_PASSWORD.
 import os
 import smtplib
 import traceback
+from datetime import timezone, timedelta
 from email.mime.text import MIMEText
 from flask import current_app
 from models import db
@@ -17,20 +18,23 @@ GMAIL_USER     = os.environ.get('GMAIL_USER', 'aulamagnaespaciodigital@gmail.com
 GMAIL_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
 GMAIL_FROM     = GMAIL_USER
 
+AR = timezone(timedelta(hours=-3))
+
+def _hora_ar(dt):
+    """Convierte datetime UTC a hora Argentina formateada."""
+    return dt.replace(tzinfo=timezone.utc).astimezone(AR).strftime('%d/%m/%Y %H:%M')
+
 
 def _enviar_mail(destinatario, asunto, cuerpo):
-    """Envía un mail por SMTP usando la App Password de Gmail."""
     if not GMAIL_PASSWORD:
         raise RuntimeError(
             'GMAIL_APP_PASSWORD no está configurada. '
             'Agregala como variable de entorno en Render.'
         )
-
     mensaje = MIMEText(cuerpo, 'plain', 'utf-8')
     mensaje['To']      = destinatario
     mensaje['From']    = GMAIL_FROM
     mensaje['Subject'] = asunto
-
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(GMAIL_USER, GMAIL_PASSWORD)
         smtp.sendmail(GMAIL_FROM, destinatario, mensaje.as_bytes())
@@ -59,7 +63,7 @@ def _enviar_a_todos(evento, asunto, cuerpo):
     destinatarios = _destinatarios_por_evento(evento)
     if not destinatarios:
         current_app.logger.warning(
-            f'[mail] No hay destinatarios configurados para el evento "{evento}".'
+            f'[mail] No hay destinatarios para el evento "{evento}".'
         )
         return
     for correo in destinatarios:
@@ -76,38 +80,30 @@ def _enviar_a_todos(evento, asunto, cuerpo):
 
 def enviar_notificacion_retiro_carro(prestamo):
     evento = 'retiro_carro'
-    asunto = f'[SIGA-Tec] Retiro de carro {prestamo.carro.display}'
-    cuerpo = f"""
-Se registró un retiro de carro en SIGA-Tec.
+    asunto = f'Retiro de carro {prestamo.carro.display}'
+    cuerpo = f"""Retiro de carro
 
-Docente:        {prestamo.docente.nombre_completo}
-Carro:          {prestamo.carro.display}
-Aula:           {prestamo.aula or '—'}
-Hora:           {prestamo.hora_retiro.strftime('%d/%m/%Y %H:%M')}
-Autorizado por: {prestamo.encargado_retiro}
-
----
-Sistema SIGA-Tec — E.T. N°7 D.E. 5
+Docente:   {prestamo.docente.nombre_completo}
+Carro:     {prestamo.carro.display}
+Aula:      {prestamo.aula or '—'}
+Hora:      {_hora_ar(prestamo.hora_retiro)}
+Registró:  {prestamo.encargado_retiro}
 """
     _enviar_a_todos(evento, asunto, cuerpo)
 
 
 def enviar_notificacion_devolucion_carro(prestamo):
     evento = 'devolucion_carro'
-    asunto = f'[SIGA-Tec] Devolución — carro {prestamo.carro.display}'
+    asunto = f'Devolución de carro {prestamo.carro.display}'
     mins   = prestamo.duracion_minutos or 0
-    cuerpo = f"""
-Se registró la devolución de un carro en SIGA-Tec.
+    cuerpo = f"""Devolución de carro
 
-Docente:        {prestamo.docente.nombre_completo}
-Carro:          {prestamo.carro.display}
-Retiro:         {prestamo.hora_retiro.strftime('%d/%m/%Y %H:%M')}
-Devolución:     {prestamo.hora_devolucion.strftime('%d/%m/%Y %H:%M')}
-Duración:       {mins // 60}h {mins % 60}m
-Recibido por:   {prestamo.encargado_devolucion}
-
----
-Sistema SIGA-Tec — E.T. N°7 D.E. 5
+Docente:    {prestamo.docente.nombre_completo}
+Carro:      {prestamo.carro.display}
+Retiro:     {_hora_ar(prestamo.hora_retiro)}
+Devolución: {_hora_ar(prestamo.hora_devolucion)}
+Duración:   {mins // 60}h {mins % 60}m
+Registró:   {prestamo.encargado_devolucion}
 """
     _enviar_a_todos(evento, asunto, cuerpo)
 
@@ -116,42 +112,34 @@ Sistema SIGA-Tec — E.T. N°7 D.E. 5
 
 def enviar_notificacion_retiro_netbook(prestamo):
     evento = 'retiro_netbook'
-    asunto = f'[SIGA-Tec] Retiro de netbooks — {prestamo.docente.nombre_completo}'
+    asunto = f'Retiro de netbooks — {prestamo.docente.nombre_completo}'
     items  = '\n'.join(
         [f'  • N°{i.numero_interno} — {i.alumno or "Sin asignar"}' for i in prestamo.items]
     )
-    cuerpo = f"""
-Se registró un préstamo de netbooks en el Espacio Digital.
+    cuerpo = f"""Retiro de netbooks
 
-Docente:        {prestamo.docente.nombre_completo}
-Hora:           {prestamo.hora_retiro.strftime('%d/%m/%Y %H:%M')}
-Autorizado por: {prestamo.encargado_retiro}
+Docente:   {prestamo.docente.nombre_completo}
+Hora:      {_hora_ar(prestamo.hora_retiro)}
+Registró:  {prestamo.encargado_retiro}
 
-Netbooks retiradas:
+Netbooks:
 {items}
-
----
-Sistema SIGA-Tec — E.T. N°7 D.E. 5
 """
     _enviar_a_todos(evento, asunto, cuerpo)
 
 
 def enviar_notificacion_devolucion_netbook(prestamo):
     evento = 'devolucion_netbook'
-    asunto = f'[SIGA-Tec] Devolución netbooks — {prestamo.docente.nombre_completo}'
+    asunto = f'Devolución de netbooks — {prestamo.docente.nombre_completo}'
     mins   = int((prestamo.hora_devolucion - prestamo.hora_retiro).total_seconds() / 60)
-    cuerpo = f"""
-Se registró la devolución de netbooks en SIGA-Tec.
+    cuerpo = f"""Devolución de netbooks
 
-Docente:        {prestamo.docente.nombre_completo}
-Retiro:         {prestamo.hora_retiro.strftime('%d/%m/%Y %H:%M')}
-Devolución:     {prestamo.hora_devolucion.strftime('%d/%m/%Y %H:%M')}
-Duración:       {mins // 60}h {mins % 60}m
-Recibido por:   {prestamo.encargado_devolucion}
-Netbooks:       {len(prestamo.items)}
-
----
-Sistema SIGA-Tec — E.T. N°7 D.E. 5
+Docente:    {prestamo.docente.nombre_completo}
+Retiro:     {_hora_ar(prestamo.hora_retiro)}
+Devolución: {_hora_ar(prestamo.hora_devolucion)}
+Duración:   {mins // 60}h {mins % 60}m
+Registró:   {prestamo.encargado_devolucion}
+Netbooks:   {len(prestamo.items)}
 """
     _enviar_a_todos(evento, asunto, cuerpo)
 
@@ -162,24 +150,18 @@ def enviar_alerta_demora(prestamo, tipo='carro'):
     evento = 'alerta_demora'
     if tipo == 'carro':
         item   = prestamo.carro.display
-        asunto = f'⚠️ [SIGA-Tec] DEMORA — carro {item} no devuelto'
+        asunto = f'⚠️ DEMORA — carro {item} no devuelto'
     else:
         item   = f'{len(prestamo.items)} netbook(s)'
-        asunto = '⚠️ [SIGA-Tec] DEMORA — netbooks no devueltas'
-    cuerpo = f"""
-⚠️ ALERTA DE DEMORA
+        asunto = '⚠️ DEMORA — netbooks no devueltas'
+    cuerpo = f"""⚠️ Alerta de demora
 
-El siguiente préstamo supera el tiempo permitido.
-
-Docente:             {prestamo.docente.nombre_completo}
-Ítem:                {item}
-Retirado:            {prestamo.hora_retiro.strftime('%d/%m/%Y %H:%M')}
-Tiempo transcurrido: {prestamo.tiempo_transcurrido}
+Docente:   {prestamo.docente.nombre_completo}
+Ítem:      {item}
+Retirado:  {_hora_ar(prestamo.hora_retiro)}
+Transcurrido: {prestamo.tiempo_transcurrido}
 
 Por favor verificar el estado del préstamo.
-
----
-Sistema SIGA-Tec — E.T. N°7 D.E. 5
 """
     _enviar_a_todos(evento, asunto, cuerpo)
 
@@ -188,25 +170,17 @@ def enviar_alerta_horario(prestamo, horario, tipo='carro'):
     evento = 'alerta_horario'
     if tipo == 'carro':
         item   = prestamo.carro.display
-        asunto = f'⚠️ [SIGA-Tec] CLASE TERMINADA — carro {item} no devuelto'
+        asunto = f'⚠️ Clase terminada — carro {item} no devuelto'
     else:
         item   = f'{len(prestamo.items)} netbook(s)'
-        asunto = '⚠️ [SIGA-Tec] CLASE TERMINADA — netbooks no devueltas'
-    cuerpo = f"""
-⚠️ ALERTA DE HORARIO
+        asunto = '⚠️ Clase terminada — netbooks no devueltas'
+    cuerpo = f"""⚠️ El docente terminó su módulo y no devolvió el material.
 
-El docente terminó su módulo y no devolvió el material.
-
-Docente:    {prestamo.docente.nombre_completo}
-Materia:    {horario.materia or prestamo.docente.materia or '—'}
-Módulo:     {horario.modulo} ({horario.hora_inicio} - {horario.hora_fin})
-Ítem:       {item}
-Retirado:   {prestamo.hora_retiro.strftime('%d/%m/%Y %H:%M')}
-
-Por favor verificar la devolución.
-
----
-Sistema SIGA-Tec — E.T. N°7 D.E. 5
+Docente:  {prestamo.docente.nombre_completo}
+Materia:  {horario.materia or prestamo.docente.materia or '—'}
+Módulo:   {horario.modulo} ({horario.hora_inicio} - {horario.hora_fin})
+Ítem:     {item}
+Retirado: {_hora_ar(prestamo.hora_retiro)}
 """
     _enviar_a_todos(evento, asunto, cuerpo)
 
