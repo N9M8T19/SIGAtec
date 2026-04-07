@@ -302,8 +302,15 @@ def importar_alumnos(sheet_id, nombre_hoja):
     resultados = {'hoja': nombre_hoja, 'importados': 0, 'actualizados': 0, 'errores': []}
 
     # Detectar turno y curso desde el nombre de la pestaña
+    # Soporta: 'N1G1 TM', 'N1G4 TT', 'N1G1 M', 'N1G4 T'
     nombre_upper = nombre_hoja.strip().upper()
-    if nombre_upper.endswith(' M'):
+    if nombre_upper.endswith(' TM'):
+        turno = 'M'
+        curso = nombre_hoja.strip()[:-3].strip()
+    elif nombre_upper.endswith(' TT'):
+        turno = 'T'
+        curso = nombre_hoja.strip()[:-3].strip()
+    elif nombre_upper.endswith(' M'):
         turno = 'M'
         curso = nombre_hoja.strip()[:-2].strip()
     elif nombre_upper.endswith(' T'):
