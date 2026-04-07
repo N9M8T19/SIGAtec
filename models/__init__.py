@@ -142,6 +142,11 @@ class Alumno(db.Model):
     def __repr__(self):
         return f'<Alumno {self.apellido} {self.nombre} ({self.curso} {self.turno})>'
 
+    netbook_manana_rel = db.relationship('Netbook', foreign_keys='Netbook.alumno_manana_id',
+                                          backref='alumno_manana_obj', lazy=True)
+    netbook_tarde_rel  = db.relationship('Netbook', foreign_keys='Netbook.alumno_tarde_id',
+                                          backref='alumno_tarde_obj',  lazy=True)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  NETBOOK

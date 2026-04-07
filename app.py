@@ -85,6 +85,7 @@ def create_app():
     from routes.transferencias import transferencias_bp
     from routes.stock          import stock_bp
     from routes.tickets_ba     import tickets_ba_bp
+    from routes.alumnos        import alumnos_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(carros_bp)
@@ -101,6 +102,7 @@ def create_app():
     app.register_blueprint(transferencias_bp)
     app.register_blueprint(stock_bp)
     app.register_blueprint(tickets_ba_bp)
+    app.register_blueprint(alumnos_bp)
 
     with app.app_context():
         import models_extra.horarios_notificaciones  # noqa

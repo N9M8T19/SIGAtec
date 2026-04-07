@@ -165,6 +165,11 @@
                       {% if 'docentes' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-chalkboard-teacher w-5"></i> Docentes
             </a>
+            <a href="{{ url_for('alumnos.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'alumnos' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-user-graduate w-5"></i> Alumnos
+            </a>
             {% if current_user.tiene_permiso('estadisticas') %}
             <a href="{{ url_for('usuarios.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
