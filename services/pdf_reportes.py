@@ -502,7 +502,7 @@ def generar_pdf_asignaciones_carro(carro):
 
     # Tabla principal con dos columnas de alumnos
     data = [['N°', 'N° de Serie', 'Alumno Mañana', 'Alumno Tarde']]
-    netbooks_ord = sorted(carro.netbooks, key=lambda n: (n.numero_interno or ''))
+    netbooks_ord = sorted(carro.netbooks, key=lambda n: (n.numero_interno or '').zfill(10))
     for nb in netbooks_ord:
         manana_txt = (f'{nb.alumno_manana.apellido}, {nb.alumno_manana.nombre}\n{nb.alumno_manana.curso}'
                       if nb.alumno_manana else '—')
@@ -678,7 +678,7 @@ def pdf_inventario_carro(carro):
                 f'División: {carro.division or "—"} | Aula: {carro.aula or "—"}')
 
     data = [['N° Interno', 'N° de Serie', 'Estado']]
-    netbooks_ord = sorted(carro.netbooks, key=lambda n: n.numero_interno or '')
+    netbooks_ord = sorted(carro.netbooks, key=lambda n: (n.numero_interno or '').zfill(10))
     for nb in netbooks_ord:
         if nb.estado == 'operativa':
             estado = 'Operativa'
