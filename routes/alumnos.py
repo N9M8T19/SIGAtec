@@ -81,3 +81,15 @@ def eliminar_todos():
     db.session.commit()
     flash('Todos los alumnos fueron eliminados y las netbooks desasignadas.', 'success')
     return redirect(url_for('alumnos.index'))
+
+
+@alumnos_bp.route('/conteo-por-curso')
+@login_required
+def conteo_por_curso():
+    """AJAX — devuelve cuántos alumnos tiene un curso/turno específico."""
+    curso = request.args.get('curso', '').strip()
+    turno = request.args.get('turno', '').strip()  # 'M' o 'T'
+    if not curso or turno not in ('M', 'T'):
+        return jsonify({'count': 0})
+    count = Alumno.query.filter_by(curso=curso, turno=turno).count()
+    return jsonify({'count': count})
