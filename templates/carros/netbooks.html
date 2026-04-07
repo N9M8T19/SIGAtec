@@ -24,6 +24,17 @@
            target="_blank">
             <i class="fas fa-list mr-1"></i>PDF Inventario
         </a>
+        <button type="button"
+                onclick="abrirModalAutoAsignar()"
+                class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-magic mr-1"></i>Asignación automática
+        </button>
+        {% if current_user.tiene_permiso('configuracion') %}
+        <button type="button" onclick="abrirModalAuto()"
+                class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-magic mr-1"></i>Asignación automática
+        </button>
+        {% endif %}
         <a href="{{ url_for('netbooks.nuevo', carro_id=carro.id) }}"
            class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
             <i class="fas fa-plus mr-1"></i>Nueva Netbook
@@ -391,6 +402,96 @@ document.getElementById('modalServicio').addEventListener('click', function(e) {
 if (window.location.search.includes('descargar_baja=1')) {
     window.location.href = '/netbooks/descargar-baja-pdf';
     history.replaceState(null, '', window.location.pathname);
+}
+</script>
+
+<!-- ── Modal Asignación Automática ──────────────────────────────────────── -->
+<div id="modalAutoAsignar" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black bg-opacity-40">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
+        <div class="flex justify-between items-center px-6 py-4 border-b bg-orange-50 rounded-t-xl">
+            <h3 class="font-bold text-orange-800">
+                <i class="fas fa-magic mr-2"></i>Asignación automática — Carro {{ carro.display }}
+            </h3>
+            <button onclick="cerrarModalAutoAsignar()" class="text-orange-400 hover:text-orange-600 text-xl font-bold">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('carros.asignar_automatico', id=carro.id) }}">
+            <div class="px-6 py-5 space-y-4">
+                <p class="text-sm text-gray-500">
+                    El sistema asignará los alumnos a las netbooks en orden alfabético.
+                    Primero los de mañana, luego los de tarde.
+                </p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fas fa-sun text-blue-500 mr-1"></i>Curso Mañana
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <select name="curso_manana" id="selectManana" onchange="actualizarConteo('M')"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                            <option value="">— Sin asignación de mañana —</option>
+                            {% for curso in cursos_manana %}
+                            <option value="{{ curso }}">{{ curso }}</option>
+                            {% endfor %}
+                        </select>
+                        <span id="conteoManana" class="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-1 rounded-full whitespace-nowrap hidden"></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fas fa-moon text-purple-500 mr-1"></i>Curso Tarde
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <select name="curso_tarde" id="selectTarde" onchange="actualizarConteo('T')"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+                            <option value="">— Sin asignación de tarde —</option>
+                            {% for curso in cursos_tarde %}
+                            <option value="{{ curso }}">{{ curso }}</option>
+                            {% endfor %}
+                        </select>
+                        <span id="conteoTarde" class="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-1 rounded-full whitespace-nowrap hidden"></span>
+                    </div>
+                </div>
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-xs text-yellow-800">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Esta acción reemplaza las asignaciones existentes en este carro.
+                    Las netbooks que superen la cantidad de alumnos quedarán sin asignar.
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 px-6 py-4 border-t">
+                <button type="button" onclick="cerrarModalAutoAsignar()"
+                        class="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold">
+                    <i class="fas fa-magic mr-1"></i>Asignar automáticamente
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function abrirModalAutoAsignar() {
+    document.getElementById('modalAutoAsignar').classList.remove('hidden');
+}
+function cerrarModalAutoAsignar() {
+    document.getElementById('modalAutoAsignar').classList.add('hidden');
+}
+document.getElementById('modalAutoAsignar').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalAutoAsignar();
+});
+
+function actualizarConteo(turno) {
+    const select  = turno === 'M' ? document.getElementById('selectManana') : document.getElementById('selectTarde');
+    const badge   = turno === 'M' ? document.getElementById('conteoManana') : document.getElementById('conteoTarde');
+    const curso   = select.value;
+    if (!curso) { badge.classList.add('hidden'); return; }
+    fetch(`/alumnos/conteo-por-curso?curso=${encodeURIComponent(curso)}&turno=${turno}`)
+        .then(r => r.json())
+        .then(data => {
+            badge.textContent = data.count + ' alumnos';
+            badge.classList.remove('hidden');
+        });
 }
 </script>
 

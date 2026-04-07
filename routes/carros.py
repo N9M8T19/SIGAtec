@@ -71,4 +71,179 @@ def dar_baja(id):
 @login_required
 def netbooks(id):
     carro = Carro.query.get_or_404(id)
-    return render_template('carros/netbooks.html', carro=carro)
+    from models import Alumno
+    from sqlalchemy import func
+    cursos_m = db.session.query(Alumno.curso, func.count(Alumno.id)) \
+                         .filter(Alumno.turno == 'M') \
+                         .group_by(Alumno.curso).order_by(Alumno.curso).all()
+    cursos_t = db.session.query(Alumno.curso, func.count(Alumno.id)) \
+                         .filter(Alumno.turno == 'T') \
+                         .group_by(Alumno.curso).order_by(Alumno.curso).all()
+    cursos_manana = [c[0] for c in cursos_m]
+    cursos_tarde  = [c[0] for c in cursos_t]
+    conteo_cursos = {c[0]: c[1] for c in list(cursos_m) + list(cursos_t)}
+    return render_template('carros/netbooks.html', carro=carro,
+                           cursos_manana=cursos_manana,
+                           cursos_tarde=cursos_tarde,
+                           conteo_cursos=conteo_cursos)
+
+
+@carros_bp.route('/<int:id>/asignar-automatico', methods=['POST'])
+@login_required
+def asignar_automatico(id):
+    if not current_user.tiene_permiso('configuracion'):
+        flash('No tenés permiso para esta acción.', 'danger')
+        return redirect(url_for('carros.netbooks', id=id))
+
+    carro         = Carro.query.get_or_404(id)
+    curso_manana  = request.form.get('curso_manana', '').strip()
+    curso_tarde   = request.form.get('curso_tarde', '').strip()
+
+    from models import Alumno
+
+    if not curso_manana and not curso_tarde:
+        flash('Seleccioná al menos un curso.', 'danger')
+        return redirect(url_for('carros.netbooks', id=id))
+
+    # Netbooks operativas del carro ordenadas por número interno
+    netbooks = sorted(
+        [nb for nb in carro.netbooks if nb.estado == 'operativa'],
+        key=lambda nb: (nb.numero_interno or '').zfill(10)
+    )
+
+    if not netbooks:
+        flash('Este carro no tiene netbooks operativas.', 'warning')
+        return redirect(url_for('carros.netbooks', id=id))
+
+    # Limpiar asignaciones previas del carro
+    for nb in netbooks:
+        nb.alumno_manana_id = None
+        nb.alumno_tarde_id  = None
+
+    asignados_manana = 0
+    asignados_tarde  = 0
+
+    # Asignar turno mañana
+    if curso_manana:
+        alumnos_m = Alumno.query.filter_by(curso=curso_manana, turno='M')\
+                          .order_by(Alumno.apellido, Alumno.nombre).all()
+        for i, alumno in enumerate(alumnos_m):
+            if i >= len(netbooks):
+                break
+            netbooks[i].alumno_manana_id = alumno.id
+            asignados_manana += 1
+
+    # Asignar turno tarde (sobre las mismas netbooks)
+    if curso_tarde:
+        alumnos_t = Alumno.query.filter_by(curso=curso_tarde, turno='T')\
+                          .order_by(Alumno.apellido, Alumno.nombre).all()
+        for i, alumno in enumerate(alumnos_t):
+            if i >= len(netbooks):
+                break
+            netbooks[i].alumno_tarde_id = alumno.id
+            asignados_tarde += 1
+
+    db.session.commit()
+
+    msg = f'Asignación completada — {asignados_manana} alumnos mañana, {asignados_tarde} alumnos tarde.'
+    if curso_manana and asignados_manana < len(Alumno.query.filter_by(curso=curso_manana, turno='M').all()):
+        msg += ' ⚠️ Algunos alumnos de mañana quedaron sin netbook (el carro tiene menos lugares).'
+    if curso_tarde and asignados_tarde < len(Alumno.query.filter_by(curso=curso_tarde, turno='T').all()):
+        msg += ' ⚠️ Algunos alumnos de tarde quedaron sin netbook (el carro tiene menos lugares).'
+
+    flash(msg, 'success')
+    return redirect(url_for('carros.netbooks', id=id))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ASIGNACIÓN AUTOMÁTICA DE ALUMNOS A CARRO
+# ─────────────────────────────────────────────────────────────────────────────
+
+@carros_bp.route('/<int:id>/asignar-automatico', methods=['POST'])
+@login_required
+def asignar_automatico(id):
+    """
+    Asigna automáticamente alumnos de dos cursos (mañana y tarde) a las
+    netbooks de un carro, en orden alfabético.
+    """
+    if not current_user.tiene_permiso('configuracion'):
+        flash('No tenés permiso para esta acción.', 'danger')
+        return redirect(url_for('carros.netbooks', id=id))
+
+    carro        = Carro.query.get_or_404(id)
+    curso_manana = request.form.get('curso_manana', '').strip()
+    curso_tarde  = request.form.get('curso_tarde', '').strip()
+
+    if not curso_manana and not curso_tarde:
+        flash('Seleccioná al menos un curso para asignar.', 'danger')
+        return redirect(url_for('carros.netbooks', id=id))
+
+    # Netbooks operativas del carro, ordenadas por numero_interno
+    netbooks = sorted(
+        [nb for nb in carro.netbooks if nb.estado == 'operativa'],
+        key=lambda nb: (nb.numero_interno or '').zfill(10)
+    )
+
+    asignados_m = 0
+    asignados_t = 0
+    sin_netbook_m = 0
+    sin_netbook_t = 0
+
+    # ── Asignar turno mañana ──────────────────────────────────────────────────
+    if curso_manana:
+        alumnos_m = Alumno.query.filter_by(curso=curso_manana, turno='M') \
+                                .order_by(Alumno.apellido, Alumno.nombre).all()
+        for i, alumno in enumerate(alumnos_m):
+            if i < len(netbooks):
+                netbooks[i].alumno_manana_id = alumno.id
+                asignados_m += 1
+            else:
+                sin_netbook_m += 1
+
+    # ── Asignar turno tarde ───────────────────────────────────────────────────
+    if curso_tarde:
+        alumnos_t = Alumno.query.filter_by(curso=curso_tarde, turno='T') \
+                                .order_by(Alumno.apellido, Alumno.nombre).all()
+        for i, alumno in enumerate(alumnos_t):
+            if i < len(netbooks):
+                netbooks[i].alumno_tarde_id = alumno.id
+                asignados_t += 1
+            else:
+                sin_netbook_t += 1
+
+    db.session.commit()
+
+    # Mensaje resumen
+    msg = []
+    if asignados_m:
+        msg.append(f'{asignados_m} alumnos de {curso_manana} asignados al turno mañana')
+    if asignados_t:
+        msg.append(f'{asignados_t} alumnos de {curso_tarde} asignados al turno tarde')
+    if sin_netbook_m:
+        msg.append(f'⚠️ {sin_netbook_m} alumnos de mañana sin netbook disponible')
+    if sin_netbook_t:
+        msg.append(f'⚠️ {sin_netbook_t} alumnos de tarde sin netbook disponible')
+
+    if msg:
+        flash(' | '.join(msg), 'success' if not sin_netbook_m and not sin_netbook_t else 'warning')
+    else:
+        flash('No se encontraron alumnos para los cursos seleccionados.', 'warning')
+
+    return redirect(url_for('carros.netbooks', id=id))
+
+
+@carros_bp.route('/<int:id>/desasignar-todos', methods=['POST'])
+@login_required
+def desasignar_todos(id):
+    """Quita todas las asignaciones de alumnos del carro."""
+    if not current_user.tiene_permiso('configuracion'):
+        flash('No tenés permiso para esta acción.', 'danger')
+        return redirect(url_for('carros.netbooks', id=id))
+
+    carro = Carro.query.get_or_404(id)
+    for nb in carro.netbooks:
+        nb.alumno_manana_id = None
+        nb.alumno_tarde_id  = None
+    db.session.commit()
+    flash(f'Todas las asignaciones del Carro {carro.display} fueron eliminadas.', 'success')
+    return redirect(url_for('carros.netbooks', id=id))
