@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, Usuario, ConfigEspacioDigital
+from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, Usuario, ConfigEspacioDigital, Alumno
 from datetime import datetime
 
 main_bp = Blueprint('main', __name__)
@@ -55,6 +55,73 @@ def dashboard():
 
     return render_template('main/dashboard.html',
                            stats=stats, alertas=alertas, now=ahora)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  BÚSQUEDA GLOBAL — carros, netbooks, alumnos
+# ─────────────────────────────────────────────────────────────────────────────
+
+@main_bp.route('/api/buscar')
+@login_required
+def buscar():
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify({'carros': [], 'netbooks': [], 'alumnos': []})
+
+    carros = Carro.query.filter(
+        Carro.estado != 'baja',
+        db.or_(
+            Carro.nombre.ilike(f'%{q}%'),
+            Carro.numero_serie.ilike(f'%{q}%'),
+            db.cast(Carro.numero_fisico, db.String).ilike(f'%{q}%'),
+        )
+    ).limit(5).all()
+
+    netbooks = Netbook.query.filter(
+        db.or_(
+            Netbook.numero_serie.ilike(f'%{q}%'),
+            db.cast(Netbook.numero_interno, db.String).ilike(f'%{q}%'),
+        )
+    ).limit(5).all()
+
+    alumnos = Alumno.query.filter(
+        db.or_(
+            Alumno.nombre.ilike(f'%{q}%'),
+            Alumno.apellido.ilike(f'%{q}%'),
+            Alumno.curso.ilike(f'%{q}%'),
+        )
+    ).limit(5).all()
+
+    def estado_nb(n):
+        return n.estado if hasattr(n, 'estado') else 'operativa'
+
+    return jsonify({
+        'carros': [{
+            'id':      c.id,
+            'nombre':  c.nombre or f'Carro {c.numero_fisico}',
+            'serie':   c.numero_serie or '—',
+            'netbooks': len(c.netbooks) if hasattr(c, 'netbooks') else 0,
+            'estado':  c.estado,
+            'url':     url_for('carros.detalle', id=c.id),
+        } for c in carros],
+        'netbooks': [{
+            'id':      n.id,
+            'serie':   n.numero_serie or '—',
+            'interno': str(n.numero_interno) if n.numero_interno else '—',
+            'alumno':  f'{n.alumno.apellido}, {n.alumno.nombre}' if n.alumno else 'Sin asignar',
+            'carro':   n.carro.nombre if n.carro else '—',
+            'estado':  estado_nb(n),
+            'url':     url_for('netbooks.detalle', id=n.id),
+        } for n in netbooks],
+        'alumnos': [{
+            'id':      a.id,
+            'nombre':  f'{a.apellido}, {a.nombre}',
+            'curso':   a.curso or '—',
+            'turno':   a.turno or '—',
+            'netbook': a.netbook.numero_serie if a.netbook else 'Sin netbook',
+            'url':     url_for('netbooks.index'),
+        } for a in alumnos],
+    })
 
 
 # ─────────────────────────────────────────────────────────────────────────────

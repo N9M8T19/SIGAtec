@@ -4,6 +4,173 @@
 
 {% block content %}
 
+{# ── BARRA DE BÚSQUEDA GLOBAL ── #}
+<div class="relative mb-6" id="search-container">
+    <div class="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+        <i class="fas fa-search text-gray-400"></i>
+        <input
+            id="globalSearch"
+            type="text"
+            placeholder="Buscar carro, netbook o alumno…"
+            autocomplete="off"
+            class="flex-1 outline-none text-sm text-gray-800 bg-transparent placeholder-gray-400"
+        />
+        <div id="searchSpinner" class="hidden">
+            <i class="fas fa-circle-notch fa-spin text-gray-400 text-sm"></i>
+        </div>
+        <span class="text-xs text-gray-300 hidden md:block">Esc para limpiar</span>
+    </div>
+
+    {# Filtros #}
+    <div class="flex gap-2 mt-2">
+        <button data-filter="todo"    class="filter-btn active text-xs px-3 py-1 rounded-full border transition-all">Todo</button>
+        <button data-filter="carro"   class="filter-btn text-xs px-3 py-1 rounded-full border transition-all">Carros</button>
+        <button data-filter="netbook" class="filter-btn text-xs px-3 py-1 rounded-full border transition-all">Netbooks</button>
+        <button data-filter="alumno"  class="filter-btn text-xs px-3 py-1 rounded-full border transition-all">Alumnos</button>
+    </div>
+
+    {# Dropdown de resultados #}
+    <div id="searchResults"
+         class="hidden absolute left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden"
+         style="top: calc(100% + 4px);">
+    </div>
+</div>
+
+<style>
+.filter-btn { background: white; color: #6b7280; border-color: #e5e7eb; cursor: pointer; }
+.filter-btn:hover { border-color: #1a2a6c; color: #1a2a6c; }
+.filter-btn.active { background: #1a2a6c; color: white; border-color: #1a2a6c; }
+.search-section-header { font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #9ca3af; padding: 8px 14px 5px;
+    background: #f9fafb; border-bottom: 1px solid #f3f4f6; }
+.search-result-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    cursor: pointer; border-bottom: 1px solid #f3f4f6; transition: background 0.1s;
+    text-decoration: none; color: inherit; }
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover, .search-result-item.focused { background: #f0f4ff; }
+.s-icon { width: 34px; height: 34px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.icon-carro   { background: #dbeafe; }
+.icon-netbook { background: #dcfce7; }
+.icon-alumno  { background: #ede9fe; }
+.r-title { font-size: 14px; font-weight: 500; color: #111827;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-sub   { font-size: 12px; color: #6b7280; margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.e-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
+.e-operativa        { background:#dcfce7; color:#166534; }
+.e-activo           { background:#fef3c7; color:#92400e; }
+.e-prestado         { background:#fef3c7; color:#92400e; }
+.e-servicio_tecnico { background:#ede9fe; color:#5b21b6; }
+.e-baja             { background:#fee2e2; color:#991b1b; }
+mark { background: #fde68a; border-radius: 2px; padding: 0 1px; }
+</style>
+
+<script>
+(function () {
+    const input   = document.getElementById('globalSearch');
+    const box     = document.getElementById('searchResults');
+    const spinner = document.getElementById('searchSpinner');
+    let activeFilter = 'todo', timer, links = [], fi = -1;
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeFilter = btn.dataset.filter;
+            run(input.value.trim());
+        });
+    });
+
+    input.addEventListener('input', e => {
+        clearTimeout(timer);
+        const q = e.target.value.trim();
+        if (!q) { box.classList.add('hidden'); return; }
+        spinner.classList.remove('hidden');
+        timer = setTimeout(() => run(q), 250);
+    });
+
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { input.value = ''; box.classList.add('hidden'); fi = -1; return; }
+        if (e.key === 'ArrowDown') { fi = Math.min(fi + 1, links.length - 1); sync(); e.preventDefault(); }
+        if (e.key === 'ArrowUp')   { fi = Math.max(fi - 1, -1);               sync(); e.preventDefault(); }
+        if (e.key === 'Enter' && fi >= 0 && links[fi]) window.location = links[fi];
+    });
+
+    document.addEventListener('click', e => {
+        if (!document.getElementById('search-container').contains(e.target)) box.classList.add('hidden');
+    });
+
+    function sync() {
+        document.querySelectorAll('.search-result-item').forEach((el, i) => el.classList.toggle('focused', i === fi));
+    }
+
+    function hl(t, q) {
+        if (!q || !t) return t || '';
+        return String(t).replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<mark>$1</mark>');
+    }
+
+    function eb(estado) {
+        const m = { operativa:'Operativa', activo:'Prestado', prestado:'Prestado',
+                    servicio_tecnico:'Serv. técnico', baja:'De baja' };
+        return `<span class="e-badge e-${estado}">${m[estado]||estado}</span>`;
+    }
+
+    async function run(q) {
+        if (q.length < 2) { box.classList.add('hidden'); spinner.classList.add('hidden'); return; }
+        try {
+            const r = await fetch('/api/buscar?q=' + encodeURIComponent(q));
+            const d = await r.json();
+            spinner.classList.add('hidden');
+            render(d, q);
+        } catch { spinner.classList.add('hidden'); }
+    }
+
+    function render(d, q) {
+        links = []; fi = -1;
+        let html = '', n = 0;
+
+        function sec(tipo, label, items, cls, icon, row) {
+            if ((activeFilter !== 'todo' && activeFilter !== tipo) || !items.length) return;
+            html += `<div class="search-section-header">${label}</div>`;
+            items.forEach(item => {
+                const { title, sub, bx, url } = row(item);
+                links.push(url);
+                html += `<a href="${url}" class="search-result-item">
+                    <div class="s-icon ${cls}">${icon}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="r-title">${title}</div>
+                        <div class="r-sub">${sub}</div>
+                    </div>${bx}
+                    <span style="color:#d1d5db;">›</span></a>`;
+                n++;
+            });
+        }
+
+        sec('carro', 'Carros', d.carros, 'icon-carro',
+            '<i class="fas fa-box" style="color:#2563eb;font-size:13px;"></i>',
+            c => ({ title: `${hl(c.nombre,q)} <span style="font-weight:400;font-size:12px;color:#9ca3af;">${hl(c.serie,q)}</span>`,
+                    sub: `${c.netbooks} netbooks`, bx: eb(c.estado), url: c.url }));
+
+        sec('netbook', 'Netbooks', d.netbooks, 'icon-netbook',
+            '<i class="fas fa-laptop" style="color:#16a34a;font-size:13px;"></i>',
+            n => ({ title: `${hl(n.serie,q)} <span style="font-weight:400;font-size:12px;color:#9ca3af;">N° ${hl(n.interno,q)}</span>`,
+                    sub: `${hl(n.alumno,q)} · ${n.carro}`, bx: eb(n.estado), url: n.url }));
+
+        sec('alumno', 'Alumnos', d.alumnos, 'icon-alumno',
+            '<i class="fas fa-user-graduate" style="color:#7c3aed;font-size:13px;"></i>',
+            a => ({ title: hl(a.nombre,q),
+                    sub: `${hl(a.curso,q)} · Turno ${a.turno} · ${a.netbook}`,
+                    bx: `<span class="e-badge" style="background:#f3f4f6;color:#4b5563;">${a.turno}</span>`,
+                    url: a.url }));
+
+        if (!n) html = `<div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:14px;">Sin resultados para "<strong>${q}</strong>"</div>`;
+        box.innerHTML = html;
+        box.classList.remove('hidden');
+    }
+})();
+</script>
+
 {% if alertas %}
 <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
     <div class="flex items-center gap-2 mb-3">
