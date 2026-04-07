@@ -469,55 +469,145 @@ def pdf_estadisticas(top_docentes, top_materias):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generar_pdf_asignaciones_carro(carro):
-    """PDF con todas las netbooks del carro y sus alumnos de mañana y tarde."""
+    """
+    PDF con asignaciones del carro.
+    Página 1: Turno Mañana (netbooks asignadas + alumnos sin netbook)
+    Página 2: Turno Tarde  (netbooks asignadas + alumnos sin netbook)
+    """
+    from reportlab.platypus import PageBreak
+    from models import Alumno
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4,
                              rightMargin=1.5*cm, leftMargin=1.5*cm,
                              topMargin=1.5*cm, bottomMargin=1.5*cm)
     story = []
-    _encabezado(story, f'Asignación de Alumnos — Carro {carro.display}',
-                f'División: {carro.division or "—"} | Aula: {carro.aula or "—"}')
 
-    # Totales
-    con_manana = sum(1 for nb in carro.netbooks if nb.alumno_manana_id)
-    con_tarde  = sum(1 for nb in carro.netbooks if nb.alumno_tarde_id)
-    total      = len(carro.netbooks)
-    stats_data = [['Total Netbooks', 'Con alumno Mañana', 'Con alumno Tarde'],
-                  [str(total), str(con_manana), str(con_tarde)]]
-    st = Table(stats_data, colWidths=[5.5*cm, 5.5*cm, 5.5*cm])
-    st.setStyle(TableStyle([
-        ('BACKGROUND',    (0, 0), (-1, 0),  AZUL_ESCUELA),
-        ('TEXTCOLOR',     (0, 0), (-1, 0),  colors.white),
-        ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
-        ('FONTSIZE',      (0, 0), (-1, -1), 9),
-        ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
-        ('BACKGROUND',    (0, 1), (-1, 1),  AZUL_CLARO),
-        ('FONTNAME',      (0, 1), (-1, 1),  'Helvetica-Bold'),
-        ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
-        ('TOPPADDING',    (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    story.append(st)
+    netbooks_ord = sorted(carro.netbooks, key=lambda n: (n.numero_interno or '').zfill(10))
+
+    # Detectar cursos asignados en este carro
+    cursos_m = list({nb.alumno_manana.curso for nb in netbooks_ord if nb.alumno_manana})
+    cursos_t = list({nb.alumno_tarde.curso  for nb in netbooks_ord if nb.alumno_tarde})
+
+    def _stats_tabla(total_nb, con_alumno, sin_netbook):
+        data = [['Total Netbooks', 'Con alumno asignado', 'Sin netbook disponible'],
+                [str(total_nb), str(con_alumno), str(sin_netbook)]]
+        t = Table(data, colWidths=[5.5*cm, 5.5*cm, 5.5*cm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND',    (0, 0), (-1, 0),  AZUL_ESCUELA),
+            ('TEXTCOLOR',     (0, 0), (-1, 0),  colors.white),
+            ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
+            ('FONTSIZE',      (0, 0), (-1, -1), 9),
+            ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+            ('BACKGROUND',    (0, 1), (-1, 1),  AZUL_CLARO),
+            ('FONTNAME',      (0, 1), (-1, 1),  'Helvetica-Bold'),
+            ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+            ('TOPPADDING',    (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        return t
+
+    # ── TURNO MAÑANA ─────────────────────────────────────────────────────────
+    _encabezado(story, f'Asignación Turno Mañana — Carro {carro.display}',
+                f'División: {carro.division or "—"} | Aula: {carro.aula or "—"} | Curso: {", ".join(cursos_m) or "—"}')
+
+    # Alumnos sin netbook de mañana
+    sin_nb_m = []
+    if cursos_m:
+        ids_asignados_m = {nb.alumno_manana_id for nb in netbooks_ord if nb.alumno_manana_id}
+        sin_nb_m = Alumno.query.filter(
+            Alumno.curso.in_(cursos_m),
+            Alumno.turno == 'M',
+            ~Alumno.id.in_(ids_asignados_m)
+        ).order_by(Alumno.apellido, Alumno.nombre).all()
+
+    con_m = sum(1 for nb in netbooks_ord if nb.alumno_manana_id)
+    story.append(_stats_tabla(len(netbooks_ord), con_m, len(sin_nb_m)))
     story.append(Spacer(1, 0.4*cm))
 
-    # Tabla principal con dos columnas de alumnos
-    data = [['N°', 'N° de Serie', 'Alumno Mañana', 'Alumno Tarde']]
-    netbooks_ord = sorted(carro.netbooks, key=lambda n: (n.numero_interno or '').zfill(10))
+    # Tabla netbooks mañana
+    data_m = [['N°', 'Alumno Mañana', 'Curso']]
     for nb in netbooks_ord:
-        manana_txt = (f'{nb.alumno_manana.apellido}, {nb.alumno_manana.nombre}\n{nb.alumno_manana.curso}'
-                      if nb.alumno_manana else '—')
-        tarde_txt  = (f'{nb.alumno_tarde.apellido}, {nb.alumno_tarde.nombre}\n{nb.alumno_tarde.curso}'
-                      if nb.alumno_tarde else '—')
-        data.append([
-            nb.numero_interno or '—',
-            nb.numero_serie or 'SIN SERIE',
-            manana_txt,
-            tarde_txt,
-        ])
+        if nb.alumno_manana:
+            data_m.append([
+                nb.numero_interno or '—',
+                f'{nb.alumno_manana.apellido}, {nb.alumno_manana.nombre}',
+                nb.alumno_manana.curso,
+            ])
+    if len(data_m) > 1:
+        t_m = Table(data_m, colWidths=[2*cm, 11*cm, 4*cm])
+        t_m.setStyle(_tabla_estilo())
+        story.append(t_m)
 
-    t = Table(data, colWidths=[1.5*cm, 4*cm, 6*cm, 6*cm])
-    t.setStyle(_tabla_estilo())
-    story.append(t)
+    # Alumnos sin netbook mañana
+    if sin_nb_m:
+        story.append(Spacer(1, 0.5*cm))
+        story.append(Paragraph('Alumnos sin netbook disponible — Turno Mañana',
+                               ParagraphStyle('warn', parent=styles['Normal'],
+                                              fontSize=10, fontName='Helvetica-Bold',
+                                              textColor=ROJO)))
+        story.append(Spacer(1, 0.2*cm))
+        data_sin_m = [['Apellido y Nombre', 'Curso', 'Netbook']]
+        for a in sin_nb_m:
+            data_sin_m.append([f'{a.apellido}, {a.nombre}', a.curso, 'Netbook sin asignar'])
+        t_sin_m = Table(data_sin_m, colWidths=[9*cm, 3*cm, 5*cm])
+        estilo_sin = _tabla_estilo(ROJO)
+        for i in range(1, len(data_sin_m)):
+            estilo_sin.add('TEXTCOLOR', (2, i), (2, i), ROJO)
+            estilo_sin.add('FONTNAME',  (2, i), (2, i), 'Helvetica-Bold')
+        t_sin_m.setStyle(estilo_sin)
+        story.append(t_sin_m)
+
+    # ── SALTO DE PÁGINA ───────────────────────────────────────────────────────
+    story.append(PageBreak())
+
+    # ── TURNO TARDE ──────────────────────────────────────────────────────────
+    _encabezado(story, f'Asignación Turno Tarde — Carro {carro.display}',
+                f'División: {carro.division or "—"} | Aula: {carro.aula or "—"} | Curso: {", ".join(cursos_t) or "—"}')
+
+    sin_nb_t = []
+    if cursos_t:
+        ids_asignados_t = {nb.alumno_tarde_id for nb in netbooks_ord if nb.alumno_tarde_id}
+        sin_nb_t = Alumno.query.filter(
+            Alumno.curso.in_(cursos_t),
+            Alumno.turno == 'T',
+            ~Alumno.id.in_(ids_asignados_t)
+        ).order_by(Alumno.apellido, Alumno.nombre).all()
+
+    con_t = sum(1 for nb in netbooks_ord if nb.alumno_tarde_id)
+    story.append(_stats_tabla(len(netbooks_ord), con_t, len(sin_nb_t)))
+    story.append(Spacer(1, 0.4*cm))
+
+    data_t = [['N°', 'Alumno Tarde', 'Curso']]
+    for nb in netbooks_ord:
+        if nb.alumno_tarde:
+            data_t.append([
+                nb.numero_interno or '—',
+                f'{nb.alumno_tarde.apellido}, {nb.alumno_tarde.nombre}',
+                nb.alumno_tarde.curso,
+            ])
+    if len(data_t) > 1:
+        t_t = Table(data_t, colWidths=[2*cm, 11*cm, 4*cm])
+        t_t.setStyle(_tabla_estilo())
+        story.append(t_t)
+
+    if sin_nb_t:
+        story.append(Spacer(1, 0.5*cm))
+        story.append(Paragraph('Alumnos sin netbook disponible — Turno Tarde',
+                               ParagraphStyle('warn2', parent=styles['Normal'],
+                                              fontSize=10, fontName='Helvetica-Bold',
+                                              textColor=ROJO)))
+        story.append(Spacer(1, 0.2*cm))
+        data_sin_t = [['Apellido y Nombre', 'Curso', 'Netbook']]
+        for a in sin_nb_t:
+            data_sin_t.append([f'{a.apellido}, {a.nombre}', a.curso, 'Netbook sin asignar'])
+        t_sin_t = Table(data_sin_t, colWidths=[9*cm, 3*cm, 5*cm])
+        estilo_sin_t = _tabla_estilo(ROJO)
+        for i in range(1, len(data_sin_t)):
+            estilo_sin_t.add('TEXTCOLOR', (2, i), (2, i), ROJO)
+            estilo_sin_t.add('FONTNAME',  (2, i), (2, i), 'Helvetica-Bold')
+        t_sin_t.setStyle(estilo_sin_t)
+        story.append(t_sin_t)
 
     doc.build(story)
     buffer.seek(0)
