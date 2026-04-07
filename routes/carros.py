@@ -88,6 +88,73 @@ def netbooks(id):
                            conteo_cursos=conteo_cursos)
 
 
+@carros_bp.route('/<int:id>/asignar-automatico', methods=['POST'])
+@login_required
+def asignar_automatico(id):
+    if not current_user.tiene_permiso('configuracion'):
+        flash('No tenés permiso para esta acción.', 'danger')
+        return redirect(url_for('carros.netbooks', id=id))
+
+    carro         = Carro.query.get_or_404(id)
+    curso_manana  = request.form.get('curso_manana', '').strip()
+    curso_tarde   = request.form.get('curso_tarde', '').strip()
+
+    from models import Alumno
+
+    if not curso_manana and not curso_tarde:
+        flash('Seleccioná al menos un curso.', 'danger')
+        return redirect(url_for('carros.netbooks', id=id))
+
+    # Netbooks operativas del carro ordenadas por número interno
+    netbooks = sorted(
+        [nb for nb in carro.netbooks if nb.estado == 'operativa'],
+        key=lambda nb: (nb.numero_interno or '').zfill(10)
+    )
+
+    if not netbooks:
+        flash('Este carro no tiene netbooks operativas.', 'warning')
+        return redirect(url_for('carros.netbooks', id=id))
+
+    # Limpiar asignaciones previas del carro
+    for nb in netbooks:
+        nb.alumno_manana_id = None
+        nb.alumno_tarde_id  = None
+
+    asignados_manana = 0
+    asignados_tarde  = 0
+
+    # Asignar turno mañana
+    if curso_manana:
+        alumnos_m = Alumno.query.filter_by(curso=curso_manana, turno='M')\
+                          .order_by(Alumno.apellido, Alumno.nombre).all()
+        for i, alumno in enumerate(alumnos_m):
+            if i >= len(netbooks):
+                break
+            netbooks[i].alumno_manana_id = alumno.id
+            asignados_manana += 1
+
+    # Asignar turno tarde (sobre las mismas netbooks)
+    if curso_tarde:
+        alumnos_t = Alumno.query.filter_by(curso=curso_tarde, turno='T')\
+                          .order_by(Alumno.apellido, Alumno.nombre).all()
+        for i, alumno in enumerate(alumnos_t):
+            if i >= len(netbooks):
+                break
+            netbooks[i].alumno_tarde_id = alumno.id
+            asignados_tarde += 1
+
+    db.session.commit()
+
+    msg = f'Asignación completada — {asignados_manana} alumnos mañana, {asignados_tarde} alumnos tarde.'
+    if curso_manana and asignados_manana < len(Alumno.query.filter_by(curso=curso_manana, turno='M').all()):
+        msg += ' ⚠️ Algunos alumnos de mañana quedaron sin netbook (el carro tiene menos lugares).'
+    if curso_tarde and asignados_tarde < len(Alumno.query.filter_by(curso=curso_tarde, turno='T').all()):
+        msg += ' ⚠️ Algunos alumnos de tarde quedaron sin netbook (el carro tiene menos lugares).'
+
+    flash(msg, 'success')
+    return redirect(url_for('carros.netbooks', id=id))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  ASIGNACIÓN AUTOMÁTICA DE ALUMNOS A CARRO
 # ─────────────────────────────────────────────────────────────────────────────
@@ -98,6 +165,8 @@ def asignar_automatico(id):
     """
     Asigna automáticamente alumnos de dos cursos (mañana y tarde) a las
     netbooks de un carro, en orden alfabético.
+    Los alumnos que superen la cantidad de netbooks quedan registrados
+    con netbook_id=None — aparecen en el listado como 'Sin netbook asignada'.
     """
     if not current_user.tiene_permiso('configuracion'):
         flash('No tenés permiso para esta acción.', 'danger')
@@ -106,6 +175,8 @@ def asignar_automatico(id):
     carro        = Carro.query.get_or_404(id)
     curso_manana = request.form.get('curso_manana', '').strip()
     curso_tarde  = request.form.get('curso_tarde', '').strip()
+
+    from models import Alumno
 
     if not curso_manana and not curso_tarde:
         flash('Seleccioná al menos un curso para asignar.', 'danger')
@@ -117,51 +188,62 @@ def asignar_automatico(id):
         key=lambda nb: (nb.numero_interno or '').zfill(10)
     )
 
-    asignados_m = 0
-    asignados_t = 0
+    # Limpiar asignaciones previas en netbooks del carro
+    for nb in netbooks:
+        nb.alumno_manana_id = None
+        nb.alumno_tarde_id  = None
+
+    asignados_m   = 0
     sin_netbook_m = 0
+    asignados_t   = 0
     sin_netbook_t = 0
 
-    # ── Asignar turno mañana ──────────────────────────────────────────────────
+    # ── Turno mañana ─────────────────────────────────────────────────────────
     if curso_manana:
-        alumnos_m = Alumno.query.filter_by(curso=curso_manana, turno='M') \
+        # Limpiar netbook_id previo de alumnos de este curso/turno
+        Alumno.query.filter_by(curso=curso_manana, turno='M').update({'netbook_id': None})
+
+        alumnos_m = Alumno.query.filter_by(curso=curso_manana, turno='M')\
                                 .order_by(Alumno.apellido, Alumno.nombre).all()
         for i, alumno in enumerate(alumnos_m):
             if i < len(netbooks):
                 netbooks[i].alumno_manana_id = alumno.id
+                alumno.netbook_id = netbooks[i].id
                 asignados_m += 1
             else:
+                alumno.netbook_id = None   # sin netbook — queda visible en listado
                 sin_netbook_m += 1
 
-    # ── Asignar turno tarde ───────────────────────────────────────────────────
+    # ── Turno tarde ───────────────────────────────────────────────────────────
     if curso_tarde:
-        alumnos_t = Alumno.query.filter_by(curso=curso_tarde, turno='T') \
+        Alumno.query.filter_by(curso=curso_tarde, turno='T').update({'netbook_id': None})
+
+        alumnos_t = Alumno.query.filter_by(curso=curso_tarde, turno='T')\
                                 .order_by(Alumno.apellido, Alumno.nombre).all()
         for i, alumno in enumerate(alumnos_t):
             if i < len(netbooks):
                 netbooks[i].alumno_tarde_id = alumno.id
+                alumno.netbook_id = netbooks[i].id
                 asignados_t += 1
             else:
+                alumno.netbook_id = None
                 sin_netbook_t += 1
 
     db.session.commit()
 
     # Mensaje resumen
-    msg = []
+    partes = []
     if asignados_m:
-        msg.append(f'{asignados_m} alumnos de {curso_manana} asignados al turno mañana')
+        partes.append(f'{asignados_m} alumnos de {curso_manana} asignados (mañana)')
     if asignados_t:
-        msg.append(f'{asignados_t} alumnos de {curso_tarde} asignados al turno tarde')
+        partes.append(f'{asignados_t} alumnos de {curso_tarde} asignados (tarde)')
     if sin_netbook_m:
-        msg.append(f'⚠️ {sin_netbook_m} alumnos de mañana sin netbook disponible')
+        partes.append(f'⚠️ {sin_netbook_m} alumnos de mañana sin netbook disponible')
     if sin_netbook_t:
-        msg.append(f'⚠️ {sin_netbook_t} alumnos de tarde sin netbook disponible')
+        partes.append(f'⚠️ {sin_netbook_t} alumnos de tarde sin netbook disponible')
 
-    if msg:
-        flash(' | '.join(msg), 'success' if not sin_netbook_m and not sin_netbook_t else 'warning')
-    else:
-        flash('No se encontraron alumnos para los cursos seleccionados.', 'warning')
-
+    categoria = 'warning' if (sin_netbook_m or sin_netbook_t) else 'success'
+    flash(' | '.join(partes) if partes else 'No se encontraron alumnos.', categoria)
     return redirect(url_for('carros.netbooks', id=id))
 
 

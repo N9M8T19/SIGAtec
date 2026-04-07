@@ -134,6 +134,10 @@ class Alumno(db.Model):
     dni      = db.Column(db.String(20), unique=True, nullable=False)
     curso    = db.Column(db.String(20), nullable=False)   # ej: "N1G1"
     turno    = db.Column(db.String(10), nullable=False, default='M')  # 'M' o 'T'
+    netbook_id = db.Column(db.Integer, db.ForeignKey('netbooks.id'), nullable=True)
+
+    netbook_asignada = db.relationship('Netbook', foreign_keys=[netbook_id],
+                                        backref='alumno_asignado', lazy=True)
 
     @property
     def nombre_completo(self):
