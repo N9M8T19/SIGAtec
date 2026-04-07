@@ -166,8 +166,10 @@ class Netbook(db.Model):
     problema          = db.Column(db.Text)
     nro_reclamo       = db.Column(db.String(50))   # N° reclamo Mi BA Colaborativa
 
-    alumno_manana = db.relationship('Alumno', foreign_keys=[alumno_manana_id])
-    alumno_tarde  = db.relationship('Alumno', foreign_keys=[alumno_tarde_id])
+    alumno_manana = db.relationship('Alumno', foreign_keys=[alumno_manana_id],
+                                    overlaps='alumno_manana_obj,netbook_manana_rel')
+    alumno_tarde  = db.relationship('Alumno', foreign_keys=[alumno_tarde_id],
+                                    overlaps='alumno_tarde_obj,netbook_tarde_rel')
 
 
 # ─────────────────────────────────────────────────────────────────────────────
