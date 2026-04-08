@@ -118,7 +118,7 @@ def buscar():
             'serie':   c.numero_serie or '—',
             'netbooks': len(c.netbooks),
             'estado':  c.estado,
-            'url':     url_for('carros.index'),
+            'url':     url_for('carros.netbooks', id=c.id),
         } for c in carros],
         'netbooks': [{
             'id':      n.id,
@@ -127,7 +127,7 @@ def buscar():
             'alumno':  alumno_nb(n),
             'carro':   f'Carro {n.carro.numero_fisico}' if n.carro and n.carro.numero_fisico else '—',
             'estado':  n.estado,
-            'url':     url_for('netbooks.index'),
+            'url':     url_for('carros.netbooks', id=n.carro_id),
         } for n in netbooks],
         'alumnos': [{
             'id':      a.id,
@@ -135,7 +135,7 @@ def buscar():
             'curso':   a.curso or '—',
             'turno':   'Mañana' if a.turno == 'M' else 'Tarde',
             'netbook': a.netbook_asignada.numero_serie if a.netbook_asignada else 'Sin netbook',
-            'url':     url_for('netbooks.index'),
+            'url':     url_for('carros.index'),
         } for a in alumnos],
     })
 
