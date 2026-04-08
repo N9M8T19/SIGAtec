@@ -1,11 +1,18 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
-from models import db, Docente
+from models import db, Docente, PrestamoCarro
 from models_extra.horarios_notificaciones import MATERIAS
 
 docentes_bp = Blueprint('docentes', __name__, url_prefix='/docentes')
 
 TURNOS = ['Mañana', 'Tarde', 'Noche', 'Mañana y Tarde', 'Tarde y Noche', 'Varios']
+
+MOTIVOS_BAJA = [
+    ('jubilacion', 'Jubilación (se elimina del sistema)'),
+    ('renuncia',   'Renuncia'),
+    ('traslado',   'Traslado'),
+    ('otro',       'Otro'),
+]
 
 
 @docentes_bp.route('/')
@@ -77,17 +84,47 @@ def editar(id):
                            docente=docente, turnos=TURNOS, materias=MATERIAS)
 
 
-@docentes_bp.route('/<int:id>/baja', methods=['POST'])
+@docentes_bp.route('/<int:id>/baja', methods=['GET', 'POST'])
 @login_required
 def dar_baja(id):
     if not current_user.tiene_permiso('estadisticas'):
-        flash('No tenes permiso para esta accion.', 'danger')
+        flash('No tenés permiso para esta acción.', 'danger')
         return redirect(url_for('docentes.index'))
+
     docente = Docente.query.get_or_404(id)
-    docente.activo = False
-    db.session.commit()
-    flash(f'{docente.nombre_completo} dado de baja.', 'warning')
-    return redirect(url_for('docentes.index'))
+
+    if request.method == 'POST':
+        motivo = request.form.get('motivo', '').strip()
+
+        if not motivo:
+            flash('Tenés que seleccionar un motivo de baja.', 'danger')
+            return render_template('docentes/baja.html',
+                                   docente=docente, motivos=MOTIVOS_BAJA)
+
+        # Verificar préstamo activo antes de cualquier acción
+        prestamo_activo = PrestamoCarro.query.filter_by(
+            docente_id=id, devuelto=False
+        ).first()
+        if prestamo_activo:
+            flash(f'{docente.nombre_completo} tiene un préstamo activo. '
+                  'Registrá la devolución antes de dar de baja.', 'danger')
+            return redirect(url_for('docentes.index'))
+
+        if motivo == 'jubilacion':
+            nombre = docente.nombre_completo
+            db.session.delete(docente)
+            db.session.commit()
+            flash(f'{nombre} eliminado del sistema (jubilación).', 'success')
+        else:
+            docente.activo = False
+            db.session.commit()
+            flash(f'{docente.nombre_completo} dado de baja ({motivo}).', 'warning')
+
+        return redirect(url_for('docentes.index'))
+
+    # GET — mostrar página de confirmación con selector de motivo
+    return render_template('docentes/baja.html',
+                           docente=docente, motivos=MOTIVOS_BAJA)
 
 
 @docentes_bp.route('/<int:id>/reactivar', methods=['POST'])

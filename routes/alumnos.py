@@ -1,6 +1,6 @@
 """
 routes/alumnos.py
-Gestión de alumnos — listado, búsqueda y eliminación.
+Gestión de alumnos — listado paginado, búsqueda y eliminación.
 """
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
@@ -9,6 +9,8 @@ from models import db, Alumno, Netbook
 
 alumnos_bp = Blueprint('alumnos', __name__, url_prefix='/alumnos')
 
+POR_PAGINA = 50
+
 
 @alumnos_bp.route('/')
 @login_required
@@ -16,6 +18,7 @@ def index():
     q      = request.args.get('q', '').strip()
     turno  = request.args.get('turno', '')   # 'M', 'T' o ''
     curso  = request.args.get('curso', '').strip()
+    page   = request.args.get('page', 1, type=int)
 
     query = Alumno.query
 
@@ -32,16 +35,18 @@ def index():
     if curso:
         query = query.filter(Alumno.curso.ilike(f'%{curso}%'))
 
-    alumnos = query.order_by(Alumno.curso, Alumno.turno, Alumno.apellido, Alumno.nombre).all()
+    query = query.order_by(Alumno.curso, Alumno.turno, Alumno.apellido, Alumno.nombre)
+    paginacion = query.paginate(page=page, per_page=POR_PAGINA, error_out=False)
 
-    # Obtener lista de cursos únicos para el filtro
+    # Obtener lista de cursos únicos para el filtro desplegable
     cursos_unicos = db.session.query(Alumno.curso).distinct().order_by(Alumno.curso).all()
     cursos_unicos = [c[0] for c in cursos_unicos]
 
     total = Alumno.query.count()
 
     return render_template('alumnos/index.html',
-                           alumnos=alumnos,
+                           alumnos=paginacion.items,
+                           paginacion=paginacion,
                            busqueda=q,
                            turno=turno,
                            curso_filtro=curso,

@@ -71,12 +71,6 @@
         </thead>
         <tbody class="divide-y divide-gray-100">
             {% for a in alumnos %}
-
-            {# Buscar netbook asignada #}
-            {% set nb_manana = a.netbooks_manana | first if a.netbooks_manana is defined else none %}
-            {% set netbook_asignada = none %}
-            {# Buscar via relación inversa #}
-
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-3 font-medium">{{ a.nombre_completo }}</td>
                 <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ a.dni }}</td>
@@ -144,5 +138,66 @@
         </tbody>
     </table>
 </div>
+
+{# ── Paginación ── #}
+{% if paginacion.pages > 1 %}
+<div class="mt-4">
+    <nav class="flex justify-center">
+        <ul class="flex gap-1 items-center">
+
+            {# Anterior #}
+            <li>
+                {% if paginacion.has_prev %}
+                <a href="{{ url_for('alumnos.index', page=paginacion.prev_num, q=busqueda, curso=curso_filtro, turno=turno) }}"
+                   class="px-3 py-2 rounded-lg text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                {% else %}
+                <span class="px-3 py-2 rounded-lg text-sm bg-gray-50 border border-gray-100 text-gray-300">
+                    <i class="fas fa-chevron-left"></i>
+                </span>
+                {% endif %}
+            </li>
+
+            {# Números de página #}
+            {% for p in paginacion.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if p %}
+                <li>
+                    <a href="{{ url_for('alumnos.index', page=p, q=busqueda, curso=curso_filtro, turno=turno) }}"
+                       class="px-3 py-2 rounded-lg text-sm border
+                           {% if p == paginacion.page %}
+                               bg-blue-900 text-white border-blue-900
+                           {% else %}
+                               bg-white border-gray-200 text-gray-600 hover:bg-gray-50
+                           {% endif %}">
+                        {{ p }}
+                    </a>
+                </li>
+                {% else %}
+                <li><span class="px-2 py-2 text-gray-400 text-sm">…</span></li>
+                {% endif %}
+            {% endfor %}
+
+            {# Siguiente #}
+            <li>
+                {% if paginacion.has_next %}
+                <a href="{{ url_for('alumnos.index', page=paginacion.next_num, q=busqueda, curso=curso_filtro, turno=turno) }}"
+                   class="px-3 py-2 rounded-lg text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                {% else %}
+                <span class="px-3 py-2 rounded-lg text-sm bg-gray-50 border border-gray-100 text-gray-300">
+                    <i class="fas fa-chevron-right"></i>
+                </span>
+                {% endif %}
+            </li>
+
+        </ul>
+    </nav>
+    <p class="text-center text-xs text-gray-400 mt-2">
+        Mostrando {{ paginacion.first }}–{{ paginacion.last }} de {{ paginacion.total }} alumnos
+    </p>
+</div>
+{% endif %}
 
 {% endblock %}

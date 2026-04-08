@@ -66,12 +66,11 @@
                         </a>
                         {% if current_user.tiene_permiso('estadisticas') %}
                         {% if d.activo %}
-                        <form method="POST" action="{{ url_for('docentes.dar_baja', id=d.id) }}"
-                              onsubmit="return confirm('Dar de baja a {{ d.nombre_completo }}?')">
-                            <button type="submit" class="text-red-400 hover:text-red-600" title="Dar de baja">
-                                <i class="fas fa-user-times"></i>
-                            </button>
-                        </form>
+                        {# ── Ahora va a una página de confirmación con selector de motivo ── #}
+                        <a href="{{ url_for('docentes.dar_baja', id=d.id) }}"
+                           class="text-red-400 hover:text-red-600" title="Dar de baja">
+                            <i class="fas fa-user-times"></i>
+                        </a>
                         {% else %}
                         <form method="POST" action="{{ url_for('docentes.reactivar', id=d.id) }}">
                             <button type="submit" class="text-green-500 hover:text-green-700" title="Reactivar">
