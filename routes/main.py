@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, Usuario, ConfigEspacioDigital, Alumno
+from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, TicketBA, Usuario, ConfigEspacioDigital, Alumno
 from datetime import datetime
 
 main_bp = Blueprint('main', __name__)
@@ -55,6 +55,113 @@ def dashboard():
 
     return render_template('main/dashboard.html',
                            stats=stats, alertas=alertas, now=ahora)
+
+
+@main_bp.route('/api/novedades')
+@login_required
+def novedades():
+    """Devuelve los últimos eventos del sistema para el panel de novedades del dashboard."""
+    from zoneinfo import ZoneInfo
+
+    AR = ZoneInfo('America/Argentina/Buenos_Aires')
+    ahora = datetime.utcnow()
+
+    def hora_ar(dt):
+        if dt is None:
+            return '—'
+        from datetime import timezone
+        dt_utc = dt.replace(tzinfo=timezone.utc)
+        dt_local = dt_utc.astimezone(AR)
+        return dt_local.strftime('%d/%m %H:%M hs')
+
+    eventos = []
+
+    # Retiros y devoluciones de carros (últimos 5)
+    prestamos_carros = PrestamoCarro.query.order_by(
+        PrestamoCarro.hora_retiro.desc()
+    ).limit(10).all()
+
+    for p in prestamos_carros:
+        docente = p.docente.nombre_completo if p.docente else '—'
+        carro = p.carro.display if p.carro else '—'
+        if p.estado == 'devuelto' and p.hora_devolucion:
+            eventos.append({
+                'tipo': 'devolucion',
+                'label': 'Devolución',
+                'texto': f'{docente} devolvió {carro}',
+                'hora': hora_ar(p.hora_devolucion),
+                '_dt': p.hora_devolucion
+            })
+        else:
+            eventos.append({
+                'tipo': 'retiro',
+                'label': 'Retiro',
+                'texto': f'{docente} retiró {carro}',
+                'hora': hora_ar(p.hora_retiro),
+                '_dt': p.hora_retiro
+            })
+
+    # Retiros y devoluciones de netbooks (últimos 5)
+    prestamos_nb = PrestamoNetbook.query.order_by(
+        PrestamoNetbook.hora_retiro.desc()
+    ).limit(10).all()
+
+    for p in prestamos_nb:
+        docente = p.docente.nombre_completo if p.docente else '—'
+        cant = len(p.items)
+        if p.estado == 'devuelto' and p.hora_devolucion:
+            eventos.append({
+                'tipo': 'devolucion',
+                'label': 'Devolución',
+                'texto': f'{docente} devolvió {cant} netbook(s) — Espacio Digital',
+                'hora': hora_ar(p.hora_devolucion),
+                '_dt': p.hora_devolucion
+            })
+        else:
+            eventos.append({
+                'tipo': 'retiro',
+                'label': 'Retiro',
+                'texto': f'{docente} retiró {cant} netbook(s) — Espacio Digital',
+                'hora': hora_ar(p.hora_retiro),
+                '_dt': p.hora_retiro
+            })
+
+    # Netbooks dadas de baja (últimas 5)
+    bajas = Netbook.query.filter_by(estado='baja').order_by(
+        Netbook.id.desc()
+    ).limit(5).all()
+
+    for n in bajas:
+        eventos.append({
+            'tipo': 'baja',
+            'label': 'Baja netbook',
+            'texto': f'Netbook {n.numero_interno or n.numero_serie or "—"} dada de baja — {n.motivo_baja or "sin motivo"}',
+            'hora': '—',
+            '_dt': None
+        })
+
+    # Tickets BA (últimos 5)
+    try:
+        tickets = TicketBA.query.order_by(TicketBA.id.desc()).limit(5).all()
+        for t in tickets:
+            eventos.append({
+                'tipo': 'ticket',
+                'label': 'Ticket BA',
+                'texto': f'Ticket #{t.id} — {t.descripcion[:60] if t.descripcion else "sin descripción"}',
+                'hora': hora_ar(t.fecha_creacion) if hasattr(t, 'fecha_creacion') else '—',
+                '_dt': t.fecha_creacion if hasattr(t, 'fecha_creacion') else None
+            })
+    except Exception:
+        pass
+
+    # Ordenar por fecha descendente, los que no tienen fecha van al final
+    eventos.sort(key=lambda e: e['_dt'] or datetime.min, reverse=True)
+
+    # Limpiar campo interno antes de devolver
+    for e in eventos:
+        del e['_dt']
+
+    return jsonify({'novedades': eventos[:10]})
 
 
 # ─────────────────────────────────────────────────────────────────────────────

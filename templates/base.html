@@ -66,6 +66,66 @@
         nav::-webkit-scrollbar       { width: 4px; }
         nav::-webkit-scrollbar-track { background: transparent; }
         nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius:2px; }
+
+        /* ── Sidebar colapsable ────────────────────────────────────── */
+        #sidebar {
+            transition: width 0.25s ease, min-width 0.25s ease;
+            width: 16rem;
+            min-width: 16rem;
+            overflow: hidden;
+        }
+        #sidebar.collapsed {
+            width: 0;
+            min-width: 0;
+        }
+        #sidebar.collapsed * {
+            visibility: hidden;
+        }
+
+        /* Botón toggle en el header */
+        #sidebar-toggle {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: rgba(255,255,255,0.8);
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+        #sidebar-toggle:hover { background: rgba(255,255,255,0.2); }
+
+        /* Zona hover para reabrirlo cuando está colapsado */
+        #sidebar-hover-zone {
+            display: none;
+            position: fixed;
+            left: 0; top: 0;
+            width: 12px; height: 100%;
+            z-index: 40;
+        }
+
+        /* Sidebar flotante (peek) cuando está colapsado y se hace hover */
+        #sidebar-peek {
+            position: fixed;
+            left: 0; top: 0; height: 100%;
+            width: 16rem;
+            background-color: var(--azul-oscuro);
+            transform: translateX(-100%);
+            transition: transform 0.22s ease;
+            z-index: 50;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #sidebar-peek.show { transform: translateX(0); }
+        #sidebar-peek nav::-webkit-scrollbar       { width: 4px; }
+        #sidebar-peek nav::-webkit-scrollbar-track { background: transparent; }
+        #sidebar-peek nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius:2px; }
     </style>
 </head>
 <body class="font-sans">
@@ -76,7 +136,7 @@
     {# ══════════════════════════════════════════════════════════════
        SIDEBAR
     ══════════════════════════════════════════════════════════════ #}
-    <aside class="sidebar w-64 text-white flex flex-col flex-shrink-0">
+    <aside class="sidebar text-white flex flex-col flex-shrink-0" id="sidebar">
 
         {# Brand #}
         <div class="sidebar-brand p-4 flex items-center gap-3">
@@ -236,7 +296,12 @@
     <main class="flex-1 overflow-y-auto">
 
         <header class="main-header px-6 py-4 flex items-center justify-between">
-            <h1>{% block header %}{% endblock %}</h1>
+            <div class="flex items-center gap-3">
+                <button id="sidebar-toggle" title="Mostrar/ocultar menú">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>{% block header %}{% endblock %}</h1>
+            </div>
             <div class="reloj">
                 <i class="fas fa-clock mr-1"></i>
                 <span id="reloj"></span>
@@ -269,6 +334,70 @@
 {% block auth_content %}{% endblock %}
 {% endif %}
 
+{# Zona invisible en el borde izquierdo para activar el peek cuando el sidebar está colapsado #}
+<div id="sidebar-hover-zone"></div>
+
+{# Sidebar flotante (peek) — aparece al acercar el mouse al borde izquierdo con sidebar colapsado #}
+<div id="sidebar-peek">
+    <div class="sidebar-brand p-4 flex items-center gap-3">
+        <i class="fas fa-fire flame-icon"></i>
+        <div>
+            <div class="brand-title">SIGA-Tec</div>
+            <div class="brand-subtitle">E.T. N°7 D.E. 5 — Lavalle</div>
+        </div>
+    </div>
+    {% if current_user.is_authenticated %}
+    <div class="p-4 border-b border-white/10">
+        <div class="text-xs" style="color:rgba(255,255,255,.5)">Sesión activa</div>
+        <div class="font-semibold text-sm truncate mt-0.5">{{ current_user.nombre_completo }}</div>
+        <span class="text-xs px-2 py-0.5 rounded-full mt-1 inline-block font-medium
+            {% if current_user.rol == 'Administrador' %}badge-admin
+            {% elif current_user.rol == 'Directivo' %}badge-directivo
+            {% else %}badge-encargado{% endif %}">
+            {{ current_user.rol }}
+        </span>
+    </div>
+    <nav class="flex-1 overflow-y-auto p-2 space-y-0.5 text-white">
+        <a href="{{ url_for('main.dashboard') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.dashboard' %}active{% endif %}"><i class="fas fa-tachometer-alt w-5"></i> Dashboard</a>
+        <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Inventario</p>
+        <a href="{{ url_for('carros.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'carros' in request.endpoint %}active{% endif %}"><i class="fas fa-box w-5"></i> Carros</a>
+        <a href="{{ url_for('netbooks.servicio_tecnico') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'netbooks.servicio_tecnico' %}active{% endif %}"><i class="fas fa-laptop w-5"></i> Servicio Técnico</a>
+        <a href="{{ url_for('tickets_ba.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'tickets_ba' in request.endpoint %}active{% endif %}"><i class="fas fa-ticket-alt w-5"></i> Tickets BA Colaborativa</a>
+        <a href="{{ url_for('pantallas.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'pantallas' in request.endpoint %}active{% endif %}"><i class="fas fa-tv w-5"></i> Pantallas Digitales</a>
+        <a href="{{ url_for('stock.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'stock' in request.endpoint %}active{% endif %}"><i class="fas fa-clipboard-check w-5"></i> Control de Stock</a>
+        {% if current_user.tiene_permiso('configuracion') %}
+        <a href="{{ url_for('transferencias.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'transferencias' in request.endpoint %}active{% endif %}"><i class="fas fa-exchange-alt w-5"></i> Transferir Netbooks</a>
+        {% endif %}
+        <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Préstamos</p>
+        <a href="{{ url_for('prestamos.carros') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.carros' %}active{% endif %}"><i class="fas fa-key w-5"></i> Préstamos Carros</a>
+        <a href="{{ url_for('prestamos.espacio_digital') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.espacio_digital' %}active{% endif %}"><i class="fas fa-desktop w-5"></i> Espacio Digital</a>
+        <a href="{{ url_for('prestamos.historial') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.historial' %}active{% endif %}"><i class="fas fa-history w-5"></i> Historial</a>
+        <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Personas</p>
+        <a href="{{ url_for('docentes.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'docentes' in request.endpoint %}active{% endif %}"><i class="fas fa-chalkboard-teacher w-5"></i> Docentes</a>
+        <a href="{{ url_for('alumnos.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'alumnos' in request.endpoint %}active{% endif %}"><i class="fas fa-user-graduate w-5"></i> Alumnos</a>
+        {% if current_user.tiene_permiso('estadisticas') %}
+        <a href="{{ url_for('usuarios.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'usuarios' in request.endpoint %}active{% endif %}"><i class="fas fa-users w-5"></i> Usuarios</a>
+        {% endif %}
+        {% if current_user.tiene_permiso('reportes') %}
+        <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Reportes</p>
+        <a href="{{ url_for('reportes.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'reportes.index' %}active{% endif %}"><i class="fas fa-chart-bar w-5"></i> Reportes</a>
+        <a href="{{ url_for('reportes.estadisticas') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'reportes.estadisticas' %}active{% endif %}"><i class="fas fa-chart-pie w-5"></i> Estadísticas</a>
+        {% endif %}
+        {% if current_user.tiene_permiso('configuracion') %}
+        <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Sistema</p>
+        <a href="{{ url_for('main.config_espacio_digital') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.config_espacio_digital' %}active{% endif %}"><i class="fas fa-cog w-5"></i> Config. Espacio Digital</a>
+        <a href="{{ url_for('importar.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'importar' in request.endpoint %}active{% endif %}"><i class="fab fa-google-drive w-5"></i> Importar Drive</a>
+        <a href="{{ url_for('notificaciones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'notificaciones' in request.endpoint %}active{% endif %}"><i class="fas fa-bell w-5"></i> Notificaciones</a>
+        <a href="{{ url_for('notificaciones.backup_index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'notificaciones.backup_index' %}active{% endif %}"><i class="fas fa-database w-5"></i> Backups</a>
+        {% endif %}
+    </nav>
+    <div class="p-3 border-t border-white/10 space-y-0.5">
+        <a href="{{ url_for('usuarios.mi_perfil') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-blue-200"><i class="fas fa-user-cog w-5"></i> Mi Perfil</a>
+        <a href="{{ url_for('auth.logout') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-300"><i class="fas fa-sign-out-alt w-5"></i> Cerrar Sesión</a>
+    </div>
+    {% endif %}
+</div>
+
 <script>
     function actualizarReloj() {
         const el = document.getElementById('reloj');
@@ -276,6 +405,46 @@
     }
     actualizarReloj();
     setInterval(actualizarReloj, 1000);
+
+    // ── Sidebar toggle ──────────────────────────────────────────────────────
+    (function () {
+        const sidebar     = document.getElementById('sidebar');
+        const toggleBtn   = document.getElementById('sidebar-toggle');
+        const hoverZone   = document.getElementById('sidebar-hover-zone');
+        const peek        = document.getElementById('sidebar-peek');
+        if (!sidebar || !toggleBtn) return;
+
+        let collapsed = localStorage.getItem('sidebar-collapsed') === '1';
+
+        function applyState() {
+            sidebar.classList.toggle('collapsed', collapsed);
+            hoverZone.style.display = collapsed ? 'block' : 'none';
+            if (!collapsed) peek.classList.remove('show');
+            localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+        }
+
+        applyState();
+
+        toggleBtn.addEventListener('click', () => {
+            collapsed = !collapsed;
+            applyState();
+        });
+
+        // Hover zone → mostrar peek
+        hoverZone.addEventListener('mouseenter', () => {
+            if (collapsed) peek.classList.add('show');
+        });
+
+        // Si el mouse sale del área del peek, ocultarlo
+        peek.addEventListener('mouseleave', () => {
+            peek.classList.remove('show');
+        });
+
+        // Cerrar peek si el mouse se aleja del borde
+        document.addEventListener('mousemove', e => {
+            if (collapsed && e.clientX > 260) peek.classList.remove('show');
+        });
+    })();
 </script>
 {% block scripts %}{% endblock %}
 </body>
