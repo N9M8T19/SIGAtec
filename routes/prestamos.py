@@ -123,10 +123,16 @@ def retiro_carro():
         flash(f'Retiro registrado: {docente.nombre_completo} — {carro.display}', 'success')
         return redirect(url_for('prestamos.carros'))
 
-    carros   = Carro.query.filter(Carro.estado != 'baja').order_by(Carro.numero_fisico).all()
-    docentes = Docente.query.filter_by(activo=True).order_by(Docente.apellido).all()
+    carros    = Carro.query.filter(Carro.estado != 'baja').order_by(Carro.numero_fisico).all()
+    docentes  = Docente.query.filter_by(activo=True).order_by(Docente.apellido).all()
+    # IDs de carros con préstamo activo — para marcarlos en el select
+    prestamos_activos = {
+        p.carro_id
+        for p in PrestamoCarro.query.filter_by(estado='activo').all()
+    }
     return render_template('prestamos/retiro_carro.html',
-                           carros=carros, docentes=docentes)
+                           carros=carros, docentes=docentes,
+                           prestamos_activos=prestamos_activos)
 
 
 @prestamos_bp.route('/carros/<int:id>/devolucion', methods=['POST'])

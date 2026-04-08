@@ -4,13 +4,23 @@
 
 {% block content %}
 <div class="flex justify-between items-center mb-6">
-    <form class="flex gap-2" method="GET">
-        <input type="hidden" name="filtro" value="{{ filtro }}">
-        <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar..."
-               class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-        <button type="submit" class="bg-blue-900 text-white px-3 py-2 rounded-lg text-sm">
-            <i class="fas fa-search"></i>
-        </button>
+    <div class="flex gap-2 items-center">
+
+        <!-- Buscador en tiempo real -->
+        <div class="relative">
+            <input type="text" id="buscar-docente"
+                   placeholder="Buscar apellido, nombre o DNI..."
+                   autocomplete="off"
+                   class="px-3 py-2 pl-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-72">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <button id="btn-limpiar"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden"
+                    title="Limpiar búsqueda">
+                <i class="fas fa-times text-xs"></i>
+            </button>
+        </div>
+
+        <!-- Filtros Activos / Inactivos / Todos — siguen funcionando -->
         <div class="flex gap-1 ml-2">
             {% for val, label in [('activos','Activos'),('inactivos','Inactivos'),('todos','Todos')] %}
             <a href="?filtro={{ val }}"
@@ -20,7 +30,11 @@
             </a>
             {% endfor %}
         </div>
-    </form>
+
+        <!-- Contador de resultados -->
+        <span id="contador" class="text-xs text-gray-400 ml-2"></span>
+    </div>
+
     <a href="{{ url_for('docentes.nuevo') }}"
        class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
         <i class="fas fa-plus mr-2"></i>Nuevo Docente
@@ -40,9 +54,9 @@
                 <th class="px-4 py-3 text-center">Acciones</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody id="tabla-docentes" class="divide-y divide-gray-100">
             {% for d in docentes %}
-            <tr class="hover:bg-gray-50 {% if not d.activo %}opacity-50{% endif %}">
+            <tr class="fila-docente hover:bg-gray-50 {% if not d.activo %}opacity-50{% endif %}">
                 <td class="px-4 py-3 font-medium">{{ d.nombre_completo }}</td>
                 <td class="px-4 py-3 font-mono text-xs">{{ d.dni }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ d.materia or '—' }}</td>
@@ -66,7 +80,6 @@
                         </a>
                         {% if current_user.tiene_permiso('estadisticas') %}
                         {% if d.activo %}
-                        {# ── Ahora va a una página de confirmación con selector de motivo ── #}
                         <a href="{{ url_for('docentes.dar_baja', id=d.id) }}"
                            class="text-red-400 hover:text-red-600" title="Dar de baja">
                             <i class="fas fa-user-times"></i>
@@ -91,5 +104,67 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Fila "sin resultados" para cuando el filtro no encuentra nada -->
+    <div id="sin-resultados" class="hidden px-4 py-8 text-center text-gray-400 text-sm">
+        <i class="fas fa-search mr-2"></i>No se encontraron docentes con ese criterio
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const inputBuscar   = document.getElementById('buscar-docente');
+    const btnLimpiar    = document.getElementById('btn-limpiar');
+    const filas         = document.querySelectorAll('.fila-docente');
+    const sinResultados = document.getElementById('sin-resultados');
+    const contador      = document.getElementById('contador');
+    const totalFilas    = filas.length;
+
+    function normalizar(str) {
+        // Quita tildes y pasa a minúsculas para comparar sin importar acentos
+        return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function filtrar() {
+        const q = normalizar(inputBuscar.value.trim());
+        btnLimpiar.classList.toggle('hidden', q === '');
+
+        let visibles = 0;
+
+        filas.forEach(fila => {
+            // Busca en todas las celdas de texto de la fila
+            const texto = normalizar(fila.innerText);
+            const coincide = q === '' || texto.includes(q);
+            fila.style.display = coincide ? '' : 'none';
+            if (coincide) visibles++;
+        });
+
+        // Mostrar/ocultar mensaje sin resultados
+        sinResultados.classList.toggle('hidden', visibles > 0);
+
+        // Actualizar contador solo si hay búsqueda activa
+        if (q === '') {
+            contador.textContent = '';
+        } else {
+            contador.textContent = `${visibles} de ${totalFilas}`;
+        }
+    }
+
+    inputBuscar.addEventListener('input', filtrar);
+
+    btnLimpiar.addEventListener('click', () => {
+        inputBuscar.value = '';
+        filtrar();
+        inputBuscar.focus();
+    });
+
+    // Si venía una búsqueda previa del servidor (parámetro ?q=), prellenar y filtrar
+    const params = new URLSearchParams(window.location.search);
+    const qInicial = params.get('q') || '';
+    if (qInicial) {
+        inputBuscar.value = qInicial;
+        filtrar();
+    }
+</script>
 {% endblock %}

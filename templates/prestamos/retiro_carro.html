@@ -26,33 +26,72 @@
                        autocomplete="off"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-2">
                 <div id="resultados-docente" class="border border-gray-200 rounded-lg overflow-hidden hidden"></div>
-                <input type="hidden" name="docente_id" id="docente_id" required>
-                <div id="docente-seleccionado" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mt-2">
-                    <div class="text-xs text-blue-500">Docente seleccionado</div>
-                    <div id="docente-nombre" class="font-semibold text-blue-800"></div>
-                    <div id="docente-info" class="text-xs text-gray-500"></div>
+                <input type="hidden" name="docente_id" id="docente_id">
+                <div id="docente-seleccionado" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mt-2 flex items-center justify-between">
+                    <div>
+                        <div class="text-xs text-blue-500">Docente seleccionado</div>
+                        <div id="docente-nombre" class="font-semibold text-blue-800"></div>
+                        <div id="docente-info" class="text-xs text-gray-500"></div>
+                    </div>
+                    <button type="button" id="btn-cambiar-docente"
+                            class="text-xs text-blue-400 hover:text-blue-600 ml-4 flex-shrink-0">
+                        <i class="fas fa-times mr-1"></i>Cambiar
+                    </button>
                 </div>
             </div>
 
-            <!-- Seleccionar carro -->
+            <!-- Seleccionar carro — grilla visual -->
             <div class="mb-6">
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                     <i class="fas fa-box mr-1"></i>Seleccionar Carro
                 </label>
-                <select name="carro_id" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option value="">-- Selecciona un carro --</option>
+                <div class="grid grid-cols-2 gap-2">
                     {% for carro in carros %}
-                    <option value="{{ carro.id }}">
-                        {{ carro.display }} — {{ carro.aula or 'Sin aula' }} | {{ carro.division or 'Sin division' }}
-                    </option>
+                    {% set prestado = carro.id in prestamos_activos_ids %}
+                    <label id="label-carro-{{ carro.id }}"
+                           class="relative flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all
+                               {% if prestado %}
+                                   border-red-300 bg-red-50 opacity-70 cursor-not-allowed
+                               {% else %}
+                                   border-gray-200 bg-white hover:border-blue-300 cursor-pointer
+                               {% endif %}">
+                        <input type="radio" name="carro_id" value="{{ carro.id }}"
+                               class="carro-radio sr-only"
+                               {% if prestado %}disabled{% endif %}>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-sm
+                                {% if prestado %}text-red-700{% else %}text-blue-900{% endif %}">
+                                {{ carro.display }}
+                            </div>
+                            <div class="text-xs {% if prestado %}text-red-400{% else %}text-gray-400{% endif %}">
+                                {{ carro.aula or 'Sin aula' }}{% if carro.division %} | {{ carro.division }}{% endif %}
+                            </div>
+                        </div>
+                        {% if prestado %}
+                        <span class="text-xs bg-red-200 text-red-700 px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
+                            <i class="fas fa-lock mr-1"></i>Prestado
+                        </span>
+                        {% else %}
+                        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
+                            <i class="fas fa-lock-open mr-1"></i>Libre
+                        </span>
+                        {% endif %}
+                    </label>
                     {% endfor %}
-                </select>
+                </div>
+
+                <!-- Feedback del carro seleccionado -->
+                <div id="carro-seleccionado" class="hidden mt-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm text-blue-800 font-medium">
+                    <i class="fas fa-box mr-2"></i><span id="carro-nombre"></span>
+                </div>
             </div>
 
             <div class="flex gap-3">
-                <button type="submit"
-                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold">
+                <button type="submit" id="btn-confirmar"
+                        disabled
+                        class="px-6 py-2 rounded-lg font-semibold text-white transition-colors duration-200
+                               bg-gray-300 cursor-not-allowed"
+                        title="Seleccioná un docente primero">
                     <i class="fas fa-check mr-2"></i>Confirmar Retiro
                 </button>
                 <a href="{{ url_for('prestamos.carros') }}"
@@ -67,13 +106,50 @@
 
 {% block scripts %}
 <script>
-    const input    = document.getElementById('buscar-docente');
-    const results  = document.getElementById('resultados-docente');
-    const hiddenId = document.getElementById('docente_id');
-    const selBox   = document.getElementById('docente-seleccionado');
-    const selNombre = document.getElementById('docente-nombre');
-    const selInfo   = document.getElementById('docente-info');
+    const input        = document.getElementById('buscar-docente');
+    const results      = document.getElementById('resultados-docente');
+    const hiddenId     = document.getElementById('docente_id');
+    const selBox       = document.getElementById('docente-seleccionado');
+    const selNombre    = document.getElementById('docente-nombre');
+    const selInfo      = document.getElementById('docente-info');
+    const btnCambiar   = document.getElementById('btn-cambiar-docente');
+    const btnConfirmar = document.getElementById('btn-confirmar');
+    const carroRadios  = document.querySelectorAll('.carro-radio');
+    const carroSelBox  = document.getElementById('carro-seleccionado');
+    const carroNombre  = document.getElementById('carro-nombre');
 
+    let docenteOk = false;
+
+    // ── Botón confirmar ───────────────────────────────────────────────────
+    function actualizarBoton() {
+        if (docenteOk) {
+            btnConfirmar.disabled = false;
+            btnConfirmar.classList.remove('bg-gray-300', 'cursor-not-allowed');
+            btnConfirmar.classList.add('bg-green-600', 'hover:bg-green-700', 'cursor-pointer');
+            btnConfirmar.title = '';
+        } else {
+            btnConfirmar.disabled = true;
+            btnConfirmar.classList.add('bg-gray-300', 'cursor-not-allowed');
+            btnConfirmar.classList.remove('bg-green-600', 'hover:bg-green-700', 'cursor-pointer');
+            btnConfirmar.title = 'Seleccioná un docente primero';
+        }
+    }
+
+    // ── Limpiar docente ───────────────────────────────────────────────────
+    function limpiarDocente() {
+        hiddenId.value = '';
+        input.value    = '';
+        docenteOk      = false;
+        selBox.classList.add('hidden');
+        input.classList.remove('hidden');
+        results.classList.add('hidden');
+        actualizarBoton();
+        input.focus();
+    }
+
+    btnCambiar.addEventListener('click', limpiarDocente);
+
+    // ── Búsqueda de docente ───────────────────────────────────────────────
     let timer;
     input.addEventListener('input', () => {
         clearTimeout(timer);
@@ -89,20 +165,47 @@
                 data.forEach(d => {
                     const div = document.createElement('div');
                     div.className = 'px-4 py-3 hover:bg-blue-50 cursor-pointer text-sm border-b last:border-0';
-                    div.innerHTML = `<strong>${d.nombre}</strong> <span class="text-gray-400 ml-2">DNI: ${d.dni}</span><div class="text-xs text-gray-400">${d.materia} | ${d.turno}</div>`;
+                    div.innerHTML = `<strong>${d.nombre}</strong>
+                                     <span class="text-gray-400 ml-2">DNI: ${d.dni}</span>
+                                     <div class="text-xs text-gray-400">${d.materia} | ${d.turno}</div>`;
                     div.addEventListener('click', () => {
-                        hiddenId.value   = d.id;
+                        hiddenId.value        = d.id;
                         selNombre.textContent = d.nombre;
                         selInfo.textContent   = `DNI: ${d.dni} | ${d.materia} | Turno: ${d.turno}`;
                         selBox.classList.remove('hidden');
                         results.classList.add('hidden');
-                        input.value = d.nombre;
+                        input.classList.add('hidden');
+                        docenteOk = true;
+                        actualizarBoton();
                     });
                     results.appendChild(div);
                 });
             }
             results.classList.remove('hidden');
         }, 300);
+    });
+
+    // ── Selección visual de carro ─────────────────────────────────────────
+    carroRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            // Quitar resaltado de todas las cards
+            document.querySelectorAll('[id^="label-carro-"]').forEach(lbl => {
+                if (!lbl.querySelector('input:disabled')) {
+                    lbl.classList.remove('border-blue-500', 'ring-2', 'ring-blue-300', 'bg-blue-50');
+                    lbl.classList.add('border-gray-200', 'bg-white');
+                }
+            });
+            // Resaltar la card seleccionada
+            const label = document.getElementById(`label-carro-${radio.value}`);
+            if (label) {
+                label.classList.remove('border-gray-200', 'bg-white');
+                label.classList.add('border-blue-500', 'ring-2', 'ring-blue-300', 'bg-blue-50');
+            }
+            // Mostrar nombre en el feedback
+            const nombreEl = label ? label.querySelector('.font-bold') : null;
+            carroNombre.textContent = nombreEl ? nombreEl.textContent.trim() : '';
+            carroSelBox.classList.remove('hidden');
+        });
     });
 </script>
 {% endblock %}

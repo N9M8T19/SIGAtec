@@ -63,15 +63,42 @@
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
     {% for carro in carros %}
     {% set prestamo = prestamos|selectattr('carro_id', 'equalto', carro.id)|list %}
-    <div class="bg-white rounded-xl shadow-sm p-4 border-l-4
-        {% if prestamo %}border-red-400{% else %}border-green-400{% endif %}">
-        <div class="font-bold text-lg text-blue-900">{{ carro.display }}</div>
-        <div class="text-xs text-gray-500">{{ carro.aula or 'Sin aula' }}</div>
-        <div class="mt-2">
-            {% if prestamo %}
-            <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-semibold">Prestado</span>
+    {% set esta_prestado = prestamo|length > 0 %}
+    <div class="rounded-xl shadow-sm p-4 border-l-4
+        {% if esta_prestado %}
+            border-red-500 bg-red-50
+        {% else %}
+            border-green-400 bg-white
+        {% endif %}">
+
+        <div class="flex items-start justify-between">
+            <div class="font-bold text-lg
+                {% if esta_prestado %}text-red-800{% else %}text-blue-900{% endif %}">
+                {{ carro.display }}
+            </div>
+            {% if esta_prestado %}
+            <i class="fas fa-lock text-red-400 text-sm mt-1" title="Prestado"></i>
             {% else %}
-            <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">Disponible</span>
+            <i class="fas fa-lock-open text-green-400 text-sm mt-1" title="Disponible"></i>
+            {% endif %}
+        </div>
+
+        <div class="text-xs {% if esta_prestado %}text-red-400{% else %}text-gray-500{% endif %}">
+            {{ carro.aula or 'Sin aula' }}
+        </div>
+
+        <div class="mt-2">
+            {% if esta_prestado %}
+            <span class="text-xs bg-red-200 text-red-800 px-2 py-1 rounded-full font-semibold">
+                <i class="fas fa-circle text-red-500 mr-1" style="font-size:0.45rem; vertical-align:middle;"></i>Prestado
+            </span>
+            <div class="text-xs text-red-500 mt-1 font-medium">
+                {{ prestamo[0].docente.nombre_completo }}
+            </div>
+            {% else %}
+            <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
+                <i class="fas fa-circle text-green-500 mr-1" style="font-size:0.45rem; vertical-align:middle;"></i>Disponible
+            </span>
             {% endif %}
         </div>
     </div>
