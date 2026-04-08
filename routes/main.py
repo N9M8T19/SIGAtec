@@ -71,16 +71,18 @@ def buscar():
     carros = Carro.query.filter(
         Carro.estado != 'baja',
         db.or_(
-            Carro.nombre.ilike(f'%{q}%'),
             Carro.numero_serie.ilike(f'%{q}%'),
-            db.cast(Carro.numero_fisico, db.String).ilike(f'%{q}%'),
+            Carro.numero_fisico.ilike(f'%{q}%'),
+            Carro.aula.ilike(f'%{q}%'),
+            Carro.division.ilike(f'%{q}%'),
         )
     ).limit(5).all()
 
     netbooks = Netbook.query.filter(
         db.or_(
             Netbook.numero_serie.ilike(f'%{q}%'),
-            db.cast(Netbook.numero_interno, db.String).ilike(f'%{q}%'),
+            Netbook.numero_interno.ilike(f'%{q}%'),
+            Netbook.alumno.ilike(f'%{q}%'),
         )
     ).limit(5).all()
 
@@ -89,36 +91,50 @@ def buscar():
             Alumno.nombre.ilike(f'%{q}%'),
             Alumno.apellido.ilike(f'%{q}%'),
             Alumno.curso.ilike(f'%{q}%'),
+            Alumno.dni.ilike(f'%{q}%'),
         )
     ).limit(5).all()
 
-    def estado_nb(n):
-        return n.estado if hasattr(n, 'estado') else 'operativa'
+    def alumno_nb(n):
+        # Intentar alumno mañana o tarde, fallback al campo legacy
+        if n.alumno_manana:
+            return f'{n.alumno_manana.apellido}, {n.alumno_manana.nombre}'
+        if n.alumno_tarde:
+            return f'{n.alumno_tarde.apellido}, {n.alumno_tarde.nombre}'
+        return n.alumno or 'Sin asignar'
+
+    def carro_display(c):
+        partes = []
+        if c.numero_fisico:
+            partes.append(f'Carro {c.numero_fisico}')
+        if c.division:
+            partes.append(c.division)
+        return ' — '.join(partes) if partes else f'ID {c.id}'
 
     return jsonify({
         'carros': [{
             'id':      c.id,
-            'nombre':  c.nombre or f'Carro {c.numero_fisico}',
+            'nombre':  carro_display(c),
             'serie':   c.numero_serie or '—',
-            'netbooks': len(c.netbooks) if hasattr(c, 'netbooks') else 0,
+            'netbooks': len(c.netbooks),
             'estado':  c.estado,
-            'url':     url_for('carros.detalle', id=c.id),
+            'url':     url_for('carros.index'),
         } for c in carros],
         'netbooks': [{
             'id':      n.id,
             'serie':   n.numero_serie or '—',
-            'interno': str(n.numero_interno) if n.numero_interno else '—',
-            'alumno':  f'{n.alumno.apellido}, {n.alumno.nombre}' if n.alumno else 'Sin asignar',
-            'carro':   n.carro.nombre if n.carro else '—',
-            'estado':  estado_nb(n),
-            'url':     url_for('netbooks.detalle', id=n.id),
+            'interno': n.numero_interno or '—',
+            'alumno':  alumno_nb(n),
+            'carro':   f'Carro {n.carro.numero_fisico}' if n.carro and n.carro.numero_fisico else '—',
+            'estado':  n.estado,
+            'url':     url_for('netbooks.index'),
         } for n in netbooks],
         'alumnos': [{
             'id':      a.id,
             'nombre':  f'{a.apellido}, {a.nombre}',
             'curso':   a.curso or '—',
-            'turno':   a.turno or '—',
-            'netbook': a.netbook.numero_serie if a.netbook else 'Sin netbook',
+            'turno':   'Mañana' if a.turno == 'M' else 'Tarde',
+            'netbook': a.netbook_asignada.numero_serie if a.netbook_asignada else 'Sin netbook',
             'url':     url_for('netbooks.index'),
         } for a in alumnos],
     })
