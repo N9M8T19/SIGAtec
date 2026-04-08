@@ -125,14 +125,14 @@ def retiro_carro():
 
     carros    = Carro.query.filter(Carro.estado != 'baja').order_by(Carro.numero_fisico).all()
     docentes  = Docente.query.filter_by(activo=True).order_by(Docente.apellido).all()
-    # IDs de carros con préstamo activo — para marcarlos en el select
-    prestamos_activos = {
+    # IDs de carros con préstamo activo — lista para que Jinja2 pueda usar 'in'
+    prestamos_activos_ids = [
         p.carro_id
         for p in PrestamoCarro.query.filter_by(estado='activo').all()
-    }
+    ]
     return render_template('prestamos/retiro_carro.html',
                            carros=carros, docentes=docentes,
-                           prestamos_activos=prestamos_activos)
+                           prestamos_activos_ids=prestamos_activos_ids)
 
 
 @prestamos_bp.route('/carros/<int:id>/devolucion', methods=['POST'])
