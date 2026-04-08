@@ -103,7 +103,7 @@ def dar_baja(id):
 
         # Verificar préstamo activo antes de cualquier acción
         prestamo_activo = PrestamoCarro.query.filter_by(
-            docente_id=id, devuelto=False
+            docente_id=id, estado='activo'
         ).first()
         if prestamo_activo:
             flash(f'{docente.nombre_completo} tiene un préstamo activo. '
