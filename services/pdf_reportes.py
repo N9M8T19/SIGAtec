@@ -473,21 +473,86 @@ def generar_pdf_asignaciones_carro(carro):
     PDF con asignaciones del carro.
     Página 1: Turno Mañana (netbooks asignadas + alumnos sin netbook)
     Página 2: Turno Tarde  (netbooks asignadas + alumnos sin netbook)
+
+    El tamaño de fuente se ajusta dinámicamente para que todo entre en una A4.
+    No se muestra la columna Curso (ya figura en el encabezado).
     """
     from reportlab.platypus import PageBreak
+    from reportlab.lib.pagesizes import A4
     from models import Alumno
 
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
-                             rightMargin=1.5*cm, leftMargin=1.5*cm,
-                             topMargin=1.5*cm, bottomMargin=1.5*cm)
-    story = []
+    # ── Constantes de layout ─────────────────────────────────────────────────
+    PAGE_W, PAGE_H = A4
+    MARGIN        = 1.5 * cm
+    USABLE_H      = PAGE_H - 2 * MARGIN   # altura útil total (~26.7cm en A4)
 
-    netbooks_ord = sorted(carro.netbooks, key=lambda n: (n.numero_interno or '').zfill(10))
+    # Overhead medido empíricamente:
+    #   encabezado (logo+textos+HR+spacer): ~2.8cm
+    #   stats tabla (2 filas con padding):  ~1.0cm
+    #   spacer antes de tabla:              ~0.4cm
+    OVERHEAD_BASE  = 4.2 * cm
+    OVERHEAD_SINM  = 0.9 * cm   # título rojo "sin netbook" + spacer
 
-    # Detectar cursos asignados en este carro
-    cursos_m = list({nb.alumno_manana.curso for nb in netbooks_ord if nb.alumno_manana})
-    cursos_t = list({nb.alumno_tarde.curso  for nb in netbooks_ord if nb.alumno_tarde})
+    # Rangos de fuente permitidos
+    FS_MIN, FS_MAX = 8, 14
+
+    def _calcular_fs(n_filas_asig, n_filas_sin):
+        """Devuelve el fontSize que hace entrar todo en la página."""
+        for fs in range(FS_MAX, FS_MIN - 1, -1):
+            row_h    = fs * 2.2          # alto de fila ≈ 2.2× la fuente (padding incluido)
+            header_h = fs * 2.6          # fila de encabezado un poco más alta
+            overhead = OVERHEAD_BASE
+            if n_filas_sin:
+                overhead += OVERHEAD_SINM
+            total = (overhead
+                     + header_h + n_filas_asig * row_h
+                     + (header_h + n_filas_sin * row_h if n_filas_sin else 0))
+            if total <= USABLE_H:
+                return fs
+        return FS_MIN   # si no entra ni con el mínimo, Platypus pagina automáticamente
+
+    def _estilo_asig(fs):
+        """TableStyle para la tabla de asignaciones con fuente dinámica."""
+        padding = max(3, int(fs * 0.55))
+        return TableStyle([
+            ('BACKGROUND',    (0, 0), (-1, 0),  AZUL_ESCUELA),
+            ('TEXTCOLOR',     (0, 0), (-1, 0),  colors.white),
+            ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
+            ('FONTSIZE',      (0, 0), (-1, 0),  fs),
+            ('ALIGN',         (0, 0), (0, -1),  'CENTER'),   # col N° centrada
+            ('ALIGN',         (1, 0), (1, -1),  'LEFT'),      # col Nombre izquierda
+            ('FONTNAME',      (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE',      (0, 1), (-1, -1), fs),
+            ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, GRIS_CLARO]),
+            ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',    (0, 0), (-1, -1), padding),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), padding),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+        ])
+
+    def _estilo_sin(fs):
+        """TableStyle para la tabla de alumnos sin netbook (fondo rojo)."""
+        padding = max(3, int(fs * 0.55))
+        return TableStyle([
+            ('BACKGROUND',    (0, 0), (-1, 0),  ROJO),
+            ('TEXTCOLOR',     (0, 0), (-1, 0),  colors.white),
+            ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
+            ('FONTSIZE',      (0, 0), (-1, 0),  fs),
+            ('ALIGN',         (0, 0), (-1, 0),  'CENTER'),
+            ('FONTNAME',      (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE',      (0, 1), (-1, -1), fs),
+            ('TEXTCOLOR',     (0, 1), (-1, -1), ROJO),
+            ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.HexColor('#fff1f2'),
+                                                  colors.HexColor('#fee2e2')]),
+            ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#fca5a5')),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',    (0, 0), (-1, -1), padding),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), padding),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+        ])
 
     def _stats_tabla(total_nb, con_alumno, sin_netbook):
         data = [['Total Netbooks', 'Con alumno asignado', 'Sin netbook disponible'],
@@ -507,11 +572,19 @@ def generar_pdf_asignaciones_carro(carro):
         ]))
         return t
 
-    # ── TURNO MAÑANA ─────────────────────────────────────────────────────────
-    _encabezado(story, f'Asignación Turno Mañana — Carro {carro.display}',
-                f'División: {carro.division or "—"} | Aula: {carro.aula or "—"} | Curso: {", ".join(cursos_m) or "—"}')
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                             rightMargin=MARGIN, leftMargin=MARGIN,
+                             topMargin=MARGIN, bottomMargin=MARGIN)
+    story = []
 
-    # Alumnos sin netbook de mañana
+    netbooks_ord = sorted(carro.netbooks, key=lambda n: (n.numero_interno or '').zfill(10))
+
+    # Detectar cursos asignados en este carro
+    cursos_m = sorted({nb.alumno_manana.curso for nb in netbooks_ord if nb.alumno_manana})
+    cursos_t = sorted({nb.alumno_tarde.curso  for nb in netbooks_ord if nb.alumno_tarde})
+
+    # ── Datos turno mañana ────────────────────────────────────────────────────
     sin_nb_m = []
     if cursos_m:
         ids_asignados_m = {nb.alumno_manana_id for nb in netbooks_ord if nb.alumno_manana_id}
@@ -521,50 +594,52 @@ def generar_pdf_asignaciones_carro(carro):
             ~Alumno.id.in_(ids_asignados_m)
         ).order_by(Alumno.apellido, Alumno.nombre).all()
 
-    con_m = sum(1 for nb in netbooks_ord if nb.alumno_manana_id)
+    filas_asig_m = [nb for nb in netbooks_ord if nb.alumno_manana]
+    fs_m = _calcular_fs(len(filas_asig_m), len(sin_nb_m))
+
+    # ── TURNO MAÑANA ─────────────────────────────────────────────────────────
+    _encabezado(story, f'Asignación Turno Mañana — Carro {carro.display}',
+                f'División: {carro.division or "—"} | Aula: {carro.aula or "—"} | Curso: {", ".join(cursos_m) or "—"}')
+
+    con_m = len(filas_asig_m)
     story.append(_stats_tabla(len(netbooks_ord), con_m, len(sin_nb_m)))
     story.append(Spacer(1, 0.4*cm))
 
-    # Tabla netbooks mañana
-    data_m = [['N°', 'Alumno Mañana', 'Curso']]
-    for nb in netbooks_ord:
-        if nb.alumno_manana:
-            data_m.append([
-                nb.numero_interno or '—',
-                f'{nb.alumno_manana.apellido}, {nb.alumno_manana.nombre}',
-                nb.alumno_manana.curso,
-            ])
+    # Tabla asignados mañana — sin columna Curso
+    data_m = [['N°', 'Alumno — Turno Mañana']]
+    for nb in filas_asig_m:
+        data_m.append([
+            nb.numero_interno or '—',
+            f'{nb.alumno_manana.apellido}, {nb.alumno_manana.nombre}',
+        ])
     if len(data_m) > 1:
-        t_m = Table(data_m, colWidths=[2*cm, 11*cm, 4*cm])
-        t_m.setStyle(_tabla_estilo())
+        col_num  = 2 * cm
+        col_nom  = PAGE_W - 2 * MARGIN - col_num
+        t_m = Table(data_m, colWidths=[col_num, col_nom])
+        t_m.setStyle(_estilo_asig(fs_m))
         story.append(t_m)
 
-    # Alumnos sin netbook mañana
+    # Tabla sin netbook mañana
     if sin_nb_m:
-        story.append(Spacer(1, 0.5*cm))
-        story.append(Paragraph('Alumnos sin netbook disponible — Turno Mañana',
-                               ParagraphStyle('warn', parent=styles['Normal'],
-                                              fontSize=10, fontName='Helvetica-Bold',
-                                              textColor=ROJO)))
-        story.append(Spacer(1, 0.2*cm))
-        data_sin_m = [['Apellido y Nombre', 'Curso', 'Netbook']]
+        story.append(Spacer(1, 0.4*cm))
+        story.append(Paragraph(
+            'Alumnos sin netbook disponible — Turno Mañana',
+            ParagraphStyle('warn_m', parent=styles['Normal'],
+                           fontSize=10, fontName='Helvetica-Bold', textColor=ROJO)
+        ))
+        story.append(Spacer(1, 0.15*cm))
+        data_sin_m = [['Apellido y Nombre']]
         for a in sin_nb_m:
-            data_sin_m.append([f'{a.apellido}, {a.nombre}', a.curso, 'Netbook sin asignar'])
-        t_sin_m = Table(data_sin_m, colWidths=[9*cm, 3*cm, 5*cm])
-        estilo_sin = _tabla_estilo(ROJO)
-        for i in range(1, len(data_sin_m)):
-            estilo_sin.add('TEXTCOLOR', (2, i), (2, i), ROJO)
-            estilo_sin.add('FONTNAME',  (2, i), (2, i), 'Helvetica-Bold')
-        t_sin_m.setStyle(estilo_sin)
+            data_sin_m.append([f'{a.apellido}, {a.nombre}'])
+        col_full = PAGE_W - 2 * MARGIN
+        t_sin_m = Table(data_sin_m, colWidths=[col_full])
+        t_sin_m.setStyle(_estilo_sin(fs_m))
         story.append(t_sin_m)
 
     # ── SALTO DE PÁGINA ───────────────────────────────────────────────────────
     story.append(PageBreak())
 
-    # ── TURNO TARDE ──────────────────────────────────────────────────────────
-    _encabezado(story, f'Asignación Turno Tarde — Carro {carro.display}',
-                f'División: {carro.division or "—"} | Aula: {carro.aula or "—"} | Curso: {", ".join(cursos_t) or "—"}')
-
+    # ── Datos turno tarde ─────────────────────────────────────────────────────
     sin_nb_t = []
     if cursos_t:
         ids_asignados_t = {nb.alumno_tarde_id for nb in netbooks_ord if nb.alumno_tarde_id}
@@ -574,39 +649,46 @@ def generar_pdf_asignaciones_carro(carro):
             ~Alumno.id.in_(ids_asignados_t)
         ).order_by(Alumno.apellido, Alumno.nombre).all()
 
-    con_t = sum(1 for nb in netbooks_ord if nb.alumno_tarde_id)
+    filas_asig_t = [nb for nb in netbooks_ord if nb.alumno_tarde]
+    fs_t = _calcular_fs(len(filas_asig_t), len(sin_nb_t))
+
+    # ── TURNO TARDE ──────────────────────────────────────────────────────────
+    _encabezado(story, f'Asignación Turno Tarde — Carro {carro.display}',
+                f'División: {carro.division or "—"} | Aula: {carro.aula or "—"} | Curso: {", ".join(cursos_t) or "—"}')
+
+    con_t = len(filas_asig_t)
     story.append(_stats_tabla(len(netbooks_ord), con_t, len(sin_nb_t)))
     story.append(Spacer(1, 0.4*cm))
 
-    data_t = [['N°', 'Alumno Tarde', 'Curso']]
-    for nb in netbooks_ord:
-        if nb.alumno_tarde:
-            data_t.append([
-                nb.numero_interno or '—',
-                f'{nb.alumno_tarde.apellido}, {nb.alumno_tarde.nombre}',
-                nb.alumno_tarde.curso,
-            ])
+    # Tabla asignados tarde — sin columna Curso
+    data_t = [['N°', 'Alumno — Turno Tarde']]
+    for nb in filas_asig_t:
+        data_t.append([
+            nb.numero_interno or '—',
+            f'{nb.alumno_tarde.apellido}, {nb.alumno_tarde.nombre}',
+        ])
     if len(data_t) > 1:
-        t_t = Table(data_t, colWidths=[2*cm, 11*cm, 4*cm])
-        t_t.setStyle(_tabla_estilo())
+        col_num = 2 * cm
+        col_nom = PAGE_W - 2 * MARGIN - col_num
+        t_t = Table(data_t, colWidths=[col_num, col_nom])
+        t_t.setStyle(_estilo_asig(fs_t))
         story.append(t_t)
 
+    # Tabla sin netbook tarde
     if sin_nb_t:
-        story.append(Spacer(1, 0.5*cm))
-        story.append(Paragraph('Alumnos sin netbook disponible — Turno Tarde',
-                               ParagraphStyle('warn2', parent=styles['Normal'],
-                                              fontSize=10, fontName='Helvetica-Bold',
-                                              textColor=ROJO)))
-        story.append(Spacer(1, 0.2*cm))
-        data_sin_t = [['Apellido y Nombre', 'Curso', 'Netbook']]
+        story.append(Spacer(1, 0.4*cm))
+        story.append(Paragraph(
+            'Alumnos sin netbook disponible — Turno Tarde',
+            ParagraphStyle('warn_t', parent=styles['Normal'],
+                           fontSize=10, fontName='Helvetica-Bold', textColor=ROJO)
+        ))
+        story.append(Spacer(1, 0.15*cm))
+        data_sin_t = [['Apellido y Nombre']]
         for a in sin_nb_t:
-            data_sin_t.append([f'{a.apellido}, {a.nombre}', a.curso, 'Netbook sin asignar'])
-        t_sin_t = Table(data_sin_t, colWidths=[9*cm, 3*cm, 5*cm])
-        estilo_sin_t = _tabla_estilo(ROJO)
-        for i in range(1, len(data_sin_t)):
-            estilo_sin_t.add('TEXTCOLOR', (2, i), (2, i), ROJO)
-            estilo_sin_t.add('FONTNAME',  (2, i), (2, i), 'Helvetica-Bold')
-        t_sin_t.setStyle(estilo_sin_t)
+            data_sin_t.append([f'{a.apellido}, {a.nombre}'])
+        col_full = PAGE_W - 2 * MARGIN
+        t_sin_t = Table(data_sin_t, colWidths=[col_full])
+        t_sin_t.setStyle(_estilo_sin(fs_t))
         story.append(t_sin_t)
 
     doc.build(story)
