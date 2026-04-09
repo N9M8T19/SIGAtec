@@ -9,7 +9,7 @@ from models import db, Alumno, Netbook
 
 alumnos_bp = Blueprint('alumnos', __name__, url_prefix='/alumnos')
 
-POR_PAGINA = 50
+POR_PAGINA = 20
 
 
 @alumnos_bp.route('/')
