@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+{% block title %}Etiquetas — SIGA-Tec{% endblock %}
+{% block header %}Etiquetas de Netbooks{% endblock %}
+
+{% block content %}
+
+{# ── ESTILOS ── #}
+<style>
+.et-toolbar {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.et-toolbar select, .et-toolbar input[type=text] {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: #374151;
+    background: white;
+    height: 36px;
+    outline: none;
+}
+.et-toolbar select:focus, .et-toolbar input[type=text]:focus {
+    border-color: #1a2a6c;
+    box-shadow: 0 0 0 2px rgba(26,42,108,.1);
+}
+.et-btn {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    font-size: 13px;
+    cursor: pointer;
+    height: 36px;
+    white-space: nowrap;
+    transition: all .15s;
+}
+.et-btn:hover { border-color: #1a2a6c; color: #1a2a6c; }
+.et-btn-primary { background: #1a2a6c; color: white; border-color: #1a2a6c; }
+.et-btn-primary:hover { background: #0f1f55; }
+.et-btn-orange { background: #e8821a; color: white; border-color: #e8821a; }
+.et-btn-orange:hover { background: #c96c0f; }
+.et-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.et-status {
+    font-size: 13px;
+    color: #6b7280;
+    padding: 6px 0 12px;
+}
+.et-status strong { color: #1a2a6c; }
+
+.et-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.et-card {
+    background: white;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 11px 13px;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+    user-select: none;
+}
+.et-card:hover { border-color: #1a2a6c; }
+.et-card.selected { border-color: #1a2a6c; border-width: 2px; background: #eef2fa; }
+.et-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+.et-badge-carro { font-size: 11px; color: #e8821a; font-weight: 600; }
+.et-check { width: 16px; height: 16px; border: 1.5px solid #9ca3af; border-radius: 4px; background: white; flex-shrink: 0; transition: all .1s; }
+.et-card.selected .et-check { background: #1a2a6c; border-color: #1a2a6c; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-size: 10px; background-repeat: no-repeat; background-position: center; }
+.et-serie { font-size: 12px; font-weight: 600; color: #111827; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.et-alumno { font-size: 11px; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.et-tm { color: #185FA5; font-weight: 600; font-size: 10px; }
+.et-tt { color: #854F0B; font-weight: 600; font-size: 10px; }
+
+.et-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 48px 20px;
+    color: #9ca3af;
+    font-size: 14px;
+}
+.et-loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 48px 20px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* ── ÁREA DE IMPRESIÓN ── */
+@media screen {
+    #print-area { display: none; }
+}
+@media print {
+    .no-print { display: none !important; }
+    #print-area { display: block !important; }
+    body { background: white; margin: 0; padding: 0; }
+    .et-print-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6mm;
+        padding: 8mm;
+    }
+    .et-print-wrap { break-inside: avoid; page-break-inside: avoid; }
+}
+
+/* ── DISEÑO DE LA ETIQUETA ── */
+.etiqueta {
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    border: 1.5px solid #1a2a6c;
+    border-radius: 6px;
+    overflow: hidden;
+    width: 100%;
+}
+.etiqueta-hdr {
+    background: #1a2a6c;
+    color: white;
+    padding: 5px 9px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.etiqueta-hdr-accent { width: 3px; height: 22px; background: #e8821a; border-radius: 2px; flex-shrink: 0; }
+.etiqueta-hdr-titulo { font-size: 11px; font-weight: 700; letter-spacing: .5px; }
+.etiqueta-hdr-sub { font-size: 8px; color: #9ab0d8; margin-top: 1px; }
+.etiqueta-body { padding: 6px 9px; background: white; }
+.etiqueta-row { display: flex; align-items: baseline; gap: 5px; margin-bottom: 3px; }
+.etiqueta-lbl { font-size: 8px; color: #9ca3af; text-transform: uppercase; letter-spacing: .3px; min-width: 50px; flex-shrink: 0; }
+.etiqueta-val { font-size: 10px; font-weight: 700; color: #1a2a6c; flex: 1; }
+.etiqueta-hr { border: none; border-top: .5px solid #e5e7eb; margin: 5px 0; }
+.etiqueta-turnos { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.etiqueta-turno { padding: 4px 6px; border-radius: 4px; }
+.etiqueta-turno.m { background: #E6F1FB; }
+.etiqueta-turno.t { background: #FAEEDA; }
+.etiqueta-turno-lbl { font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.etiqueta-turno.m .etiqueta-turno-lbl { color: #0C447C; }
+.etiqueta-turno.t .etiqueta-turno-lbl { color: #854F0B; }
+.etiqueta-turno-nombre { font-size: 9px; font-weight: 600; color: #111827; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etiqueta-turno-curso { font-size: 8px; margin-top: 1px; }
+.etiqueta-turno.m .etiqueta-turno-curso { color: #185FA5; }
+.etiqueta-turno.t .etiqueta-turno-curso { color: #854F0B; }
+.etiqueta-footer { background: #f9fafb; padding: 3px 9px; font-size: 7px; color: #9ca3af; text-align: right; border-top: .5px solid #e5e7eb; }
+</style>
+
+{# ── BARRA DE HERRAMIENTAS ── #}
+<div class="et-toolbar no-print">
+    <select id="sel-carro" onchange="aplicarFiltros()">
+        <option value="">Todos los carros</option>
+        {% for c in carros %}
+        <option value="{{ c.id }}">Carro {{ c.numero_fisico }}{% if c.division %} — {{ c.division }}{% endif %}</option>
+        {% endfor %}
+    </select>
+    <input type="text" id="buscar" placeholder="Buscar serie o alumno..." oninput="aplicarFiltros()" style="width:200px">
+    <button class="et-btn" onclick="selTodo()">Seleccionar todo</button>
+    <button class="et-btn" onclick="selNada()">Deseleccionar</button>
+    <div style="flex:1"></div>
+    <button class="et-btn et-btn-orange" id="btn-imprimir" onclick="imprimir()" disabled>
+        <i class="fas fa-print mr-1"></i> Imprimir seleccionadas
+    </button>
+</div>
+
+{# ── STATUS ── #}
+<p class="et-status no-print" id="status-bar">Cargando netbooks...</p>
+
+{# ── GRILLA DE CARDS ── #}
+<div class="et-grid no-print" id="et-grid">
+    <div class="et-loading"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</div>
+</div>
+
+{# ── ÁREA SOLO PARA IMPRIMIR ── #}
+<div id="print-area">
+    <div class="et-print-grid" id="print-grid"></div>
+</div>
+
+<script>
+let todasLasNetbooks = [];
+let seleccionadas = new Set();
+
+function normalizar(str) {
+    return (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function filtradas() {
+    const carroId = parseInt(document.getElementById('sel-carro').value) || null;
+    const q = normalizar(document.getElementById('buscar').value);
+    return todasLasNetbooks.filter(n => {
+        if (carroId && n.carro_id !== carroId) return false;
+        if (q) {
+            const haystack = normalizar([n.numero_serie, n.numero_interno, n.alumno_manana, n.alumno_tarde, n.carro].join(' '));
+            if (!haystack.includes(q)) return false;
+        }
+        return true;
+    });
+}
+
+function renderGrid() {
+    const grid = document.getElementById('et-grid');
+    const items = filtradas();
+    const status = document.getElementById('status-bar');
+    const btnImp = document.getElementById('btn-imprimir');
+
+    const selEnVista = items.filter(n => seleccionadas.has(n.id)).length;
+    status.innerHTML = `<strong>${seleccionadas.size}</strong> seleccionadas · mostrando <strong>${items.length}</strong> de <strong>${todasLasNetbooks.length}</strong> netbooks`;
+    btnImp.disabled = seleccionadas.size === 0;
+
+    if (items.length === 0) {
+        grid.innerHTML = '<div class="et-empty"><i class="fas fa-search mr-2"></i>No se encontraron netbooks con esos filtros.</div>';
+        return;
+    }
+
+    grid.innerHTML = items.map(n => {
+        const sel = seleccionadas.has(n.id);
+        return `<div class="et-card ${sel ? 'selected' : ''}" onclick="toggleCard(${n.id})">
+            <div class="et-card-top">
+                <span class="et-badge-carro">N°${n.numero_interno} · ${n.carro}</span>
+                <div class="et-check"></div>
+            </div>
+            <div class="et-serie">${n.numero_serie || '(sin serie)'}</div>
+            <div class="et-alumno"><span class="et-tm">TM</span> ${n.alumno_manana || '—'}</div>
+            <div class="et-alumno"><span class="et-tt">TT</span> ${n.alumno_tarde || '—'}</div>
+        </div>`;
+    }).join('');
+}
+
+function toggleCard(id) {
+    if (seleccionadas.has(id)) seleccionadas.delete(id);
+    else seleccionadas.add(id);
+    renderGrid();
+}
+
+function selTodo() {
+    filtradas().forEach(n => seleccionadas.add(n.id));
+    renderGrid();
+}
+
+function selNada() {
+    filtradas().forEach(n => seleccionadas.delete(n.id));
+    renderGrid();
+}
+
+function aplicarFiltros() {
+    renderGrid();
+}
+
+function mkEtiqueta(n) {
+    return `<div class="et-print-wrap">
+    <div class="etiqueta">
+        <div class="etiqueta-hdr">
+            <div class="etiqueta-hdr-accent"></div>
+            <div>
+                <div class="etiqueta-hdr-titulo">SIGA-Tec</div>
+                <div class="etiqueta-hdr-sub">E.T. N°7 D.E. 5 — Dolores Lavalle de Lavalle</div>
+            </div>
+        </div>
+        <div class="etiqueta-body">
+            <div class="etiqueta-row">
+                <span class="etiqueta-lbl">N° serie</span>
+                <span class="etiqueta-val">${n.numero_serie || '—'}</span>
+            </div>
+            <div class="etiqueta-row">
+                <span class="etiqueta-lbl">Interno</span>
+                <span class="etiqueta-val">${n.numero_interno || '—'}</span>
+                <span class="etiqueta-lbl" style="margin-left:8px">Carro</span>
+                <span class="etiqueta-val">${n.carro || '—'}</span>
+            </div>
+            ${n.aula ? `<div class="etiqueta-row"><span class="etiqueta-lbl">Aula</span><span class="etiqueta-val">${n.aula}</span></div>` : ''}
+            <hr class="etiqueta-hr">
+            <div class="etiqueta-turnos">
+                <div class="etiqueta-turno m">
+                    <div class="etiqueta-turno-lbl">Turno Mañana</div>
+                    <div class="etiqueta-turno-nombre">${n.alumno_manana || 'Sin asignar'}</div>
+                    ${n.curso_manana ? `<div class="etiqueta-turno-curso">${n.curso_manana}</div>` : ''}
+                </div>
+                <div class="etiqueta-turno t">
+                    <div class="etiqueta-turno-lbl">Turno Tarde</div>
+                    <div class="etiqueta-turno-nombre">${n.alumno_tarde || 'Sin asignar'}</div>
+                    ${n.curso_tarde ? `<div class="etiqueta-turno-curso">${n.curso_tarde}</div>` : ''}
+                </div>
+            </div>
+        </div>
+        <div class="etiqueta-footer">sigatec-et7.onrender.com</div>
+    </div></div>`;
+}
+
+function imprimir() {
+    const sel = todasLasNetbooks.filter(n => seleccionadas.has(n.id));
+    if (sel.length === 0) return;
+    document.getElementById('print-grid').innerHTML = sel.map(mkEtiqueta).join('');
+    window.print();
+}
+
+async function cargarDatos() {
+    const carroId = document.getElementById('sel-carro').value;
+    const url = `/etiquetas/api/datos${carroId ? '?carro_id=' + carroId : ''}`;
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('Error al cargar');
+        todasLasNetbooks = await resp.json();
+        renderGrid();
+    } catch(e) {
+        document.getElementById('et-grid').innerHTML = '<div class="et-empty"><i class="fas fa-exclamation-triangle mr-2"></i>Error al cargar los datos.</div>';
+    }
+}
+
+document.getElementById('sel-carro').addEventListener('change', () => {
+    seleccionadas.clear();
+    cargarDatos();
+});
+
+cargarDatos();
+</script>
+
+{% endblock %}
