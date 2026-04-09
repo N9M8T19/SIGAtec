@@ -213,8 +213,7 @@ function selTodo() { filtradas().forEach(n => seleccionadas.add(n.id)); renderGr
 function selNada() { filtradas().forEach(n => seleccionadas.delete(n.id)); renderGrid(); }
 
 function mkEtiqueta(n) {
-    const barcodeId = 'bc-' + n.id;
-    return `<div class="et-print-wrap">
+    return `<div class="et-print-wrap" data-serie="${n.numero_serie || ''}">
     <div class="etiqueta">
         <div class="etiqueta-hdr">
             <div class="etiqueta-hdr-accent"></div>
@@ -233,9 +232,7 @@ function mkEtiqueta(n) {
             </div>
             ${n.aula ? `<div class="etiqueta-row"><span class="etiqueta-lbl">Aula</span><span class="etiqueta-val">${n.aula}</span></div>` : ''}
         </div>
-        <div class="etiqueta-barcode">
-            <svg id="${barcodeId}"></svg>
-        </div>
+        <div class="etiqueta-barcode"><svg></svg></div>
         <hr class="etiqueta-hr" style="margin:0 8px;">
         <div class="etiqueta-body" style="padding-top:3px">
             <div class="etiqueta-turnos">
@@ -274,9 +271,59 @@ function generarBarcodes() {
 function imprimir() {
     const sel = todasLasNetbooks.filter(n => seleccionadas.has(n.id));
     if (sel.length === 0) return;
-    document.getElementById('print-grid').innerHTML = sel.map(mkEtiqueta).join('');
-    generarBarcodes();
-    setTimeout(() => window.print(), 300);
+
+    const html = sel.map(mkEtiqueta).join('');
+
+    const ventana = window.open('', '_blank', 'width=900,height=700');
+    ventana.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>Etiquetas SIGA-Tec</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:white;font-family:Arial,sans-serif}
+.et-print-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm;padding:8mm}
+.et-print-wrap{break-inside:avoid;page-break-inside:avoid}
+.etiqueta{font-family:Arial,sans-serif;border:1.5px solid #1a2a6c;border-radius:6px;overflow:hidden;width:100%}
+.etiqueta-hdr{background:#1a2a6c;color:white;padding:4px 8px;display:flex;align-items:center;gap:6px}
+.etiqueta-hdr-accent{width:3px;height:18px;background:#e8821a;border-radius:2px;flex-shrink:0}
+.etiqueta-hdr-titulo{font-size:10px;font-weight:700;letter-spacing:.5px;color:white}
+.etiqueta-body{padding:5px 8px 4px;background:white}
+.etiqueta-row{display:flex;align-items:baseline;gap:4px;margin-bottom:2px}
+.etiqueta-lbl{font-size:7px;color:#9ca3af;text-transform:uppercase;letter-spacing:.3px;min-width:44px;flex-shrink:0}
+.etiqueta-val{font-size:10px;font-weight:700;color:#1a2a6c;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.etiqueta-hr{border:none;border-top:.5px solid #e5e7eb;margin:0 8px}
+.etiqueta-barcode{text-align:center;padding:3px 8px 2px;background:white}
+.etiqueta-barcode svg{max-width:100%;height:auto}
+.etiqueta-turnos{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:4px 8px 5px}
+.etiqueta-turno{padding:3px 5px;border-radius:3px}
+.etiqueta-turno.m{background:#E6F1FB}
+.etiqueta-turno.t{background:#FAEEDA}
+.etiqueta-turno-lbl{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.etiqueta-turno.m .etiqueta-turno-lbl{color:#0C447C}
+.etiqueta-turno.t .etiqueta-turno-lbl{color:#854F0B}
+.etiqueta-turno-nombre{font-size:8px;font-weight:600;color:#111827;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.etiqueta-turno-curso{font-size:7px;margin-top:1px}
+.etiqueta-turno.m .etiqueta-turno-curso{color:#185FA5}
+.etiqueta-turno.t .etiqueta-turno-curso{color:#854F0B}
+@media print{body{margin:0;padding:0}.et-print-grid{padding:5mm;gap:4mm}}
+</style>
+</head><body>
+<div class="et-print-grid">${html}</div>
+<script>
+window.onload = function() {
+    document.querySelectorAll('[data-serie]').forEach(function(el) {
+        var svg = el.querySelector('svg');
+        var serie = el.getAttribute('data-serie');
+        if (svg && serie) {
+            try { JsBarcode(svg, serie, {format:'CODE128',width:1.1,height:26,displayValue:false,margin:0}); } catch(e){}
+        }
+    });
+    setTimeout(function(){ window.print(); }, 400);
+};
+<\/script>
+</body></html>`);
+    ventana.document.close();
 }
 
 async function cargarDatos() {
