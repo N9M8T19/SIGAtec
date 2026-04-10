@@ -272,7 +272,7 @@ function imprimir() {
     const sel = todasLasNetbooks.filter(n => seleccionadas.has(n.id));
     if (sel.length === 0) return;
 
-    const POR_PAGINA = 21; // 7 filas x 3 col en A4 con margen 8mm y etiquetas 65x37mm
+    const POR_PAGINA = 18; // 6 filas x 3 col en A4 con margen 15mm y etiquetas 59x38mm
 
     // Dividir en páginas de 21 etiquetas
     const paginas = [];
@@ -308,20 +308,20 @@ function imprimir() {
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-@page { size: A4 portrait; margin: 8mm; }
+@page { size: A4 portrait; margin: 15mm 12mm; }
 body { background: white; font-family: Arial, sans-serif; }
 
 .salto { page-break-after: always; break-after: page; }
 
 table.hoja {
     border-collapse: separate;
-    border-spacing: 2mm;
+    border-spacing: 4mm;
     table-layout: fixed;
-    width: 194mm;
+    width: 186mm;
 }
 table.hoja td {
-    width: 65mm;
-    height: 37mm;
+    width: 59mm;
+    height: 38mm;
     padding: 0;
     vertical-align: top;
     overflow: hidden;
@@ -332,8 +332,8 @@ table.hoja td {
     border: 1px solid #1a2a6c;
     border-radius: 4px;
     overflow: hidden;
-    width: 65mm;
-    height: 37mm;
+    width: 59mm;
+    height: 38mm;
     display: flex;
     flex-direction: column;
     page-break-inside: avoid;
