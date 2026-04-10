@@ -1,0 +1,95 @@
+{# templates/impresoras3d/form.html #}
+{% extends "base.html" %}
+{% block title %}{{ accion }} IMPRESORA 3D{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('impresoras3d.index') }}" class="btn btn-outline-secondary me-3">
+    <i class="fas fa-arrow-left"></i>
+  </a>
+  <h2 class="titulo-seccion mb-0">
+    <i class="fas fa-cube me-2" style="color: var(--color-acento);"></i>
+    {{ accion|upper }} IMPRESORA 3D
+  </h2>
+</div>
+
+<div class="card shadow-sm" style="max-width: 600px;">
+  <div class="card-body">
+    <form method="post">
+
+      {# ── N° Interno ── #}
+      <div class="mb-3">
+        <label class="form-label fw-bold">
+          N° INTERNO <span class="text-danger">*</span>
+        </label>
+        <input type="text" name="numero_interno" class="form-control"
+               placeholder="Ej: IMP-01"
+               value="{{ imp.numero_interno if imp else '' }}"
+               required maxlength="20">
+        <div class="form-text">Identificador único en el inventario.</div>
+      </div>
+
+      {# ── Modelo ── #}
+      <div class="mb-3">
+        <label class="form-label fw-bold">
+          MODELO <span class="text-danger">*</span>
+        </label>
+        <input type="text" name="modelo" class="form-control"
+               placeholder="Ej: Creality Ender-3 V2"
+               value="{{ imp.modelo if imp else '' }}"
+               required maxlength="100">
+      </div>
+
+      {# ── N° de Serie ── #}
+      <div class="mb-3">
+        <label class="form-label fw-bold">N° DE SERIE</label>
+        <input type="text" name="numero_serie" class="form-control"
+               placeholder="Ej: CR3V2-20240512-001"
+               value="{{ imp.numero_serie if imp and imp.numero_serie else '' }}"
+               maxlength="100">
+      </div>
+
+      {# ── Aula ── #}
+      <div class="mb-3">
+        <label class="form-label fw-bold">AULA</label>
+        <input type="text" name="aula" class="form-control"
+               placeholder="Ej: 12, Lab Tecnología, Taller"
+               value="{{ imp.aula if imp and imp.aula else '' }}"
+               maxlength="50">
+      </div>
+
+      {# ── Estado (solo en edición) ── #}
+      {% if accion == 'Editar' %}
+      <div class="mb-3">
+        <label class="form-label fw-bold">ESTADO</label>
+        <select name="estado" class="form-select">
+          {% for key, (label, _) in estados.items() %}
+          <option value="{{ key }}"
+            {% if imp and imp.estado == key %}selected{% endif %}>
+            {{ label }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      {# ── Observaciones ── #}
+      <div class="mb-4">
+        <label class="form-label fw-bold">OBSERVACIONES</label>
+        <textarea name="observaciones" class="form-control" rows="3"
+                  placeholder="Notas sobre el estado, accesorios, etc.">{{ imp.observaciones if imp and imp.observaciones else '' }}</textarea>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-naranja">
+          <i class="fas fa-save me-1"></i> Guardar
+        </button>
+        <a href="{{ url_for('impresoras3d.index') }}" class="btn btn-outline-secondary">
+          Cancelar
+        </a>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}

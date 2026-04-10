@@ -1,0 +1,125 @@
+{# templates/impresoras3d/index.html #}
+{% extends "base.html" %}
+{% block title %}IMPRESORAS 3D{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="titulo-seccion">
+    <i class="fas fa-cube me-2" style="color: var(--color-acento);"></i>
+    IMPRESORAS 3D
+  </h2>
+  {% if current_user.rol in ('Administrador', 'Directivo') %}
+  <a href="{{ url_for('impresoras3d.nueva') }}" class="btn btn-naranja">
+    <i class="fas fa-plus me-1"></i> Nueva impresora
+  </a>
+  {% endif %}
+</div>
+
+{# ── Filtros ── #}
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-5">
+    <div class="input-group">
+      <span class="input-group-text"><i class="fas fa-search"></i></span>
+      <input type="text" name="q" class="form-control"
+             placeholder="Buscar por N° interno, serie, modelo o aula…"
+             value="{{ q }}">
+      {% if q %}
+      <a href="{{ url_for('impresoras3d.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-times"></i>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-3">
+    <select name="estado" class="form-select" onchange="this.form.submit()">
+      <option value="">Todos los estados</option>
+      {% for key, (label, _) in estados.items() %}
+      <option value="{{ key }}" {% if estado_filtro == key %}selected{% endif %}>
+        {{ label }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </div>
+</form>
+
+{# ── Tabla ── #}
+{% if impresoras %}
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <table class="table table-hover table-striped mb-0 align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>N° INTERNO</th>
+          <th>MODELO</th>
+          <th>N° DE SERIE</th>
+          <th>AULA</th>
+          <th>ESTADO</th>
+          <th class="text-center">ACCIONES</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for imp in impresoras %}
+        {% set label, badge = estados[imp.estado] %}
+        <tr>
+          <td><strong>{{ imp.numero_interno }}</strong></td>
+          <td>{{ imp.modelo }}</td>
+          <td class="text-muted">{{ imp.numero_serie or '—' }}</td>
+          <td>{{ imp.aula or '—' }}</td>
+          <td>
+            <span class="badge bg-{{ badge }}">{{ label }}</span>
+          </td>
+          <td class="text-center">
+            {% if current_user.rol in ('Administrador', 'Directivo') %}
+            <a href="{{ url_for('impresoras3d.editar', id=imp.id) }}"
+               class="btn btn-sm btn-outline-primary me-1"
+               title="Editar">
+              <i class="fas fa-edit"></i>
+            </a>
+            <form method="post"
+                  action="{{ url_for('impresoras3d.eliminar', id=imp.id) }}"
+                  class="d-inline"
+                  onsubmit="return confirm('¿Eliminar la impresora #{{ imp.numero_interno }}? Esta acción no se puede deshacer.')">
+              <button type="submit" class="btn btn-sm btn-outline-danger"
+                      title="Eliminar">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% if imp.observaciones %}
+        <tr class="table-light">
+          <td colspan="6" class="text-muted small ps-4">
+            <i class="fas fa-comment-alt me-1"></i>{{ imp.observaciones }}
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="text-muted small mt-2">
+  {{ impresoras|length }} impresora{% if impresoras|length != 1 %}s{% endif %}
+  {% if q or estado_filtro %} encontrada{% if impresoras|length != 1 %}s{% endif %}{% endif %}
+</p>
+
+{% else %}
+<div class="alert alert-info">
+  <i class="fas fa-info-circle me-2"></i>
+  {% if q or estado_filtro %}
+    No se encontraron impresoras con los filtros aplicados.
+    <a href="{{ url_for('impresoras3d.index') }}">Ver todas</a>
+  {% else %}
+    Todavía no hay impresoras 3D cargadas.
+    {% if current_user.rol in ('Administrador', 'Directivo') %}
+    <a href="{{ url_for('impresoras3d.nueva') }}">Agregar la primera</a>
+    {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -189,6 +189,11 @@
                       {% if 'pantallas' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-tv w-5"></i> Pantallas Digitales
             </a>
+            <a href="{{ url_for('impresoras3d.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'impresoras3d' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-cube w-5"></i> Impresoras 3D
+            </a>
             <a href="{{ url_for('stock.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if 'stock' in request.endpoint %}active{% endif %}">
@@ -369,6 +374,7 @@
         <a href="{{ url_for('netbooks.servicio_tecnico') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'netbooks.servicio_tecnico' %}active{% endif %}"><i class="fas fa-laptop w-5"></i> Servicio Técnico</a>
         <a href="{{ url_for('tickets_ba.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'tickets_ba' in request.endpoint %}active{% endif %}"><i class="fas fa-ticket-alt w-5"></i> Tickets BA Colaborativa</a>
         <a href="{{ url_for('pantallas.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'pantallas' in request.endpoint %}active{% endif %}"><i class="fas fa-tv w-5"></i> Pantallas Digitales</a>
+        <a href="{{ url_for('impresoras3d.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'impresoras3d' in request.endpoint %}active{% endif %}"><i class="fas fa-cube w-5"></i> Impresoras 3D</a>
         <a href="{{ url_for('stock.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'stock' in request.endpoint %}active{% endif %}"><i class="fas fa-clipboard-check w-5"></i> Control de Stock</a>
         {% if current_user.tiene_permiso('configuracion') %}
         <a href="{{ url_for('transferencias.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'transferencias' in request.endpoint %}active{% endif %}"><i class="fas fa-exchange-alt w-5"></i> Transferir Netbooks</a>

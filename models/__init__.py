@@ -336,3 +336,24 @@ class TicketBANetbook(db.Model):
     netbook_id = db.Column(db.Integer, db.ForeignKey('netbooks.id'), nullable=True)
 
     netbook = db.relationship('Netbook', foreign_keys=[netbook_id])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  IMPRESORA 3D
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Impresora3D(db.Model):
+    __tablename__ = 'impresoras_3d'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    numero_interno = db.Column(db.String(20), nullable=False, unique=True)
+    numero_serie   = db.Column(db.String(100))
+    modelo         = db.Column(db.String(100), nullable=False)
+    aula           = db.Column(db.String(50))
+    # 'operativa' | 'en_servicio' | 'baja'
+    estado         = db.Column(db.String(20), nullable=False, default='operativa')
+    observaciones  = db.Column(db.Text)
+    fecha_alta     = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Impresora3D #{self.numero_interno} — {self.modelo}>'
