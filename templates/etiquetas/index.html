@@ -272,21 +272,34 @@ function imprimir() {
     const sel = todasLasNetbooks.filter(n => seleccionadas.has(n.id));
     if (sel.length === 0) return;
 
-    // Armar filas de 3 usando tabla HTML — el grid CSS se rompe entre páginas al imprimir
-    const rows = [];
-    for (let i = 0; i < sel.length; i += 3) {
-        const fila = sel.slice(i, i + 3);
-        // Completar hasta 3 celdas con vacías si la fila es incompleta
-        while (fila.length < 3) fila.push(null);
-        rows.push(fila);
+    const POR_PAGINA = 21; // 7 filas x 3 col en A4 con margen 8mm y etiquetas 65x37mm
+
+    // Dividir en páginas de 21 etiquetas
+    const paginas = [];
+    for (let i = 0; i < sel.length; i += POR_PAGINA) {
+        paginas.push(sel.slice(i, i + POR_PAGINA));
     }
 
-    const filaHtml = rows.map(fila =>
-        '<tr>' + fila.map(n => n
-            ? `<td style="width:65mm;height:37mm;padding:0;vertical-align:top">${mkEtiqueta(n)}</td>`
-            : '<td style="width:65mm;height:37mm;padding:0"></td>'
-        ).join('') + '</tr>'
-    ).join('');
+    function mkTabla(grupo) {
+        const rows = [];
+        for (let i = 0; i < grupo.length; i += 3) {
+            const fila = grupo.slice(i, i + 3);
+            while (fila.length < 3) fila.push(null);
+            rows.push(fila);
+        }
+        const filaHtml = rows.map(fila =>
+            '<tr>' + fila.map(n => n
+                ? `<td>${mkEtiqueta(n)}</td>`
+                : '<td></td>'
+            ).join('') + '</tr>'
+        ).join('');
+        return `<table class="hoja">${filaHtml}</table>`;
+    }
+
+    const paginasHtml = paginas.map((grupo, idx) => {
+        const esUltima = idx === paginas.length - 1;
+        return mkTabla(grupo) + (esUltima ? '' : '<div class="salto"></div>');
+    }).join('');
 
     const ventana = window.open('', '_blank', 'width=900,height=700');
     ventana.document.write(`<!DOCTYPE html>
@@ -297,10 +310,23 @@ function imprimir() {
 * { box-sizing: border-box; margin: 0; padding: 0; }
 @page { size: A4 portrait; margin: 8mm; }
 body { background: white; font-family: Arial, sans-serif; }
-table { border-collapse: separate; border-spacing: 2mm; }
-td { width: 65mm; height: 37mm; padding: 0; vertical-align: top; }
 
-.et-wrap { width: 65mm; height: 37mm; overflow: hidden; }
+.salto { page-break-after: always; break-after: page; }
+
+table.hoja {
+    border-collapse: separate;
+    border-spacing: 2mm;
+    table-layout: fixed;
+    width: 194mm;
+}
+table.hoja td {
+    width: 65mm;
+    height: 37mm;
+    padding: 0;
+    vertical-align: top;
+    overflow: hidden;
+}
+
 .etiqueta {
     font-family: Arial, sans-serif;
     border: 1px solid #1a2a6c;
@@ -310,6 +336,8 @@ td { width: 65mm; height: 37mm; padding: 0; vertical-align: top; }
     height: 37mm;
     display: flex;
     flex-direction: column;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 .etiqueta-hdr {
     background: #1a2a6c; color: white;
@@ -340,7 +368,7 @@ td { width: 65mm; height: 37mm; padding: 0; vertical-align: top; }
 .etiqueta-turno.t .etiqueta-turno-curso { color: #854F0B; }
 </style>
 </head><body>
-<table>${filaHtml}</table>
+${paginasHtml}
 <script>
 window.onload = function() {
     document.querySelectorAll('[data-serie]').forEach(function(el) {
