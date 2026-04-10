@@ -1,95 +1,116 @@
-{# templates/impresoras3d/form.html #}
 {% extends "base.html" %}
-{% block title %}{{ accion }} IMPRESORA 3D{% endblock %}
+{% block title %}{{ accion|upper }} IMPRESORA 3D{% endblock %}
+{% block header %}{{ accion|upper }} IMPRESORA 3D{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center mb-4">
-  <a href="{{ url_for('impresoras3d.index') }}" class="btn btn-outline-secondary me-3">
-    <i class="fas fa-arrow-left"></i>
+
+{# ── Encabezado ── #}
+<div class="flex items-center gap-3 mb-6">
+  <a href="{{ url_for('impresoras3d.index') }}"
+     class="flex items-center justify-center w-9 h-9 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors">
+    <i class="fas fa-arrow-left text-sm"></i>
   </a>
-  <h2 class="titulo-seccion mb-0">
-    <i class="fas fa-cube me-2" style="color: var(--color-acento);"></i>
-    {{ accion|upper }} IMPRESORA 3D
+  <i class="fas fa-cube text-2xl" style="color: var(--naranja);"></i>
+  <h2 class="text-xl font-bold uppercase tracking-wide" style="color: var(--azul-oscuro);">
+    {{ accion }} Impresora 3D
   </h2>
 </div>
 
-<div class="card shadow-sm" style="max-width: 600px;">
-  <div class="card-body">
-    <form method="post">
+{# ── Formulario ── #}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6" style="max-width: 560px;">
+  <form method="post" class="space-y-5">
 
-      {# ── N° Interno ── #}
-      <div class="mb-3">
-        <label class="form-label fw-bold">
-          N° INTERNO <span class="text-danger">*</span>
-        </label>
-        <input type="text" name="numero_interno" class="form-control"
-               placeholder="Ej: IMP-01"
-               value="{{ imp.numero_interno if imp else '' }}"
-               required maxlength="20">
-        <div class="form-text">Identificador único en el inventario.</div>
-      </div>
+    {# N° Interno #}
+    <div>
+      <label class="block text-xs font-bold uppercase tracking-wide mb-1" style="color: var(--azul-oscuro);">
+        N° Interno <span class="text-red-500">*</span>
+      </label>
+      <input type="text" name="numero_interno"
+             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:border-transparent"
+             style="--tw-ring-color: var(--azul-medio);"
+             placeholder="Ej: IMP-01"
+             value="{{ imp.numero_interno if imp else '' }}"
+             required maxlength="20">
+      <p class="text-xs text-gray-400 mt-1">Identificador único en el inventario.</p>
+    </div>
 
-      {# ── Modelo ── #}
-      <div class="mb-3">
-        <label class="form-label fw-bold">
-          MODELO <span class="text-danger">*</span>
-        </label>
-        <input type="text" name="modelo" class="form-control"
-               placeholder="Ej: Creality Ender-3 V2"
-               value="{{ imp.modelo if imp else '' }}"
-               required maxlength="100">
-      </div>
+    {# Modelo #}
+    <div>
+      <label class="block text-xs font-bold uppercase tracking-wide mb-1" style="color: var(--azul-oscuro);">
+        Modelo <span class="text-red-500">*</span>
+      </label>
+      <input type="text" name="modelo"
+             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:border-transparent"
+             placeholder="Ej: Creality Ender-3 V2"
+             value="{{ imp.modelo if imp else '' }}"
+             required maxlength="100">
+    </div>
 
-      {# ── N° de Serie ── #}
-      <div class="mb-3">
-        <label class="form-label fw-bold">N° DE SERIE</label>
-        <input type="text" name="numero_serie" class="form-control"
-               placeholder="Ej: CR3V2-20240512-001"
-               value="{{ imp.numero_serie if imp and imp.numero_serie else '' }}"
-               maxlength="100">
-      </div>
+    {# N° de Serie #}
+    <div>
+      <label class="block text-xs font-bold uppercase tracking-wide mb-1" style="color: var(--azul-oscuro);">
+        N° de Serie
+      </label>
+      <input type="text" name="numero_serie"
+             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:border-transparent"
+             placeholder="Ej: CR3V2-20240512-001"
+             value="{{ imp.numero_serie if imp and imp.numero_serie else '' }}"
+             maxlength="100">
+    </div>
 
-      {# ── Aula ── #}
-      <div class="mb-3">
-        <label class="form-label fw-bold">AULA</label>
-        <input type="text" name="aula" class="form-control"
-               placeholder="Ej: 12, Lab Tecnología, Taller"
-               value="{{ imp.aula if imp and imp.aula else '' }}"
-               maxlength="50">
-      </div>
+    {# Aula #}
+    <div>
+      <label class="block text-xs font-bold uppercase tracking-wide mb-1" style="color: var(--azul-oscuro);">
+        Aula
+      </label>
+      <input type="text" name="aula"
+             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:border-transparent"
+             placeholder="Ej: 12, Lab Tecnología, Taller"
+             value="{{ imp.aula if imp and imp.aula else '' }}"
+             maxlength="50">
+    </div>
 
-      {# ── Estado (solo en edición) ── #}
-      {% if accion == 'Editar' %}
-      <div class="mb-3">
-        <label class="form-label fw-bold">ESTADO</label>
-        <select name="estado" class="form-select">
-          {% for key, (label, _) in estados.items() %}
-          <option value="{{ key }}"
-            {% if imp and imp.estado == key %}selected{% endif %}>
-            {{ label }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      {% endif %}
+    {# Estado — solo en edición #}
+    {% if accion == 'Editar' %}
+    <div>
+      <label class="block text-xs font-bold uppercase tracking-wide mb-1" style="color: var(--azul-oscuro);">
+        Estado
+      </label>
+      <select name="estado"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+        {% for key, (label, _) in estados.items() %}
+        <option value="{{ key }}" {% if imp and imp.estado == key %}selected{% endif %}>
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
 
-      {# ── Observaciones ── #}
-      <div class="mb-4">
-        <label class="form-label fw-bold">OBSERVACIONES</label>
-        <textarea name="observaciones" class="form-control" rows="3"
-                  placeholder="Notas sobre el estado, accesorios, etc.">{{ imp.observaciones if imp and imp.observaciones else '' }}</textarea>
-      </div>
+    {# Observaciones #}
+    <div>
+      <label class="block text-xs font-bold uppercase tracking-wide mb-1" style="color: var(--azul-oscuro);">
+        Observaciones
+      </label>
+      <textarea name="observaciones" rows="3"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:border-transparent resize-none"
+                placeholder="Notas sobre el estado, accesorios, etc.">{{ imp.observaciones if imp and imp.observaciones else '' }}</textarea>
+    </div>
 
-      <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-naranja">
-          <i class="fas fa-save me-1"></i> Guardar
-        </button>
-        <a href="{{ url_for('impresoras3d.index') }}" class="btn btn-outline-secondary">
-          Cancelar
-        </a>
-      </div>
+    {# Botones #}
+    <div class="flex gap-3 pt-2">
+      <button type="submit"
+              class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white shadow-sm"
+              style="background-color: var(--naranja);">
+        <i class="fas fa-save"></i> Guardar
+      </button>
+      <a href="{{ url_for('impresoras3d.index') }}"
+         class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
+        Cancelar
+      </a>
+    </div>
 
-    </form>
-  </div>
+  </form>
 </div>
+
 {% endblock %}

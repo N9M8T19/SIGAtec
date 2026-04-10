@@ -1,125 +1,148 @@
-{# templates/impresoras3d/index.html #}
 {% extends "base.html" %}
 {% block title %}IMPRESORAS 3D{% endblock %}
+{% block header %}IMPRESORAS 3D{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="titulo-seccion">
-    <i class="fas fa-cube me-2" style="color: var(--color-acento);"></i>
-    IMPRESORAS 3D
-  </h2>
+
+{# ── Encabezado ── #}
+<div class="flex items-center justify-between mb-6">
+  <div class="flex items-center gap-3">
+    <i class="fas fa-cube text-2xl" style="color: var(--naranja);"></i>
+    <h2 class="text-xl font-bold uppercase tracking-wide" style="color: var(--azul-oscuro);">
+      Impresoras 3D
+    </h2>
+  </div>
   {% if current_user.rol in ('Administrador', 'Directivo') %}
-  <a href="{{ url_for('impresoras3d.nueva') }}" class="btn btn-naranja">
-    <i class="fas fa-plus me-1"></i> Nueva impresora
+  <a href="{{ url_for('impresoras3d.nueva') }}"
+     class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+     style="background-color: var(--naranja);">
+    <i class="fas fa-plus"></i> Nueva impresora
   </a>
   {% endif %}
 </div>
 
 {# ── Filtros ── #}
-<form method="get" class="row g-2 mb-3">
-  <div class="col-md-5">
-    <div class="input-group">
-      <span class="input-group-text"><i class="fas fa-search"></i></span>
-      <input type="text" name="q" class="form-control"
-             placeholder="Buscar por N° interno, serie, modelo o aula…"
-             value="{{ q }}">
-      {% if q %}
-      <a href="{{ url_for('impresoras3d.index') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-times"></i>
-      </a>
-      {% endif %}
-    </div>
+<form method="get" class="flex flex-wrap gap-3 mb-5">
+  <div class="flex items-center gap-2 flex-1 min-w-48 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
+    <i class="fas fa-search text-gray-400 text-sm"></i>
+    <input type="text" name="q"
+           class="flex-1 outline-none text-sm text-gray-700 bg-transparent"
+           placeholder="Buscar por N° interno, serie, modelo o aula…"
+           value="{{ q }}">
+    {% if q %}
+    <a href="{{ url_for('impresoras3d.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">
+      <i class="fas fa-times"></i>
+    </a>
+    {% endif %}
   </div>
-  <div class="col-md-3">
-    <select name="estado" class="form-select" onchange="this.form.submit()">
-      <option value="">Todos los estados</option>
-      {% for key, (label, _) in estados.items() %}
-      <option value="{{ key }}" {% if estado_filtro == key %}selected{% endif %}>
-        {{ label }}
-      </option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-auto">
-    <button type="submit" class="btn btn-primary">Filtrar</button>
-  </div>
+
+  <select name="estado"
+          class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 shadow-sm outline-none"
+          onchange="this.form.submit()">
+    <option value="">Todos los estados</option>
+    {% for key, (label, _) in estados.items() %}
+    <option value="{{ key }}" {% if estado_filtro == key %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+
+  <button type="submit"
+          class="px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm"
+          style="background-color: var(--azul-medio);">
+    Filtrar
+  </button>
 </form>
 
 {# ── Tabla ── #}
 {% if impresoras %}
-<div class="card shadow-sm">
-  <div class="card-body p-0">
-    <table class="table table-hover table-striped mb-0 align-middle">
-      <thead class="table-dark">
-        <tr>
-          <th>N° INTERNO</th>
-          <th>MODELO</th>
-          <th>N° DE SERIE</th>
-          <th>AULA</th>
-          <th>ESTADO</th>
-          <th class="text-center">ACCIONES</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for imp in impresoras %}
-        {% set label, badge = estados[imp.estado] %}
-        <tr>
-          <td><strong>{{ imp.numero_interno }}</strong></td>
-          <td>{{ imp.modelo }}</td>
-          <td class="text-muted">{{ imp.numero_serie or '—' }}</td>
-          <td>{{ imp.aula or '—' }}</td>
-          <td>
-            <span class="badge bg-{{ badge }}">{{ label }}</span>
-          </td>
-          <td class="text-center">
-            {% if current_user.rol in ('Administrador', 'Directivo') %}
+<div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+  <table class="w-full text-sm">
+    <thead>
+      <tr style="background-color: var(--azul-oscuro);" class="text-white text-xs uppercase tracking-wide">
+        <th class="px-4 py-3 text-left">N° Interno</th>
+        <th class="px-4 py-3 text-left">Modelo</th>
+        <th class="px-4 py-3 text-left">N° de Serie</th>
+        <th class="px-4 py-3 text-left">Aula</th>
+        <th class="px-4 py-3 text-left">Estado</th>
+        {% if current_user.rol in ('Administrador', 'Directivo') %}
+        <th class="px-4 py-3 text-center">Acciones</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for imp in impresoras %}
+      {% set label, badge = estados[imp.estado] %}
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-4 py-3 font-bold" style="color: var(--azul-oscuro);">
+          {{ imp.numero_interno }}
+        </td>
+        <td class="px-4 py-3 text-gray-700">{{ imp.modelo }}</td>
+        <td class="px-4 py-3 text-gray-500">{{ imp.numero_serie or '—' }}</td>
+        <td class="px-4 py-3 text-gray-700">{{ imp.aula or '—' }}</td>
+        <td class="px-4 py-3">
+          {% if badge == 'success' %}
+            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">{{ label }}</span>
+          {% elif badge == 'warning' %}
+            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">{{ label }}</span>
+          {% else %}
+            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">{{ label }}</span>
+          {% endif %}
+        </td>
+        {% if current_user.rol in ('Administrador', 'Directivo') %}
+        <td class="px-4 py-3 text-center">
+          <div class="flex items-center justify-center gap-2">
             <a href="{{ url_for('impresoras3d.editar', id=imp.id) }}"
-               class="btn btn-sm btn-outline-primary me-1"
+               class="px-3 py-1 rounded-lg text-xs font-semibold border transition-colors"
+               style="color: var(--azul-medio); border-color: var(--azul-medio);"
                title="Editar">
-              <i class="fas fa-edit"></i>
+              <i class="fas fa-edit"></i> Editar
             </a>
             <form method="post"
                   action="{{ url_for('impresoras3d.eliminar', id=imp.id) }}"
-                  class="d-inline"
+                  class="inline"
                   onsubmit="return confirm('¿Eliminar la impresora #{{ imp.numero_interno }}? Esta acción no se puede deshacer.')">
-              <button type="submit" class="btn btn-sm btn-outline-danger"
+              <button type="submit"
+                      class="px-3 py-1 rounded-lg text-xs font-semibold border border-red-300 text-red-600 hover:bg-red-50 transition-colors"
                       title="Eliminar">
-                <i class="fas fa-trash"></i>
+                <i class="fas fa-trash"></i> Eliminar
               </button>
             </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% if imp.observaciones %}
-        <tr class="table-light">
-          <td colspan="6" class="text-muted small ps-4">
-            <i class="fas fa-comment-alt me-1"></i>{{ imp.observaciones }}
-          </td>
-        </tr>
+          </div>
+        </td>
         {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+      </tr>
+      {% if imp.observaciones %}
+      <tr class="bg-gray-50">
+        <td colspan="{% if current_user.rol in ('Administrador', 'Directivo') %}6{% else %}5{% endif %}"
+            class="px-6 py-2 text-xs text-gray-500 italic">
+          <i class="fas fa-comment-alt mr-1"></i>{{ imp.observaciones }}
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 
-<p class="text-muted small mt-2">
+<p class="text-xs text-gray-400 mt-3">
   {{ impresoras|length }} impresora{% if impresoras|length != 1 %}s{% endif %}
-  {% if q or estado_filtro %} encontrada{% if impresoras|length != 1 %}s{% endif %}{% endif %}
+  {% if q or estado_filtro %}encontrada{% if impresoras|length != 1 %}s{% endif %}{% endif %}
 </p>
 
 {% else %}
-<div class="alert alert-info">
-  <i class="fas fa-info-circle me-2"></i>
-  {% if q or estado_filtro %}
-    No se encontraron impresoras con los filtros aplicados.
-    <a href="{{ url_for('impresoras3d.index') }}">Ver todas</a>
-  {% else %}
-    Todavía no hay impresoras 3D cargadas.
-    {% if current_user.rol in ('Administrador', 'Directivo') %}
-    <a href="{{ url_for('impresoras3d.nueva') }}">Agregar la primera</a>
+<div class="flex items-center gap-3 px-4 py-4 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 text-sm">
+  <i class="fas fa-info-circle text-lg"></i>
+  <span>
+    {% if q or estado_filtro %}
+      No se encontraron impresoras con los filtros aplicados.
+      <a href="{{ url_for('impresoras3d.index') }}" class="underline font-semibold ml-1">Ver todas</a>
+    {% else %}
+      Todavía no hay impresoras 3D cargadas.
+      {% if current_user.rol in ('Administrador', 'Directivo') %}
+      <a href="{{ url_for('impresoras3d.nueva') }}" class="underline font-semibold ml-1">Agregar la primera</a>
+      {% endif %}
     {% endif %}
-  {% endif %}
+  </span>
 </div>
 {% endif %}
+
 {% endblock %}
