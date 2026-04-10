@@ -124,8 +124,8 @@ def _crear_admin_inicial():
     if not admin:
         admin = Usuario(
             dni      = '41469656',
-            nombre   = 'N.Montefinal',
-            apellido = 'Turnes',
+            nombre   = 'Nicolás',
+            apellido = 'Montefinal Turnes',
             username = 'admin',
             rol      = 'Administrador',
             activo   = True,
@@ -135,12 +135,10 @@ def _crear_admin_inicial():
         db.session.commit()
         print("Usuario administrador creado.")
     else:
-        admin.nombre   = 'N.Montefinal'
-        admin.apellido = 'Turnes'
         if not admin.correo:
             admin.correo = 'nicolas.montefinal@bue.edu.ar'
         db.session.commit()
-        print("Usuario administrador actualizado.")
+        print("Usuario administrador verificado.")
 
 
 if __name__ == '__main__':
