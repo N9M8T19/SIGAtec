@@ -233,9 +233,9 @@ function mkEtiqueta(n) {
             ${n.aula ? `<div class="etiqueta-row"><span class="etiqueta-lbl">Aula</span><span class="etiqueta-val">${n.aula}</span></div>` : ''}
         </div>
         <div class="etiqueta-barcode"><svg></svg></div>
-        <hr class="etiqueta-hr" style="margin:0 8px;">
-        <div class="etiqueta-body" style="padding-top:3px">
-            <div class="etiqueta-turnos">
+        <hr class="etiqueta-hr" style="margin:0 6px;">
+        <div class="etiqueta-turnos">
+            <div class="etiqueta-turnos-row">
                 <div class="etiqueta-turno m">
                     <div class="etiqueta-turno-lbl">Turno Mañana</div>
                     <div class="etiqueta-turno-nombre">${n.alumno_manana || 'Sin asignar'}</div>
@@ -272,7 +272,21 @@ function imprimir() {
     const sel = todasLasNetbooks.filter(n => seleccionadas.has(n.id));
     if (sel.length === 0) return;
 
-    const html = sel.map(mkEtiqueta).join('');
+    // Armar filas de 3 usando tabla HTML — el grid CSS se rompe entre páginas al imprimir
+    const rows = [];
+    for (let i = 0; i < sel.length; i += 3) {
+        const fila = sel.slice(i, i + 3);
+        // Completar hasta 3 celdas con vacías si la fila es incompleta
+        while (fila.length < 3) fila.push(null);
+        rows.push(fila);
+    }
+
+    const filaHtml = rows.map(fila =>
+        '<tr>' + fila.map(n => n
+            ? `<td style="width:65mm;height:37mm;padding:0;vertical-align:top">${mkEtiqueta(n)}</td>`
+            : '<td style="width:65mm;height:37mm;padding:0"></td>'
+        ).join('') + '</tr>'
+    ).join('');
 
     const ventana = window.open('', '_blank', 'width=900,height=700');
     ventana.document.write(`<!DOCTYPE html>
@@ -280,36 +294,15 @@ function imprimir() {
 <title>Etiquetas SIGA-Tec</title>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:white;font-family:Arial,sans-serif}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+@page { size: A4 portrait; margin: 8mm; }
+body { background: white; font-family: Arial, sans-serif; }
+table { border-collapse: separate; border-spacing: 2mm; }
+td { width: 65mm; height: 37mm; padding: 0; vertical-align: top; }
 
-/* A4: 210mm ancho. Margen 5mm c/lado = 200mm útiles. 3 col + 2 gaps de 3mm = 3×64.67mm */
-/* Alto etiqueta 37mm × 8 filas + 7 gaps 3mm + margen 5mm top/bot = 321mm < 297mm → 7 filas por hoja */
-/* Usamos tamaño fijo por etiqueta para que encajen exactamente en A4 al cortar */
-
-@page { size: A4 portrait; margin: 5mm; }
-
-body { margin: 0; padding: 0; background: white; }
-
-.et-print-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 65mm);
-    grid-template-rows: repeat(auto-fill, 37mm);
-    gap: 2.5mm;
-    width: 210mm;
-    padding: 5mm;
-}
-
-.et-print-wrap {
-    width: 65mm;
-    height: 37mm;
-    overflow: hidden;
-    break-inside: avoid;
-    page-break-inside: avoid;
-}
-
+.et-wrap { width: 65mm; height: 37mm; overflow: hidden; }
 .etiqueta {
-    font-family: Arial,sans-serif;
+    font-family: Arial, sans-serif;
     border: 1px solid #1a2a6c;
     border-radius: 4px;
     overflow: hidden;
@@ -319,12 +312,9 @@ body { margin: 0; padding: 0; background: white; }
     flex-direction: column;
 }
 .etiqueta-hdr {
-    background: #1a2a6c;
-    color: white;
+    background: #1a2a6c; color: white;
     padding: 2px 6px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    display: flex; align-items: center; gap: 4px;
     flex-shrink: 0;
 }
 .etiqueta-hdr-accent { width: 2px; height: 14px; background: #e8821a; border-radius: 1px; flex-shrink: 0; }
@@ -336,8 +326,9 @@ body { margin: 0; padding: 0; background: white; }
 .etiqueta-barcode { text-align: center; padding: 1px 6px 0; background: white; flex-shrink: 0; }
 .etiqueta-barcode svg { width: 100%; height: 18px; }
 .etiqueta-hr { border: none; border-top: .4px solid #e5e7eb; margin: 0 6px; flex-shrink: 0; }
-.etiqueta-turnos { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px 6px 3px; flex: 1; }
-.etiqueta-turno { padding: 2px 4px; border-radius: 2px; }
+.etiqueta-turnos { display: table; width: 100%; padding: 2px 6px 3px; flex: 1; }
+.etiqueta-turnos-row { display: table-row; }
+.etiqueta-turno { display: table-cell; width: 50%; padding: 2px 4px; border-radius: 2px; vertical-align: top; }
 .etiqueta-turno.m { background: #E6F1FB; }
 .etiqueta-turno.t { background: #FAEEDA; }
 .etiqueta-turno-lbl { font-size: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .2px; }
@@ -349,7 +340,7 @@ body { margin: 0; padding: 0; background: white; }
 .etiqueta-turno.t .etiqueta-turno-curso { color: #854F0B; }
 </style>
 </head><body>
-<div class="et-print-grid">${html}</div>
+<table>${filaHtml}</table>
 <script>
 window.onload = function() {
     document.querySelectorAll('[data-serie]').forEach(function(el) {
@@ -359,7 +350,7 @@ window.onload = function() {
             try { JsBarcode(svg, serie, {format:'CODE128',width:0.9,height:16,displayValue:false,margin:0}); } catch(e){}
         }
     });
-    setTimeout(function(){ window.print(); }, 400);
+    setTimeout(function(){ window.print(); }, 500);
 };
 <\/script>
 </body></html>`);
