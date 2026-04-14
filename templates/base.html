@@ -262,13 +262,13 @@
             </a>
             {% endif %}
 
-            {% if current_user.tiene_permiso('configuracion') %}
             <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Sistema</p>
             <a href="{{ url_for('main.config_espacio_digital') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint == 'main.config_espacio_digital' %}active{% endif %}">
                 <i class="fas fa-cog w-5"></i> Config. Espacio Digital
             </a>
+            {% if current_user.tiene_permiso('configuracion') %}
             <a href="{{ url_for('importar.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if 'importar' in request.endpoint %}active{% endif %}">
@@ -395,9 +395,9 @@
         <a href="{{ url_for('reportes.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'reportes.index' %}active{% endif %}"><i class="fas fa-chart-bar w-5"></i> Reportes</a>
         <a href="{{ url_for('reportes.estadisticas') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'reportes.estadisticas' %}active{% endif %}"><i class="fas fa-chart-pie w-5"></i> Estadísticas</a>
         {% endif %}
-        {% if current_user.tiene_permiso('configuracion') %}
         <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Sistema</p>
         <a href="{{ url_for('main.config_espacio_digital') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.config_espacio_digital' %}active{% endif %}"><i class="fas fa-cog w-5"></i> Config. Espacio Digital</a>
+        {% if current_user.tiene_permiso('configuracion') %}
         <a href="{{ url_for('importar.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'importar' in request.endpoint %}active{% endif %}"><i class="fab fa-google-drive w-5"></i> Importar Drive</a>
         <a href="{{ url_for('notificaciones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'notificaciones' in request.endpoint %}active{% endif %}"><i class="fas fa-bell w-5"></i> Notificaciones</a>
         <a href="{{ url_for('notificaciones.backup_index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'notificaciones.backup_index' %}active{% endif %}"><i class="fas fa-database w-5"></i> Backups</a>

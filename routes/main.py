@@ -246,7 +246,7 @@ def buscar():
 @main_bp.route('/configuracion/espacio-digital', methods=['GET', 'POST'])
 @login_required
 def config_espacio_digital():
-    if not current_user.tiene_permiso('configuracion'):
+    if not (current_user.tiene_permiso('configuracion') or current_user.rol == 'Encargado'):
         flash('Credenciales no válidas.', 'danger')
         return redirect(url_for('main.dashboard'))
 
