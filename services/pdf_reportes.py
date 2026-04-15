@@ -408,19 +408,50 @@ def pdf_historial_netbooks(prestamos, periodo='todos'):
     _encabezado(story, 'Historial de Préstamos — Espacio Digital',
                 f'Período: {periodo.capitalize()}')
 
+    STYLE_DETALLE = ParagraphStyle('Detalle', parent=styles['Normal'],
+        fontSize=7, fontName='Helvetica', textColor=colors.HexColor('#374151'))
+    STYLE_NB = ParagraphStyle('NB', parent=styles['Normal'],
+        fontSize=7, fontName='Helvetica-Bold', textColor=AZUL_ESCUELA)
+
+    # Cabecera principal
     data = [['Código', 'Docente', 'Netbooks', 'Retiro', 'Devolución', 'Autorizado por', 'Estado']]
+    row_estados = []
+
     for p in prestamos:
-        data.append([p.codigo or '—', p.docente.nombre_completo, str(len(p.items)),
-                     _arg(p.hora_retiro),
-                     _arg(p.hora_devolucion) if p.hora_devolucion else '—',
-                     p.encargado_retiro or '—',
-                     'Activo' if p.estado == 'activo' else 'Devuelto'])
+        nombre_docente = ''
+        if p.docente:
+            nombre_docente = f'{p.docente.apellido}, {p.docente.nombre}' if hasattr(p.docente, 'apellido') else str(p.docente)
+
+        # Armar celda de netbooks: "N°12 — Apellido, Nombre" por línea
+        if p.items:
+            lineas = []
+            for item in p.items:
+                linea = f'N°{item.numero_interno}'
+                if item.alumno:
+                    linea += f' — {item.alumno}'
+                lineas.append(linea)
+            nb_cell = Paragraph('\n'.join(lineas), STYLE_NB)
+        else:
+            nb_cell = Paragraph('—', STYLE_DETALLE)
+
+        data.append([
+            p.codigo or '—',
+            Paragraph(nombre_docente, STYLE_NORMAL),
+            nb_cell,
+            _arg(p.hora_retiro),
+            _arg(p.hora_devolucion) if p.hora_devolucion else '—',
+            Paragraph(p.encargado_retiro or '—', STYLE_DETALLE),
+            'Activo' if p.estado == 'activo' else 'Devuelto'
+        ])
+        row_estados.append(p.estado)
 
     if len(data) > 1:
-        t = Table(data, colWidths=[1.8*cm, 4.5*cm, 2*cm, 2.8*cm, 2.8*cm, 3.5*cm, 2.1*cm])
+        t = Table(data, colWidths=[1.6*cm, 4.5*cm, 3.8*cm, 2.5*cm, 2.5*cm, 3.5*cm, 1.6*cm])
         estilo = _tabla_estilo(colors.HexColor('#1d4ed8'))
-        for i, p in enumerate(prestamos, start=1):
-            if p.estado == 'activo':
+        # Alinear columna Netbooks a la izquierda
+        estilo.add('ALIGN', (2, 0), (2, -1), 'LEFT')
+        for i, estado in enumerate(row_estados, start=1):
+            if estado == 'activo':
                 estilo.add('TEXTCOLOR', (6, i), (6, i), NARANJA)
                 estilo.add('FONTNAME',  (6, i), (6, i), 'Helvetica-Bold')
         t.setStyle(estilo)

@@ -235,6 +235,40 @@ def retiro_netbooks():
                            docentes=docentes, disponibles=disponibles, carro=carro)
 
 
+@prestamos_bp.route('/espacio-digital/<int:prestamo_id>/devolucion-item/<int:item_id>', methods=['POST'])
+@login_required
+def devolucion_netbook_individual(prestamo_id, item_id):
+    from models import PrestamoNetbookItem
+    prestamo = PrestamoNetbook.query.get_or_404(prestamo_id)
+    item     = PrestamoNetbookItem.query.get_or_404(item_id)
+    numero   = item.numero_interno
+
+    # Eliminar el ítem del préstamo
+    db.session.delete(item)
+    db.session.flush()
+
+    # Recargar ítems restantes
+    items_restantes = PrestamoNetbookItem.query.filter_by(prestamo_id=prestamo.id).count()
+
+    if items_restantes == 0:
+        # Último ítem — cerrar el préstamo
+        prestamo.hora_devolucion      = datetime.utcnow()
+        prestamo.estado               = 'devuelto'
+        prestamo.encargado_devolucion = current_user.nombre_completo
+        db.session.commit()
+        try:
+            from services.mail import enviar_notificacion_devolucion_netbook
+            enviar_notificacion_devolucion_netbook(prestamo)
+        except Exception as e:
+            current_app.logger.error(f'Error notificando devolucion netbook: {e}')
+        flash(f'Todas las netbooks devueltas — {prestamo.docente.nombre_completo}', 'success')
+    else:
+        db.session.commit()
+        flash(f'Netbook N°{numero} devuelta. Quedan {items_restantes} pendiente(s).', 'success')
+
+    return redirect(url_for('prestamos.espacio_digital'))
+
+
 @prestamos_bp.route('/espacio-digital/<int:id>/devolucion', methods=['POST'])
 @login_required
 def devolucion_netbooks(id):

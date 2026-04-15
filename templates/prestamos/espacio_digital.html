@@ -61,18 +61,26 @@
             <tr id="detalle-{{ p.id }}" class="hidden">
                 <td colspan="7" class="px-6 pb-3 pt-0 bg-blue-50">
                     <div class="border border-blue-200 rounded-lg overflow-hidden">
-                        <div class="bg-blue-900 text-white px-4 py-2 text-xs font-semibold uppercase tracking-wide">
-                            <i class="fas fa-laptop mr-2"></i>Netbooks prestadas — {{ p.docente.nombre_completo }}
+                        <div class="bg-blue-900 text-white px-4 py-2 text-xs font-semibold uppercase tracking-wide flex justify-between items-center">
+                            <span><i class="fas fa-laptop mr-2"></i>Netbooks prestadas — {{ p.docente.nombre_completo }}</span>
+                            <span class="text-blue-300 font-normal normal-case">Clic en una netbook para devolver individualmente</span>
                         </div>
                         <div class="px-4 py-3 flex flex-wrap gap-2">
                             {% for item in p.items %}
-                            <span class="inline-flex items-center gap-1 bg-white border border-blue-200 rounded-lg px-3 py-1.5 text-sm">
-                                <i class="fas fa-laptop text-blue-600 text-xs"></i>
-                                <span class="font-bold text-blue-900">N°{{ item.numero_interno }}</span>
-                                {% if item.alumno %}
-                                <span class="text-gray-400 text-xs">— {{ item.alumno }}</span>
-                                {% endif %}
-                            </span>
+                            <form method="POST"
+                                  action="{{ url_for('prestamos.devolucion_netbook_individual', prestamo_id=p.id, item_id=item.id) }}"
+                                  onsubmit="return confirm('Devolver N°{{ item.numero_interno }}{% if item.alumno %} ({{ item.alumno }}){% endif %}?')"
+                                  onclick="event.stopPropagation()">
+                                <button type="submit"
+                                        class="inline-flex items-center gap-2 bg-white border border-blue-200 hover:border-orange-400 hover:bg-orange-50 rounded-lg px-3 py-1.5 text-sm transition-colors group">
+                                    <i class="fas fa-laptop text-blue-600 text-xs group-hover:text-orange-500"></i>
+                                    <span class="font-bold text-blue-900">N°{{ item.numero_interno }}</span>
+                                    {% if item.alumno %}
+                                    <span class="text-gray-400 text-xs">— {{ item.alumno }}</span>
+                                    {% endif %}
+                                    <i class="fas fa-undo text-gray-300 text-xs group-hover:text-orange-500 ml-1"></i>
+                                </button>
+                            </form>
                             {% endfor %}
                         </div>
                     </div>
