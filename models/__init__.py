@@ -96,9 +96,9 @@ class Carro(db.Model):
     division          = db.Column(db.String(100))
     aula              = db.Column(db.String(100))
     sheet_url         = db.Column(db.String(500))
-    estado            = db.Column(db.String(30), default='activo')
-    problema          = db.Column(db.Text)
-    fecha_reparacion  = db.Column(db.String(50))
+    estado            = db.Column(db.String(30), default='operativo')
+    motivo_servicio   = db.Column(db.String(200))
+    fecha_servicio    = db.Column(db.DateTime)
 
     netbooks  = db.relationship('Netbook', backref='carro', lazy=True,
                                  cascade='all, delete-orphan')

@@ -6,6 +6,15 @@
 <div class="max-w-2xl mx-auto">
     <div class="bg-white rounded-xl shadow-sm p-6">
 
+        {% if carro_origen_preseleccionado %}
+        <div class="bg-orange-50 border border-orange-300 rounded-lg px-4 py-3 mb-4 text-sm text-orange-800">
+            <i class="fas fa-tools mr-2"></i>
+            El carro <strong>{{ carro_origen_preseleccionado.display }}</strong> está en servicio técnico
+            (<strong>{{ carro_origen_preseleccionado.motivo_servicio }}</strong>).
+            Seleccioná el <strong>carro de reemplazo</strong> como destino para mover las netbooks.
+        </div>
+        {% endif %}
+
         <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6 text-sm text-blue-800">
             <i class="fas fa-info-circle mr-2"></i>
             Seleccioná el carro de origen y destino. Luego elegís qué netbooks transferir
@@ -22,7 +31,10 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="">-- Seleccionar --</option>
                         {% for c in carros %}
-                        <option value="{{ c.id }}">{{ c.display }} — {{ c.aula or 'Sin aula' }}</option>
+                        <option value="{{ c.id }}"
+                            {% if carro_origen_preseleccionado and c.id == carro_origen_preseleccionado.id %}selected{% endif %}>
+                            {{ c.display }} — {{ c.aula or 'Sin aula' }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>

@@ -17,7 +17,12 @@ def index():
         flash('Credenciales no válidas.', 'danger')
         return redirect(url_for('main.dashboard'))
     carros = Carro.query.filter(Carro.estado != 'baja').order_by(Carro.numero_fisico).all()
-    return render_template('transferencias/index.html', carros=carros)
+    # Precarga carro origen cuando viene desde "Enviar a servicio"
+    carro_origen_id = request.args.get('carro_origen_id', type=int)
+    carro_origen_preseleccionado = Carro.query.get(carro_origen_id) if carro_origen_id else None
+    return render_template('transferencias/index.html',
+                           carros=carros,
+                           carro_origen_preseleccionado=carro_origen_preseleccionado)
 
 
 @transferencias_bp.route('/seleccionar', methods=['POST'])

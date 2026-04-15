@@ -1,8 +1,18 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, Carro, Netbook
+from models import db, Carro, Netbook, PrestamoCarro
+from datetime import datetime
 
 carros_bp = Blueprint('carros', __name__, url_prefix='/carros')
+
+MOTIVOS_SERVICIO_CARRO = [
+    ('termica',    'Térmica quemada'),
+    ('cerradura',  'Cerradura rota'),
+    ('rueda',      'Rueda rota'),
+    ('estructura', 'Estructura / chasis dañado'),
+    ('electrico',  'Problema eléctrico'),
+    ('otro',       'Otro'),
+]
 
 
 @carros_bp.route('/')
@@ -177,3 +187,66 @@ def desasignar_todos(id):
     db.session.commit()
     flash(f'Todas las asignaciones del Carro {carro.display} fueron eliminadas.', 'success')
     return redirect(url_for('carros.netbooks', id=id))
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SERVICIO TÉCNICO DEL CARRO FÍSICO
+# ─────────────────────────────────────────────────────────────────────────────
+
+@carros_bp.route('/<int:id>/enviar-servicio', methods=['POST'])
+@login_required
+def enviar_servicio(id):
+    """
+    Marca el carro físico como en_servicio con el motivo indicado.
+    Bloquea el carro para nuevos préstamos.
+    Redirige a transferencias con el carro origen precargado para
+    mover las netbooks al carro de reemplazo.
+    """
+    carro = Carro.query.get_or_404(id)
+
+    if carro.estado == 'en_servicio':
+        flash(f'El carro {carro.display} ya está en servicio técnico.', 'warning')
+        return redirect(url_for('carros.index'))
+
+    # Bloquear si tiene préstamo activo
+    prestamo_activo = PrestamoCarro.query.filter_by(carro_id=id, estado='activo').first()
+    if prestamo_activo:
+        flash(
+            f'El carro {carro.display} tiene un préstamo activo. '
+            'Registrá la devolución antes de enviarlo a servicio.',
+            'danger'
+        )
+        return redirect(url_for('carros.index'))
+
+    motivo_clave  = request.form.get('motivo', 'otro')
+    motivo_label  = dict(MOTIVOS_SERVICIO_CARRO).get(motivo_clave, 'Otro')
+
+    carro.estado          = 'en_servicio'
+    carro.motivo_servicio = motivo_label
+    carro.fecha_servicio  = datetime.utcnow()
+    db.session.commit()
+
+    flash(
+        f'Carro {carro.display} enviado a servicio técnico ({motivo_label}). '
+        'Transferí las netbooks al carro de reemplazo.',
+        'warning'
+    )
+    return redirect(url_for('transferencias.index', carro_origen_id=id))
+
+
+@carros_bp.route('/<int:id>/recuperar', methods=['POST'])
+@login_required
+def recuperar_carro(id):
+    """Marca el carro como operativo y limpia el motivo de servicio."""
+    carro = Carro.query.get_or_404(id)
+
+    if carro.estado != 'en_servicio':
+        flash(f'El carro {carro.display} no está en servicio técnico.', 'warning')
+        return redirect(url_for('carros.index'))
+
+    carro.estado          = 'operativo'
+    carro.motivo_servicio = None
+    carro.fecha_servicio  = None
+    db.session.commit()
+
+    flash(f'Carro {carro.display} recuperado y marcado como operativo.', 'success')
+    return redirect(url_for('carros.index'))
