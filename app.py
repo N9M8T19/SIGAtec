@@ -9,11 +9,11 @@ import os
 load_dotenv()
 
 # Offset de Argentina: UTC-3
-ARG_OFFSET = timedelta(hours=3)
+ARG_OFFSET = timedelta(hours=-3)
 
 
 def utc_a_arg(dt):
-    """Ajusta hora del servidor (UTC-3 interno) a hora Argentina real (+3h)."""
+    """Convierte UTC a hora Argentina (UTC-3)."""
     if dt is None:
         return None
     return dt + ARG_OFFSET
