@@ -13,7 +13,7 @@ transferencias_bp = Blueprint('transferencias', __name__, url_prefix='/transfere
 @transferencias_bp.route('/')
 @login_required
 def index():
-    if not current_user.tiene_permiso('configuracion'):
+    if not (current_user.tiene_permiso('configuracion') or current_user.rol == 'Encargado'):
         flash('Credenciales no válidas.', 'danger')
         return redirect(url_for('main.dashboard'))
     carros = Carro.query.filter(Carro.estado != 'baja').order_by(Carro.numero_fisico).all()
@@ -24,7 +24,7 @@ def index():
 @login_required
 def seleccionar():
     """Paso 1 — elegir carro origen y destino, mostrar netbooks disponibles."""
-    if not current_user.tiene_permiso('configuracion'):
+    if not (current_user.tiene_permiso('configuracion') or current_user.rol == 'Encargado'):
         flash('Credenciales no válidas.', 'danger')
         return redirect(url_for('transferencias.index'))
 
@@ -53,7 +53,7 @@ def seleccionar():
 @login_required
 def ejecutar():
     """Paso 2 — ejecutar la transferencia y generar PDF."""
-    if not current_user.tiene_permiso('configuracion'):
+    if not (current_user.tiene_permiso('configuracion') or current_user.rol == 'Encargado'):
         flash('Credenciales no válidas.', 'danger')
         return redirect(url_for('transferencias.index'))
 
