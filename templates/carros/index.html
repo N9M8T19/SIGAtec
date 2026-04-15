@@ -1,70 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Carros — SIGA-Tec
-{# ── MODAL SERVICIO TÉCNICO ── #}
-<div id="modal-servicio" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" style="display:none!important">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
-        <div class="bg-orange-500 px-6 py-4 flex items-center gap-3">
-            <i class="fas fa-tools text-white text-xl"></i>
-            <h3 class="text-white font-bold text-lg">Enviar a servicio técnico</h3>
-        </div>
-        <div class="px-6 py-5">
-            <p class="text-gray-600 mb-1 text-sm">Carro:</p>
-            <p class="font-bold text-blue-900 text-base mb-4" id="modal-nombre-carro">—</p>
-
-            <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 text-sm text-orange-800">
-                <i class="fas fa-info-circle mr-1"></i>
-                Al confirmar, el carro quedará bloqueado para préstamos.
-                Serás redirigido a <strong>Transferir Netbooks</strong> para mover las
-                netbooks al carro de reemplazo.
-            </div>
-
-            <form id="form-servicio" method="POST" action="">
-                <label class="block text-sm font-semibold text-gray-700 mb-1">
-                    Motivo del problema <span class="text-red-500">*</span>
-                </label>
-                <select name="motivo" required
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-5 focus:outline-none focus:border-orange-400">
-                    <option value="" disabled selected>Seleccioná el motivo…</option>
-                    <option value="termica">Térmica quemada</option>
-                    <option value="cerradura">Cerradura rota</option>
-                    <option value="rueda">Rueda rota</option>
-                    <option value="estructura">Estructura / chasis dañado</option>
-                    <option value="electrico">Problema eléctrico</option>
-                    <option value="otro">Otro</option>
-                </select>
-                <div class="flex justify-end gap-3">
-                    <button type="button" onclick="cerrarModalServicio()"
-                            class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm hover:bg-gray-50">
-                        Cancelar
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold">
-                        <i class="fas fa-tools mr-1"></i>Confirmar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<script>
-function abrirModalServicio(carroId, carroNombre) {
-    document.getElementById('modal-nombre-carro').textContent = carroNombre;
-    document.getElementById('form-servicio').action = '/carros/' + carroId + '/enviar-servicio';
-    const modal = document.getElementById('modal-servicio');
-    modal.style.display = 'flex';
-    modal.style.setProperty('display', 'flex', 'important');
-}
-function cerrarModalServicio() {
-    const modal = document.getElementById('modal-servicio');
-    modal.style.setProperty('display', 'none', 'important');
-}
-// Cerrar al hacer click fuera del modal
-document.getElementById('modal-servicio').addEventListener('click', function(e) {
-    if (e.target === this) cerrarModalServicio();
-});
-</script>
-{% endblock %}
+{% block title %}Carros — SIGA-Tec{% endblock %}
 {% block header %}Carros{% endblock %}
 
 {% block content %}
@@ -129,13 +64,13 @@ document.getElementById('modal-servicio').addEventListener('click', function(e) 
                         </a>
                         {% if carro.estado == 'operativo' %}
                         <button type="button"
-                                onclick="abrirModalServicio({{ carro.id }}, '{{ carro.display | e }}')",
+                                onclick="abrirModalServicio({{ carro.id }}, '{{ carro.display | e }}')"
                                 class="text-orange-500 hover:text-orange-700" title="Enviar a servicio técnico">
                             <i class="fas fa-tools"></i>
                         </button>
                         {% elif carro.estado == 'en_servicio' %}
                         <form method="POST" action="{{ url_for('carros.recuperar_carro', id=carro.id) }}"
-                              onsubmit="return confirm('¿Confirmar que el carro {{ carro.display | e }} volvió del servicio y está operativo?')">
+                              onsubmit="return confirm('Confirmar que el carro volvio del servicio y esta operativo?')">
                             <button type="submit" class="text-green-500 hover:text-green-700" title="Recuperar carro">
                                 <i class="fas fa-check-circle"></i>
                             </button>
@@ -162,4 +97,66 @@ document.getElementById('modal-servicio').addEventListener('click', function(e) 
         </tbody>
     </table>
 </div>
+
+{# ── MODAL SERVICIO TÉCNICO ── #}
+<div id="modal-servicio" class="fixed inset-0 z-50 items-center justify-center bg-black bg-opacity-50" style="display:none">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="bg-orange-500 px-6 py-4 flex items-center gap-3">
+            <i class="fas fa-tools text-white text-xl"></i>
+            <h3 class="text-white font-bold text-lg">Enviar a servicio técnico</h3>
+        </div>
+        <div class="px-6 py-5">
+            <p class="text-gray-600 mb-1 text-sm">Carro:</p>
+            <p class="font-bold text-blue-900 text-base mb-4" id="modal-nombre-carro">—</p>
+
+            <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 text-sm text-orange-800">
+                <i class="fas fa-info-circle mr-1"></i>
+                Al confirmar, el carro quedará bloqueado para préstamos.
+                Serás redirigido a <strong>Transferir Netbooks</strong> para mover las
+                netbooks al carro de reemplazo.
+            </div>
+
+            <form id="form-servicio" method="POST" action="">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">
+                    Motivo del problema <span class="text-red-500">*</span>
+                </label>
+                <select name="motivo" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-5 focus:outline-none focus:border-orange-400">
+                    <option value="" disabled selected>Seleccioná el motivo…</option>
+                    <option value="termica">Térmica quemada</option>
+                    <option value="cerradura">Cerradura rota</option>
+                    <option value="rueda">Rueda rota</option>
+                    <option value="estructura">Estructura / chasis dañado</option>
+                    <option value="electrico">Problema eléctrico</option>
+                    <option value="otro">Otro</option>
+                </select>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="cerrarModalServicio()"
+                            class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm hover:bg-gray-50">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold">
+                        <i class="fas fa-tools mr-1"></i>Confirmar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function abrirModalServicio(carroId, carroNombre) {
+    document.getElementById('modal-nombre-carro').textContent = carroNombre;
+    document.getElementById('form-servicio').action = '/carros/' + carroId + '/enviar-servicio';
+    document.getElementById('modal-servicio').style.display = 'flex';
+}
+function cerrarModalServicio() {
+    document.getElementById('modal-servicio').style.display = 'none';
+}
+document.getElementById('modal-servicio').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalServicio();
+});
+</script>
+
 {% endblock %}
