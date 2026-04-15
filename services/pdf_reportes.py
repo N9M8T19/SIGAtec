@@ -62,7 +62,7 @@ STYLE_CAMPO = ParagraphStyle('Campo', parent=styles['Normal'],
 
 def _encabezado(story, titulo, subtitulo=''):
     logo_path = os.path.join('static', 'img', 'logo_escuela.png')
-    fecha_str = datetime.now().strftime('%d/%m/%Y %H:%M')
+    fecha_str = (datetime.utcnow() + ARG_OFFSET).strftime('%d/%m/%Y %H:%M')
 
     logo_cell = ''
     if os.path.exists(logo_path):
@@ -311,7 +311,7 @@ def pdf_transferencia(netbooks_transferidas, carro_origen, carro_destino, usuari
         ['Carro Origen', 'Carro Destino', 'Cantidad', 'Fecha', 'Autorizado por'],
         [carro_origen.display, carro_destino.display,
          str(len(netbooks_transferidas)),
-         datetime.now().strftime('%d/%m/%Y %H:%M'), usuario]
+         (datetime.utcnow() + ARG_OFFSET).strftime('%d/%m/%Y %H:%M'), usuario]
     ]
     t_info = Table(info_data, colWidths=[3*cm, 3*cm, 2.5*cm, 4*cm, 6*cm])
     t_info.setStyle(_tabla_estilo(VERDE))
