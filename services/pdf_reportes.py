@@ -5,7 +5,7 @@ Generación de PDFs para SIGA-Tec usando ReportLab.
 
 import os
 from io import BytesIO
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -19,19 +19,33 @@ from reportlab.platypus import (
 from flask import send_file
 
 # Conversión UTC → Argentina (UTC-3)
-ARG_OFFSET = timedelta(hours=-3)
+ARG_TZ     = timezone(timedelta(hours=-3))
+ARG_OFFSET = timedelta(hours=-3)   # compatibilidad
+
+def _to_arg(dt):
+    """
+    Convierte cualquier datetime a hora Argentina.
+    Maneja naive (SQLite) y aware (PostgreSQL devuelve tzinfo=UTC).
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(ARG_TZ)
 
 def _arg(dt):
     """Convierte datetime UTC a hora Argentina y formatea dd/mm HH:MM."""
-    if dt is None:
+    ar = _to_arg(dt)
+    if ar is None:
         return '—'
-    return (dt + ARG_OFFSET).strftime('%d/%m %H:%M')
+    return ar.strftime('%d/%m %H:%M')
 
 def _arg_full(dt):
     """Convierte datetime UTC a hora Argentina y formatea dd/mm/YYYY HH:MM."""
-    if dt is None:
+    ar = _to_arg(dt)
+    if ar is None:
         return '—'
-    return (dt + ARG_OFFSET).strftime('%d/%m/%Y %H:%M')
+    return ar.strftime('%d/%m/%Y %H:%M')
 
 AZUL_ESCUELA = colors.HexColor('#1e3a8a')
 AZUL_CLARO   = colors.HexColor('#dbeafe')
@@ -393,85 +407,6 @@ def pdf_historial_carros(prestamos, periodo='todos'):
 
     doc.build(story)
     return _generar_response(buffer, f'historial_carros_{periodo}.pdf')
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  6b. COMPROBANTE DE PRÉSTAMO DE CARRO (individual)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def pdf_prestamo_carro(prestamo):
-    """
-    Genera el comprobante PDF de un préstamo de carro individual.
-    Muestra nombre del docente, carro, aula, hora de retiro en hora Argentina
-    y espacio para firma.
-    """
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
-                             rightMargin=1.5*cm, leftMargin=1.5*cm,
-                             topMargin=1.5*cm, bottomMargin=1.5*cm)
-    story = []
-
-    # Nombre del docente (campos separados nombre + apellido)
-    if prestamo.docente:
-        nombre_docente = f"{prestamo.docente.nombre} {prestamo.docente.apellido}"
-    else:
-        nombre_docente = '—'
-
-    _encabezado(story, 'Comprobante de Préstamo — Carro',
-                f'Código: {prestamo.codigo or "—"}')
-
-    # Ficha del préstamo
-    hora_retiro_str    = _arg_full(prestamo.hora_retiro)
-    hora_devolucion_str = _arg_full(prestamo.hora_devolucion) if prestamo.hora_devolucion else '—'
-
-    estado_str = 'ACTIVO' if prestamo.estado == 'activo' else 'DEVUELTO'
-    estado_color = NARANJA if prestamo.estado == 'activo' else VERDE
-
-    ficha = [
-        ['Campo',            'Dato'],
-        ['Código',           prestamo.codigo or '—'],
-        ['Docente',          nombre_docente],
-        ['Carro',            prestamo.carro.display if prestamo.carro else '—'],
-        ['Aula del carro',   prestamo.carro.aula if prestamo.carro else '—'],
-        ['Hora de retiro',   hora_retiro_str],
-        ['Hora de devolución', hora_devolucion_str],
-        ['Encargado',        prestamo.encargado_retiro or '—'],
-        ['Estado',           estado_str],
-    ]
-
-    t = Table(ficha, colWidths=[4.5*cm, 13*cm])
-    estilo = TableStyle([
-        ('BACKGROUND',    (0, 0), (-1, 0),  AZUL_ESCUELA),
-        ('TEXTCOLOR',     (0, 0), (-1, 0),  colors.white),
-        ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
-        ('FONTSIZE',      (0, 0), (-1, 0),  10),
-        ('BACKGROUND',    (0, 1), (0, -1),  AZUL_CLARO),
-        ('FONTNAME',      (0, 1), (0, -1),  'Helvetica-Bold'),
-        ('FONTNAME',      (1, 1), (1, -1),  'Helvetica'),
-        ('FONTSIZE',      (0, 1), (-1, -1), 10),
-        ('ALIGN',         (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
-        ('TOPPADDING',    (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('LEFTPADDING',   (0, 0), (-1, -1), 8),
-        # Fila Estado en color según valor
-        ('TEXTCOLOR',     (1, 8), (1, 8),   estado_color),
-        ('FONTNAME',      (1, 8), (1, 8),   'Helvetica-Bold'),
-    ])
-    t.setStyle(estilo)
-    story.append(t)
-    story.append(Spacer(1, 1.5*cm))
-
-    # Firmas
-    firmas = Table([
-        [_campo_firma('Firma del Docente', 7*cm), '', _campo_firma('Firma del Encargado', 7*cm)]
-    ], colWidths=[7.5*cm, 2.5*cm, 7.5*cm])
-    story.append(firmas)
-
-    doc.build(story)
-    return _generar_response(buffer,
-        f'prestamo_carro_{prestamo.codigo or prestamo.id}.pdf')
 
 
 # ─────────────────────────────────────────────────────────────────────────────
