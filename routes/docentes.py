@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
-from models import db, Docente, PrestamoCarro
+from models import db, Docente, PrestamoCarro, PrestamoNetbook
 from models_extra.horarios_notificaciones import MATERIAS
 
 docentes_bp = Blueprint('docentes', __name__, url_prefix='/docentes')
@@ -111,7 +111,16 @@ def dar_baja(id):
             return redirect(url_for('docentes.index'))
 
         if motivo == 'jubilacion':
+            # Guardar nombre ANTES de cualquier operación sobre el objeto
             nombre = docente.nombre_completo
+
+            # Eliminar préstamos históricos de carros (docente_id NOT NULL)
+            PrestamoCarro.query.filter_by(docente_id=id).delete()
+
+            # Eliminar préstamos históricos de netbooks (docente_id NOT NULL)
+            PrestamoNetbook.query.filter_by(docente_id=id).delete()
+
+            # Ahora sí se puede eliminar el docente sin violar FK
             db.session.delete(docente)
             db.session.commit()
             flash(f'{nombre} eliminado del sistema (jubilación).', 'success')
