@@ -72,7 +72,10 @@ def marcar_reparada(id):
 @login_required
 def servicio_tecnico():
     netbooks = Netbook.query.filter_by(estado='servicio_tecnico').all()
-    return render_template('netbooks/servicio_tecnico.html', netbooks=netbooks)
+    carros_servicio = Carro.query.filter_by(estado='en_servicio').order_by(Carro.numero_fisico).all()
+    return render_template('netbooks/servicio_tecnico.html',
+                           netbooks=netbooks,
+                           carros_servicio=carros_servicio)
 
 
 @netbooks_bp.route('/<int:id>/guardar-reclamo', methods=['POST'])

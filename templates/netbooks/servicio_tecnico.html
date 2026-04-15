@@ -1,14 +1,74 @@
 {% extends 'base.html' %}
-{% block title %}Servicio Tecnico — SIGA-Tec{% endblock %}
-{% block header %}Netbooks en Servicio Tecnico{% endblock %}
+{% block title %}Servicio Técnico — SIGA-Tec{% endblock %}
+{% block header %}Servicio Técnico{% endblock %}
 
 {% block content %}
-<div class="flex justify-between items-center mb-4">
-    <span class="text-orange-600 font-semibold">{{ netbooks|length }} netbook(s) en servicio</span>
-    <a href="{{ url_for('reportes.pdf_servicio') }}"
-       class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-        <i class="fas fa-file-pdf mr-2"></i>Descargar PDF
-    </a>
+
+{# ── CARROS FÍSICOS EN SERVICIO ── #}
+<div class="flex justify-between items-center mb-3">
+    <h2 class="text-base font-bold text-blue-900 uppercase tracking-wide">
+        <i class="fas fa-shopping-cart mr-2 text-orange-500"></i>Carros físicos en servicio
+    </h2>
+    <span class="text-orange-600 font-semibold text-sm">{{ carros_servicio|length }} carro(s)</span>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+    <table class="w-full text-sm">
+        <thead class="bg-orange-500 text-white">
+            <tr>
+                <th class="px-4 py-3 text-left">Carro</th>
+                <th class="px-4 py-3 text-left">Aula</th>
+                <th class="px-4 py-3 text-left">División</th>
+                <th class="px-4 py-3 text-left">Motivo</th>
+                <th class="px-4 py-3 text-center">Netbooks</th>
+                <th class="px-4 py-3 text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for carro in carros_servicio %}
+            <tr class="hover:bg-orange-50">
+                <td class="px-4 py-3 font-bold text-blue-900">{{ carro.display }}</td>
+                <td class="px-4 py-3">{{ carro.aula or '—' }}</td>
+                <td class="px-4 py-3">{{ carro.division or '—' }}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                        <i class="fas fa-tools mr-1"></i>{{ carro.motivo_servicio or '—' }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-center text-gray-600">{{ carro.total_netbooks }}</td>
+                <td class="px-4 py-3 text-center">
+                    <form method="POST" action="{{ url_for('carros.recuperar_carro', id=carro.id) }}"
+                          onsubmit="return confirm('¿Confirmar que el carro {{ carro.display | e }} volvió del servicio y está operativo?')">
+                        <button type="submit"
+                                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-semibold">
+                            <i class="fas fa-check mr-1"></i>Recuperado
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="px-4 py-6 text-center text-gray-400">
+                    No hay carros físicos en servicio técnico
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{# ── NETBOOKS EN SERVICIO ── #}
+<div class="flex justify-between items-center mb-3">
+    <h2 class="text-base font-bold text-blue-900 uppercase tracking-wide">
+        <i class="fas fa-laptop mr-2 text-orange-500"></i>Netbooks en servicio
+    </h2>
+    <div class="flex items-center gap-3">
+        <span class="text-orange-600 font-semibold text-sm">{{ netbooks|length }} netbook(s)</span>
+        <a href="{{ url_for('reportes.pdf_servicio') }}"
+           class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-file-pdf mr-2"></i>Descargar PDF
+        </a>
+    </div>
 </div>
 
 <!-- Buscador -->
@@ -56,7 +116,7 @@
             {% else %}
             <tr>
                 <td colspan="6" class="px-4 py-8 text-center text-gray-400">
-                    No hay netbooks en servicio tecnico
+                    No hay netbooks en servicio técnico
                 </td>
             </tr>
             {% endfor %}
