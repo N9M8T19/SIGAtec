@@ -28,21 +28,27 @@
         <tbody class="divide-y divide-gray-100">
             {% for p in prestamos %}
             {% set mins = ((now - p.hora_retiro).total_seconds() / 60)|int %}
-            <tr class="hover:bg-gray-50 {% if mins >= 120 %}bg-red-50{% endif %}">
+            <tr class="hover:bg-gray-50 {% if mins >= 260 %}bg-red-50{% endif %} cursor-pointer"
+                onclick="toggleNetbooks({{ p.id }})">
                 <td class="px-4 py-3 font-mono text-xs">{{ p.codigo }}</td>
-                <td class="px-4 py-3 font-semibold">{{ p.docente.nombre_completo }}</td>
+                <td class="px-4 py-3 font-semibold">
+                    <span class="flex items-center gap-1">
+                        <i id="icon-{{ p.id }}" class="fas fa-chevron-right text-gray-400 text-xs transition-transform duration-200"></i>
+                        {{ p.docente.nombre_completo }}
+                    </span>
+                </td>
                 <td class="px-4 py-3 text-center">
                     <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-semibold">
                         {{ p.items|length }}
                     </span>
                 </td>
                 <td class="px-4 py-3">{{ p.hora_retiro|arg_datetime }}</td>
-                <td class="px-4 py-3 {% if mins >= 120 %}text-red-600 font-bold{% endif %}">
+                <td class="px-4 py-3 {% if mins >= 260 %}text-red-600 font-bold{% endif %}">
                     {{ p.tiempo_transcurrido }}
-                    {% if mins >= 120 %}<i class="fas fa-exclamation-triangle ml-1"></i>{% endif %}
+                    {% if mins >= 260 %}<i class="fas fa-exclamation-triangle ml-1"></i>{% endif %}
                 </td>
                 <td class="px-4 py-3 text-gray-500 text-xs">{{ p.encargado_retiro }}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
                     <form method="POST" action="{{ url_for('prestamos.devolucion_netbooks', id=p.id) }}"
                           onsubmit="return confirm('Registrar devolucion de todas las netbooks de {{ p.docente.nombre_completo }}?')">
                         <button type="submit"
@@ -50,6 +56,26 @@
                             <i class="fas fa-undo mr-1"></i>Devolver todas
                         </button>
                     </form>
+                </td>
+            </tr>
+            <tr id="detalle-{{ p.id }}" class="hidden">
+                <td colspan="7" class="px-6 pb-3 pt-0 bg-blue-50">
+                    <div class="border border-blue-200 rounded-lg overflow-hidden">
+                        <div class="bg-blue-900 text-white px-4 py-2 text-xs font-semibold uppercase tracking-wide">
+                            <i class="fas fa-laptop mr-2"></i>Netbooks prestadas — {{ p.docente.nombre_completo }}
+                        </div>
+                        <div class="px-4 py-3 flex flex-wrap gap-2">
+                            {% for item in p.items %}
+                            <span class="inline-flex items-center gap-1 bg-white border border-blue-200 rounded-lg px-3 py-1.5 text-sm">
+                                <i class="fas fa-laptop text-blue-600 text-xs"></i>
+                                <span class="font-bold text-blue-900">N°{{ item.numero_interno }}</span>
+                                {% if item.alumno %}
+                                <span class="text-gray-400 text-xs">— {{ item.alumno }}</span>
+                                {% endif %}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -65,5 +91,15 @@
 {% endblock %}
 
 {% block scripts %}
-<script>setTimeout(() => location.reload(), 60000);</script>
+<script>
+setTimeout(() => location.reload(), 60000);
+
+function toggleNetbooks(id) {
+    const row  = document.getElementById('detalle-' + id);
+    const icon = document.getElementById('icon-' + id);
+    const open = !row.classList.contains('hidden');
+    row.classList.toggle('hidden', open);
+    icon.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+}
+</script>
 {% endblock %}
