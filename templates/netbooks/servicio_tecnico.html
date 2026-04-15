@@ -4,12 +4,22 @@
 
 {% block content %}
 
+<!-- Buscador global -->
+<div class="mb-6">
+    <div class="relative">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        <input type="text" id="buscadorServicio"
+               placeholder="Buscar por N° interno, N° serie, carro, aula o motivo..."
+               class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+    </div>
+</div>
+
 {# ── CARROS FÍSICOS EN SERVICIO ── #}
 <div class="flex justify-between items-center mb-3">
     <h2 class="text-base font-bold text-blue-900 uppercase tracking-wide">
         <i class="fas fa-shopping-cart mr-2 text-orange-500"></i>Carros físicos en servicio
     </h2>
-    <span class="text-orange-600 font-semibold text-sm">{{ carros_servicio|length }} carro(s)</span>
+    <span class="text-orange-600 font-semibold text-sm" id="contador-carros">{{ carros_servicio|length }} carro(s)</span>
 </div>
 
 <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
@@ -24,9 +34,10 @@
                 <th class="px-4 py-3 text-center">Acciones</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-100" id="tablaCarros">
             {% for carro in carros_servicio %}
-            <tr class="hover:bg-orange-50">
+            <tr class="hover:bg-orange-50 fila-carro"
+                data-buscar="{{ carro.display | lower }} {{ carro.numero_fisico or '' }} {{ carro.aula or '' }} {{ carro.division or '' }} {{ carro.motivo_servicio or '' }}">
                 <td class="px-4 py-3 font-bold text-blue-900">{{ carro.display }}</td>
                 <td class="px-4 py-3">{{ carro.aula or '—' }}</td>
                 <td class="px-4 py-3">{{ carro.division or '—' }}</td>
@@ -38,7 +49,7 @@
                 <td class="px-4 py-3 text-center text-gray-600">{{ carro.total_netbooks }}</td>
                 <td class="px-4 py-3 text-center">
                     <form method="POST" action="{{ url_for('carros.recuperar_carro', id=carro.id) }}"
-                          onsubmit="return confirm('¿Confirmar que el carro {{ carro.display | e }} volvió del servicio y está operativo?')">
+                          onsubmit="return confirm('Confirmar que el carro volvio del servicio y esta operativo?')">
                         <button type="submit"
                                 class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-semibold">
                             <i class="fas fa-check mr-1"></i>Recuperado
@@ -47,7 +58,7 @@
                 </td>
             </tr>
             {% else %}
-            <tr>
+            <tr class="fila-carro" data-buscar="">
                 <td colspan="6" class="px-4 py-6 text-center text-gray-400">
                     No hay carros físicos en servicio técnico
                 </td>
@@ -63,21 +74,11 @@
         <i class="fas fa-laptop mr-2 text-orange-500"></i>Netbooks en servicio
     </h2>
     <div class="flex items-center gap-3">
-        <span class="text-orange-600 font-semibold text-sm">{{ netbooks|length }} netbook(s)</span>
+        <span class="text-orange-600 font-semibold text-sm" id="contador-netbooks">{{ netbooks|length }} netbook(s)</span>
         <a href="{{ url_for('reportes.pdf_servicio') }}"
            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
             <i class="fas fa-file-pdf mr-2"></i>Descargar PDF
         </a>
-    </div>
-</div>
-
-<!-- Buscador -->
-<div class="mb-4">
-    <div class="relative">
-        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-        <input type="text" id="buscadorServicio"
-               placeholder="Buscar por N° interno, N° serie o carro..."
-               class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
     </div>
 </div>
 
@@ -93,10 +94,10 @@
                 <th class="px-4 py-3 text-center">Acciones</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100" id="tablaServicio">
+        <tbody class="divide-y divide-gray-100" id="tablaNetbooks">
             {% for nb in netbooks %}
-            <tr class="hover:bg-orange-50 fila-servicio"
-                data-buscar="{{ nb.numero_interno or '' }} {{ nb.numero_serie or '' }} {{ nb.carro.display if nb.carro else '' }} {{ nb.carro.numero_fisico if nb.carro else '' }}">
+            <tr class="hover:bg-orange-50 fila-netbook"
+                data-buscar="{{ nb.numero_interno or '' }} {{ nb.numero_serie or '' }} {{ nb.carro.display if nb.carro else '' }} {{ nb.carro.numero_fisico if nb.carro else '' }} {{ nb.carro.aula if nb.carro else '' }} {{ nb.problema or '' }}">
                 <td class="px-4 py-3 font-semibold">{{ nb.carro.display if nb.carro else '—' }}</td>
                 <td class="px-4 py-3">{{ nb.carro.aula or '—' }}</td>
                 <td class="px-4 py-3 font-semibold">{{ nb.numero_interno or '—' }}</td>
@@ -104,7 +105,7 @@
                 <td class="px-4 py-3 text-gray-500 text-xs">{{ nb.problema or '—' }}</td>
                 <td class="px-4 py-3 text-center">
                     <form method="POST" action="{{ url_for('netbooks.marcar_reparada', id=nb.id) }}"
-                          onsubmit="return confirm('¿Marcar como operativa?')">
+                          onsubmit="return confirm('Marcar como operativa?')">
                         <input type="hidden" name="origen" value="servicio_tecnico">
                         <button type="submit"
                                 class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-semibold">
@@ -114,7 +115,7 @@
                 </td>
             </tr>
             {% else %}
-            <tr>
+            <tr class="fila-netbook" data-buscar="">
                 <td colspan="6" class="px-4 py-8 text-center text-gray-400">
                     No hay netbooks en servicio técnico
                 </td>
@@ -127,10 +128,27 @@
 <script>
 document.getElementById('buscadorServicio').addEventListener('input', function() {
     const q = this.value.toLowerCase().trim();
-    document.querySelectorAll('.fila-servicio').forEach(fila => {
+
+    // Filtrar carros
+    let visiblesCarros = 0;
+    document.querySelectorAll('.fila-carro').forEach(fila => {
         const texto = fila.getAttribute('data-buscar').toLowerCase();
-        fila.style.display = (!q || texto.includes(q)) ? '' : 'none';
+        const visible = !q || texto.includes(q);
+        fila.style.display = visible ? '' : 'none';
+        if (visible && fila.getAttribute('data-buscar') !== '') visiblesCarros++;
     });
+    document.getElementById('contador-carros').textContent = visiblesCarros + ' carro(s)';
+
+    // Filtrar netbooks
+    let visiblesNetbooks = 0;
+    document.querySelectorAll('.fila-netbook').forEach(fila => {
+        const texto = fila.getAttribute('data-buscar').toLowerCase();
+        const visible = !q || texto.includes(q);
+        fila.style.display = visible ? '' : 'none';
+        if (visible && fila.getAttribute('data-buscar') !== '') visiblesNetbooks++;
+    });
+    document.getElementById('contador-netbooks').textContent = visiblesNetbooks + ' netbook(s)';
 });
 </script>
+
 {% endblock %}
