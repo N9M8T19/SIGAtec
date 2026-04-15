@@ -9,14 +9,14 @@ import os
 load_dotenv()
 
 # Offset de Argentina: UTC-3
-ARG_OFFSET = timedelta(hours=3)   # Render corre en UTC, restar 3h para Argentina
+ARG_OFFSET = timedelta(hours=3)
 
 
 def utc_a_arg(dt):
-    """Convierte datetime UTC a hora Argentina (UTC-3)."""
+    """Ajusta hora del servidor (UTC-3 interno) a hora Argentina real (+3h)."""
     if dt is None:
         return None
-    return dt - ARG_OFFSET
+    return dt + ARG_OFFSET
 
 
 def create_app():
