@@ -3,20 +3,25 @@ from flask_login import LoginManager
 from config import Config
 from models import db, Usuario
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 
 load_dotenv()
 
-# Offset de Argentina: UTC-3
-ARG_OFFSET = timedelta(hours=-3)
+# Zona horaria Argentina: UTC-3
+ARG_TZ = timezone(timedelta(hours=-3))
 
 
 def utc_a_arg(dt):
-    """Convierte datetime UTC a hora Argentina (UTC-3)."""
+    """
+    Convierte datetime a hora Argentina (UTC-3).
+    Maneja naive (SQLite) y aware (PostgreSQL devuelve tzinfo=UTC).
+    """
     if dt is None:
         return None
-    return dt + ARG_OFFSET
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(ARG_TZ)
 
 
 def create_app():
