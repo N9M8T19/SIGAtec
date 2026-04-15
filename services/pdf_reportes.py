@@ -5,7 +5,7 @@ Generación de PDFs para SIGA-Tec usando ReportLab.
 
 import os
 from io import BytesIO
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -18,34 +18,20 @@ from reportlab.platypus import (
 )
 from flask import send_file
 
-# Conversión UTC → Argentina (UTC-3)
-ARG_TZ     = timezone(timedelta(hours=-3))
-ARG_OFFSET = timedelta(hours=-3)   # compatibilidad
-
-def _to_arg(dt):
-    """
-    Convierte cualquier datetime a hora Argentina.
-    Maneja naive (SQLite) y aware (PostgreSQL devuelve tzinfo=UTC).
-    """
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(ARG_TZ)
+# Render corre en UTC-3 (hora Argentina) — datetime.utcnow() ya es hora local.
+# No se aplica conversión.
 
 def _arg(dt):
-    """Convierte datetime UTC a hora Argentina y formatea dd/mm HH:MM."""
-    ar = _to_arg(dt)
-    if ar is None:
+    """Formatea datetime como dd/mm HH:MM (ya viene en hora Argentina)."""
+    if dt is None:
         return '—'
-    return ar.strftime('%d/%m %H:%M')
+    return dt.strftime('%d/%m %H:%M')
 
 def _arg_full(dt):
-    """Convierte datetime UTC a hora Argentina y formatea dd/mm/YYYY HH:MM."""
-    ar = _to_arg(dt)
-    if ar is None:
+    """Formatea datetime como dd/mm/YYYY HH:MM (ya viene en hora Argentina)."""
+    if dt is None:
         return '—'
-    return ar.strftime('%d/%m/%Y %H:%M')
+    return dt.strftime('%d/%m/%Y %H:%M')
 
 AZUL_ESCUELA = colors.HexColor('#1e3a8a')
 AZUL_CLARO   = colors.HexColor('#dbeafe')
