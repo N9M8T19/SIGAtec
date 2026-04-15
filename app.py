@@ -8,15 +8,15 @@ import os
 
 load_dotenv()
 
+# Offset de Argentina: UTC-3
+ARG_OFFSET = timedelta(hours=3)   # Render corre en UTC, restar 3h para Argentina
+
 
 def utc_a_arg(dt):
-    """
-    Render corre en UTC-3 (hora Argentina), así que datetime.utcnow()
-    ya devuelve hora Argentina. No se aplica ninguna conversión.
-    """
+    """Convierte datetime UTC a hora Argentina (UTC-3)."""
     if dt is None:
         return None
-    return dt
+    return dt - ARG_OFFSET
 
 
 def create_app():

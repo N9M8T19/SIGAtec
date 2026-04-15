@@ -18,20 +18,20 @@ from reportlab.platypus import (
 )
 from flask import send_file
 
-# Render corre en UTC-3 (hora Argentina) — datetime.utcnow() ya es hora local.
-# No se aplica conversión.
+# Conversión UTC → Argentina (UTC-3)
+ARG_OFFSET = timedelta(hours=3)   # Render en UTC, restar 3h para Argentina
 
 def _arg(dt):
-    """Formatea datetime como dd/mm HH:MM (ya viene en hora Argentina)."""
+    """Convierte datetime UTC a hora Argentina y formatea dd/mm HH:MM."""
     if dt is None:
         return '—'
-    return dt.strftime('%d/%m %H:%M')
+    return (dt - ARG_OFFSET).strftime('%d/%m %H:%M')
 
 def _arg_full(dt):
-    """Formatea datetime como dd/mm/YYYY HH:MM (ya viene en hora Argentina)."""
+    """Convierte datetime UTC a hora Argentina y formatea dd/mm/YYYY HH:MM."""
     if dt is None:
         return '—'
-    return dt.strftime('%d/%m/%Y %H:%M')
+    return (dt - ARG_OFFSET).strftime('%d/%m/%Y %H:%M')
 
 AZUL_ESCUELA = colors.HexColor('#1e3a8a')
 AZUL_CLARO   = colors.HexColor('#dbeafe')
