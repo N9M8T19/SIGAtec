@@ -361,13 +361,24 @@ def pdf_historial_carros(prestamos, periodo='todos'):
         dur = '—'
         if p.duracion_minutos:
             dur = f'{p.duracion_minutos//60}h {p.duracion_minutos%60}m'
-        data.append([p.codigo or '—', p.docente.nombre_completo, p.carro.display,
-                     _arg(p.hora_retiro),
-                     _arg(p.hora_devolucion) if p.hora_devolucion else '—',
-                     dur, 'Activo' if p.estado == 'activo' else 'Devuelto'])
+        elif p.hora_devolucion and p.hora_retiro:
+            diff = int((p.hora_devolucion - p.hora_retiro).total_seconds() // 60)
+            dur = f'{diff//60}h {diff%60}m'
+        nombre_docente = ''
+        if p.docente:
+            nombre_docente = f'{p.docente.apellido}, {p.docente.nombre}' if hasattr(p.docente, 'apellido') else (p.docente.nombre_completo if hasattr(p.docente, 'nombre_completo') else str(p.docente))
+        data.append([
+            p.codigo or '—',
+            Paragraph(nombre_docente, STYLE_NORMAL),
+            p.carro.display if p.carro else '—',
+            _arg(p.hora_retiro),
+            _arg(p.hora_devolucion) if p.hora_devolucion else '—',
+            dur,
+            'Activo' if p.estado == 'activo' else 'Devuelto'
+        ])
 
     if len(data) > 1:
-        t = Table(data, colWidths=[1.8*cm, 4.5*cm, 2*cm, 3*cm, 3*cm, 2*cm, 2.2*cm])
+        t = Table(data, colWidths=[1.6*cm, 5.5*cm, 1.6*cm, 2.7*cm, 2.7*cm, 1.8*cm, 2.1*cm])
         estilo = _tabla_estilo()
         for i, p in enumerate(prestamos, start=1):
             if p.estado == 'activo':
