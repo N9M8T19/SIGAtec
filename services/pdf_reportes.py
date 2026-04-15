@@ -19,16 +19,16 @@ from reportlab.platypus import (
 from flask import send_file
 
 # Conversión UTC → Argentina (UTC-3)
-ARG_OFFSET = timedelta(hours=3)
+ARG_OFFSET = timedelta(hours=-3)
 
 def _arg(dt):
-    """Ajusta hora del servidor a hora Argentina (+3h)."""
+    """Convierte UTC a hora Argentina (UTC-3)."""
     if dt is None:
         return '—'
     return (dt + ARG_OFFSET).strftime('%d/%m %H:%M')
 
 def _arg_full(dt):
-    """Ajusta hora del servidor a hora Argentina (+3h)."""
+    """Convierte UTC a hora Argentina (UTC-3)."""
     if dt is None:
         return '—'
     return (dt + ARG_OFFSET).strftime('%d/%m/%Y %H:%M')
