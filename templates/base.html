@@ -284,6 +284,11 @@
                       {% if request.endpoint == 'notificaciones.backup_index' %}active{% endif %}">
                 <i class="fas fa-database w-5"></i> Backups
             </a>
+            <a href="{{ url_for('sesiones.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if 'sesiones' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-user-clock w-5"></i> Sesiones
+            </a>
             {% endif %}
         </nav>
 
@@ -401,6 +406,7 @@
         <a href="{{ url_for('importar.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'importar' in request.endpoint %}active{% endif %}"><i class="fab fa-google-drive w-5"></i> Importar Drive</a>
         <a href="{{ url_for('notificaciones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'notificaciones' in request.endpoint %}active{% endif %}"><i class="fas fa-bell w-5"></i> Notificaciones</a>
         <a href="{{ url_for('notificaciones.backup_index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'notificaciones.backup_index' %}active{% endif %}"><i class="fas fa-database w-5"></i> Backups</a>
+        <a href="{{ url_for('sesiones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'sesiones' in request.endpoint %}active{% endif %}"><i class="fas fa-user-clock w-5"></i> Sesiones</a>
         {% endif %}
     </nav>
     <div class="p-3 border-t border-white/10 space-y-0.5">
