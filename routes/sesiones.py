@@ -42,6 +42,7 @@ from flask import (Blueprint, render_template, redirect,
 from flask_login import login_required, current_user
 
 from models import db, Usuario
+from models.sesion import SesionEncargado
 
 ARG_OFFSET = timedelta(hours=-3)
 
