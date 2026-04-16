@@ -13,7 +13,7 @@ class Config:
     APP_NOMBRE          = 'SIGA-Tec'
     APP_ESCUELA         = 'E.T. N°7 D.E. 5'
     APP_ESCUELA_NOMBRE  = 'Dolores Lavalle de Lavalle'
-    MINUTOS_ALERTA_PRESTAMO = 120
+    MINUTOS_ALERTA_PRESTAMO = 260
 
     # ── Configuración de Mail (Gmail) ─────────────────────────────────────────
     # Completar con los datos reales o setear como variables de entorno

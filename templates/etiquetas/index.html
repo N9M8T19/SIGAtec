@@ -70,9 +70,7 @@
 .et-check { width: 16px; height: 16px; border: 1.5px solid #9ca3af; border-radius: 4px; background: white; flex-shrink: 0; }
 .et-card.selected .et-check { background: #1a2a6c; border-color: #1a2a6c; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-size: 10px; background-repeat: no-repeat; background-position: center; }
 .et-serie { font-size: 12px; font-weight: 600; color: #111827; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.et-alumno { font-size: 11px; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.et-tm { color: #185FA5; font-weight: 600; font-size: 10px; }
-.et-tt { color: #854F0B; font-weight: 600; font-size: 10px; }
+
 .et-empty, .et-loading { grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: #9ca3af; font-size: 14px; }
 
 /* ── IMPRESIÓN ── */
@@ -185,12 +183,11 @@ function renderGrid() {
         const sel = seleccionadas.has(n.id);
         return `<div class="et-card ${sel ? 'selected' : ''}" onclick="toggleCard(${n.id})">
             <div class="et-card-top">
-                <span class="et-badge-carro">N°${n.numero_interno} · ${n.carro}</span>
+                <span class="et-badge-carro">${n.carro}${n.aula ? ' · Aula ' + n.aula : ''}</span>
                 <div class="et-check"></div>
             </div>
             <div class="et-serie">${n.numero_serie || '(sin serie)'}</div>
-            <div class="et-alumno"><span class="et-tm">TM</span> ${n.alumno_manana || '—'}</div>
-            <div class="et-alumno"><span class="et-tt">TT</span> ${n.alumno_tarde || '—'}</div>
+            <div style="text-align:center; font-size:26px; font-weight:900; color:#1a2a6c; line-height:1; margin-top:4px">${n.numero_interno || '—'}</div>
         </div>`;
     }).join('');
 }
