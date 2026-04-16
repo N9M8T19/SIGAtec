@@ -115,17 +115,9 @@
 .etiqueta-hr { border: none; border-top: .5px solid #e5e7eb; margin: 4px 0; }
 .etiqueta-barcode { text-align: center; padding: 3px 8px 2px; background: white; }
 .etiqueta-barcode svg { max-width: 100%; height: auto; }
-.etiqueta-turnos { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 3px; }
-.etiqueta-turno { padding: 3px 5px; border-radius: 3px; }
-.etiqueta-turno.m { background: #E6F1FB; }
-.etiqueta-turno.t { background: #FAEEDA; }
-.etiqueta-turno-lbl { font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
-.etiqueta-turno.m .etiqueta-turno-lbl { color: #0C447C; }
-.etiqueta-turno.t .etiqueta-turno-lbl { color: #854F0B; }
-.etiqueta-turno-nombre { font-size: 7px; font-weight: 600; color: #111827; margin-top: 1px; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.etiqueta-turno-curso { font-size: 7px; margin-top: 1px; }
-.etiqueta-turno.m .etiqueta-turno-curso { color: #185FA5; }
-.etiqueta-turno.t .etiqueta-turno-curso { color: #854F0B; }
+.etiqueta-interno-bloque { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 4px 8px 6px; background: white; }
+.etiqueta-interno-lbl { font-size: 7px; color: #9ca3af; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 2px; }
+.etiqueta-interno-val { font-size: 28px; font-weight: 900; color: #1a2a6c; line-height: 1; letter-spacing: -0.5px; }
 </style>
 
 {# ── BARRA DE HERRAMIENTAS ── #}
@@ -225,28 +217,16 @@ function mkEtiqueta(n) {
                 <span class="etiqueta-val">${n.numero_serie || '—'}</span>
             </div>
             <div class="etiqueta-row">
-                <span class="etiqueta-lbl">Interno</span>
-                <span class="etiqueta-val">${n.numero_interno || '—'}</span>
-                <span class="etiqueta-lbl" style="margin-left:6px">Carro</span>
+                <span class="etiqueta-lbl">Carro</span>
                 <span class="etiqueta-val">${n.carro || '—'}</span>
+                ${n.aula ? `<span class="etiqueta-lbl" style="margin-left:6px">Aula</span><span class="etiqueta-val">${n.aula}</span>` : ''}
             </div>
-            ${n.aula ? `<div class="etiqueta-row"><span class="etiqueta-lbl">Aula</span><span class="etiqueta-val">${n.aula}</span></div>` : ''}
         </div>
         <div class="etiqueta-barcode"><svg></svg></div>
         <hr class="etiqueta-hr" style="margin:0 6px;">
-        <div class="etiqueta-turnos">
-            <div class="etiqueta-turnos-row">
-                <div class="etiqueta-turno m">
-                    <div class="etiqueta-turno-lbl">Turno Mañana</div>
-                    <div class="etiqueta-turno-nombre">${n.alumno_manana || 'Sin asignar'}</div>
-                    ${n.curso_manana ? `<div class="etiqueta-turno-curso">${n.curso_manana}</div>` : ''}
-                </div>
-                <div class="etiqueta-turno t">
-                    <div class="etiqueta-turno-lbl">Turno Tarde</div>
-                    <div class="etiqueta-turno-nombre">${n.alumno_tarde || 'Sin asignar'}</div>
-                    ${n.curso_tarde ? `<div class="etiqueta-turno-curso">${n.curso_tarde}</div>` : ''}
-                </div>
-            </div>
+        <div class="etiqueta-interno-bloque">
+            <div class="etiqueta-interno-lbl">N° interno</div>
+            <div class="etiqueta-interno-val">${n.numero_interno || '—'}</div>
         </div>
     </div></div>`;
 }
@@ -349,23 +329,14 @@ table.hoja td {
 .etiqueta-hdr-titulo { font-size: 8px; font-weight: 700; letter-spacing: .4px; color: white; }
 .etiqueta-body { padding: 2px 6px 1px; background: white; flex-shrink: 0; }
 .etiqueta-row { display: flex; align-items: baseline; gap: 3px; margin-bottom: 1px; }
-.etiqueta-lbl { font-size: 6px; color: #9ca3af; text-transform: uppercase; letter-spacing: .2px; min-width: 36px; flex-shrink: 0; }
-.etiqueta-val { font-size: 8px; font-weight: 700; color: #1a2a6c; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etiqueta-lbl { font-size: 6.5px; color: #9ca3af; text-transform: uppercase; letter-spacing: .2px; min-width: 36px; flex-shrink: 0; }
+.etiqueta-val { font-size: 10px; font-weight: 700; color: #1a2a6c; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .etiqueta-barcode { text-align: center; padding: 1px 6px 0; background: white; flex-shrink: 0; }
 .etiqueta-barcode svg { width: 100%; height: 18px; }
 .etiqueta-hr { border: none; border-top: .4px solid #e5e7eb; margin: 0 6px; flex-shrink: 0; }
-.etiqueta-turnos { display: table; width: 100%; padding: 2px 6px 3px; flex: 1; }
-.etiqueta-turnos-row { display: table-row; }
-.etiqueta-turno { display: table-cell; width: 50%; padding: 2px 4px; border-radius: 2px; vertical-align: top; }
-.etiqueta-turno.m { background: #E6F1FB; }
-.etiqueta-turno.t { background: #FAEEDA; }
-.etiqueta-turno-lbl { font-size: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .2px; }
-.etiqueta-turno.m .etiqueta-turno-lbl { color: #0C447C; }
-.etiqueta-turno.t .etiqueta-turno-lbl { color: #854F0B; }
-.etiqueta-turno-nombre { font-size: 7px; font-weight: 600; color: #111827; margin-top: 1px; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.etiqueta-turno-curso { font-size: 6px; margin-top: 1px; }
-.etiqueta-turno.m .etiqueta-turno-curso { color: #185FA5; }
-.etiqueta-turno.t .etiqueta-turno-curso { color: #854F0B; }
+.etiqueta-interno-bloque { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 2px 6px 4px; background: white; }
+.etiqueta-interno-lbl { font-size: 6.5px; color: #9ca3af; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 1px; }
+.etiqueta-interno-val { font-size: 22px; font-weight: 900; color: #1a2a6c; line-height: 1; letter-spacing: -0.5px; }
 </style>
 </head><body>
 ${paginasHtml}
