@@ -4,14 +4,18 @@
 
 {% block content %}
 
-<!-- Buscador global -->
-<div class="mb-6">
-    <div class="relative">
+<!-- Buscador global + PDF -->
+<div class="mb-6 flex gap-3 items-center">
+    <div class="relative flex-1">
         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
         <input type="text" id="buscadorServicio"
                placeholder="Buscar por N° interno, N° serie, carro, aula o motivo..."
                class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
     </div>
+    <a href="{{ url_for('reportes.pdf_servicio') }}"
+       class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap">
+        <i class="fas fa-file-pdf mr-2"></i>Descargar PDF
+    </a>
 </div>
 
 {# ── CARROS FÍSICOS EN SERVICIO ── #}
@@ -73,13 +77,7 @@
     <h2 class="text-base font-bold text-blue-900 uppercase tracking-wide">
         <i class="fas fa-laptop mr-2 text-orange-500"></i>Netbooks en servicio
     </h2>
-    <div class="flex items-center gap-3">
-        <span class="text-orange-600 font-semibold text-sm" id="contador-netbooks">{{ netbooks|length }} netbook(s)</span>
-        <a href="{{ url_for('reportes.pdf_servicio') }}"
-           class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-            <i class="fas fa-file-pdf mr-2"></i>Descargar PDF
-        </a>
-    </div>
+    <span class="text-orange-600 font-semibold text-sm" id="contador-netbooks">{{ netbooks|length }} netbook(s)</span>
 </div>
 
 <div class="bg-white rounded-xl shadow-sm overflow-hidden">
