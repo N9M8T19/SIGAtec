@@ -249,7 +249,7 @@ def pdf_netbooks_asignadas(carro=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def pdf_servicio_tecnico():
-    from models import Netbook
+    from models import Netbook, Carro
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4,
                              rightMargin=1.5*cm, leftMargin=1.5*cm,
@@ -257,25 +257,53 @@ def pdf_servicio_tecnico():
     story = []
     _encabezado(story, 'Reporte de Servicio Técnico')
 
-    netbooks = Netbook.query.filter_by(estado='servicio_tecnico').all()
+    # ── SECCIÓN 1: CARROS FÍSICOS EN SERVICIO ────────────────────
+    carros_servicio = Carro.query.filter_by(estado='en_servicio').order_by(Carro.numero_fisico).all()
 
-    # Tabla principal
-    data = [['Carro', 'Aula', 'N° Interno', 'N° Serie', 'Problema']]
-    for nb in netbooks:
-        data.append([
-            nb.carro.display if nb.carro else '—',
-            nb.carro.aula if nb.carro else '—',
-            nb.numero_interno or '—',
-            nb.numero_serie or '—',
-            Paragraph(nb.problema or '—', STYLE_NORMAL),
-        ])
+    story.append(Paragraph('CARROS FÍSICOS EN SERVICIO TÉCNICO', STYLE_SUBTITULO))
+    story.append(Spacer(1, 0.2*cm))
 
-    if len(data) > 1:
-        t = Table(data, colWidths=[2.5*cm, 2.5*cm, 2.5*cm, 5*cm, 6*cm])
+    if carros_servicio:
+        data_carros = [['Carro', 'Aula', 'División', 'Motivo', 'Netbooks']]
+        for c in carros_servicio:
+            data_carros.append([
+                c.display,
+                c.aula or '—',
+                c.division or '—',
+                Paragraph(c.motivo_servicio or '—', STYLE_NORMAL),
+                str(c.total_netbooks),
+            ])
+        t = Table(data_carros, colWidths=[2.5*cm, 2.5*cm, 3*cm, 7*cm, 2.5*cm])
         t.setStyle(_tabla_estilo(NARANJA))
         story.append(t)
         story.append(Spacer(1, 0.3*cm))
-        story.append(Paragraph(f'Total en servicio: {len(data)-1} netbook(s)', STYLE_NORMAL))
+        story.append(Paragraph(f'Total: {len(carros_servicio)} carro(s) en servicio.', STYLE_NORMAL))
+    else:
+        story.append(Paragraph('No hay carros físicos en servicio técnico.', STYLE_NORMAL))
+
+    story.append(Spacer(1, 0.8*cm))
+
+    # ── SECCIÓN 2: NETBOOKS EN SERVICIO ──────────────────────────
+    netbooks = Netbook.query.filter_by(estado='servicio_tecnico').all()
+
+    story.append(Paragraph('NETBOOKS EN SERVICIO TÉCNICO', STYLE_SUBTITULO))
+    story.append(Spacer(1, 0.2*cm))
+
+    if netbooks:
+        data_nb = [['Carro', 'Aula', 'N° Interno', 'N° Serie', 'Problema']]
+        for nb in netbooks:
+            data_nb.append([
+                nb.carro.display if nb.carro else '—',
+                nb.carro.aula if nb.carro else '—',
+                nb.numero_interno or '—',
+                nb.numero_serie or '—',
+                Paragraph(nb.problema or '—', STYLE_NORMAL),
+            ])
+        t = Table(data_nb, colWidths=[2.5*cm, 2.5*cm, 2.5*cm, 5*cm, 6*cm])
+        t.setStyle(_tabla_estilo(NARANJA))
+        story.append(t)
+        story.append(Spacer(1, 0.3*cm))
+        story.append(Paragraph(f'Total: {len(netbooks)} netbook(s) en servicio.', STYLE_NORMAL))
     else:
         story.append(Paragraph('No hay netbooks en servicio técnico.', STYLE_NORMAL))
 
@@ -293,10 +321,6 @@ def pdf_servicio_tecnico():
     doc.build(story)
     return _generar_response(buffer, 'servicio_tecnico.pdf')
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  5. TRANSFERENCIA DE NETBOOKS ENTRE CARROS
-# ─────────────────────────────────────────────────────────────────────────────
 
 def pdf_transferencia(netbooks_transferidas, carro_origen, carro_destino, usuario):
     buffer = BytesIO()
