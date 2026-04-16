@@ -16,7 +16,7 @@
       {# Badge contador de sesiones activas ahora mismo #}
       <span class="badge rounded-pill px-3 py-2 fs-6
                    {% if total_activas > 0 %}bg-success{% else %}bg-secondary{% endif %}">
-        ● {{ total_activas }} activa{{ total_activas | pluralize('','s') }}
+        ● {{ total_activas }} activa{% if total_activas != 1 %}s{% endif %}
       </span>
     </div>
   </div>
