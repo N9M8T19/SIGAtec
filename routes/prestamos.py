@@ -353,3 +353,23 @@ def historial():
                            prestamos=prestamos, periodo=periodo,
                            busqueda=busqueda, tipo=tipo,
                            fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  PDF PARTE DE ALERTA — PRÉSTAMO EN DEMORA
+# ─────────────────────────────────────────────────────────────────────────────
+
+@prestamos_bp.route('/carros/<int:id>/alerta-pdf')
+@login_required
+def alerta_pdf_carro(id):
+    """Genera el Parte de Alerta en PDF para un préstamo de carro en demora."""
+    from services.pdf_reportes import pdf_alerta_demora_carro
+    return pdf_alerta_demora_carro(id)
+
+
+@prestamos_bp.route('/espacio-digital/<int:id>/alerta-pdf')
+@login_required
+def alerta_pdf_netbooks(id):
+    """Genera el Parte de Alerta en PDF para un préstamo de netbooks en demora."""
+    from services.pdf_reportes import pdf_alerta_demora_netbooks
+    return pdf_alerta_demora_netbooks(id)

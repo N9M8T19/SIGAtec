@@ -1018,3 +1018,267 @@ def pdf_tickets_ba(tickets):
     doc.build(story)
     buffer.seek(0)
     return buffer
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  PDF PARTE DE ALERTA — PRÉSTAMO EN DEMORA
+# ─────────────────────────────────────────────────────────────────────────────
+
+ROJO_CLARO    = colors.HexColor('#fee2e2')
+NARANJA_CLARO = colors.HexColor('#fff7ed')
+
+STYLE_ALERTA_TITULO = ParagraphStyle('AlertaTitulo', parent=styles['Normal'],
+    fontSize=13, fontName='Helvetica-Bold',
+    textColor=colors.white, alignment=TA_CENTER)
+
+STYLE_NOTA = ParagraphStyle('Nota', parent=styles['Normal'],
+    fontSize=8, fontName='Helvetica-Oblique',
+    textColor=colors.HexColor('#6b7280'), alignment=TA_CENTER)
+
+
+def _banner_demora(story, tiempo_str):
+    """Banner rojo con el tiempo de demora."""
+    banner = Table([[Paragraph(
+        f'DEMORA DETECTADA — {tiempo_str} sin devolver',
+        STYLE_ALERTA_TITULO)]], colWidths=[17.5*cm])
+    banner.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), ROJO),
+        ('TOPPADDING',    (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+    ]))
+    story.append(banner)
+    story.append(Spacer(1, 0.5*cm))
+
+
+def _tabla_docente(story, docente):
+    """Bloque de datos del docente."""
+    story.append(Paragraph('DATOS DEL DOCENTE', STYLE_SECCION))
+    doc_data = [
+        ['Apellido y Nombre', docente.nombre_completo if docente else '—'],
+        ['DNI',               docente.dni if docente else '—'],
+        ['Materia',           (docente.materia or '—') if docente else '—'],
+        ['Turno',             (docente.turno or '—') if docente else '—'],
+        ['Correo',            (docente.correo or '—') if docente else '—'],
+    ]
+    t = Table(doc_data, colWidths=[4.5*cm, 13*cm])
+    t.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (0, -1), AZUL_CLARO),
+        ('FONTNAME',      (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME',      (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE',      (0, 0), (-1, -1), 9),
+        ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+        ('TOPPADDING',    (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 0.5*cm))
+
+
+def _bloque_firmas(story, ahora_arg):
+    """Tres líneas de firma al pie."""
+    story.append(Spacer(1, 1.2*cm))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#e5e7eb')))
+    story.append(Spacer(1, 0.5*cm))
+    firmas = Table([[
+        _campo_firma('Encargado/a', 5*cm),
+        '',
+        _campo_firma('Docente notificado/a', 5*cm),
+        '',
+        _campo_firma('Directivo/a (si aplica)', 5*cm),
+    ]], colWidths=[5.2*cm, 0.7*cm, 5.2*cm, 0.7*cm, 5.2*cm])
+    firmas.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN',  (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    story.append(firmas)
+    story.append(Spacer(1, 0.4*cm))
+    story.append(Paragraph(
+        f'Parte generado el {ahora_arg.strftime("%d/%m/%Y a las %H:%M")} hs'
+        f'  ·  SIGA-Tec — E.T. N°7 D.E. 5',
+        STYLE_NOTA))
+
+
+def pdf_alerta_demora_carro(prestamo_id):
+    """
+    Parte de Alerta para un préstamo de CARRO en demora.
+    Incluye datos del docente, datos del préstamo y listado completo
+    de netbooks del carro (N° interno + N° de serie).
+    """
+    from models import PrestamoCarro
+    prestamo   = PrestamoCarro.query.get_or_404(prestamo_id)
+    ahora_arg  = datetime.utcnow() + ARG_OFFSET
+    retiro_arg = prestamo.hora_retiro + ARG_OFFSET
+    delta_mins = int((datetime.utcnow() - prestamo.hora_retiro).total_seconds() / 60)
+    horas, mins = delta_mins // 60, delta_mins % 60
+    tiempo_str = f'{horas}h {mins}m' if horas else f'{mins}m'
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                             rightMargin=1.5*cm, leftMargin=1.5*cm,
+                             topMargin=1.5*cm, bottomMargin=1.5*cm)
+    story = []
+    _encabezado(story, 'PARTE DE ALERTA — PRÉSTAMO EN DEMORA',
+                'Préstamo de Carro de Netbooks')
+    story.append(Spacer(1, 0.3*cm))
+    _banner_demora(story, tiempo_str)
+
+    # ── Docente ───────────────────────────────────────────────────
+    _tabla_docente(story, prestamo.docente)
+
+    # ── Préstamo / Carro ──────────────────────────────────────────
+    story.append(Paragraph('DATOS DEL PRÉSTAMO', STYLE_SECCION))
+    prest_data = [
+        ['Código',             prestamo.codigo or '—'],
+        ['Carro',              prestamo.carro.display if prestamo.carro else '—'],
+        ['División',           (prestamo.carro.division or '—') if prestamo.carro else '—'],
+        ['Aula',               prestamo.aula or ((prestamo.carro.aula or '—') if prestamo.carro else '—')],
+        ['Hora de Retiro',     retiro_arg.strftime('%d/%m/%Y  %H:%M')],
+        ['Tiempo Transcurrido', tiempo_str],
+        ['Registrado por',     prestamo.encargado_retiro or '—'],
+    ]
+    t_prest = Table(prest_data, colWidths=[4.5*cm, 13*cm])
+    estilo_prest = TableStyle([
+        ('BACKGROUND',    (0, 0), (0, -1), AZUL_CLARO),
+        ('FONTNAME',      (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME',      (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE',      (0, 0), (-1, -1), 9),
+        ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+        ('TOPPADDING',    (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        # fila "Tiempo Transcurrido" (índice 5) resaltada en naranja
+        ('BACKGROUND',    (1, 5), (1, 5), NARANJA_CLARO),
+        ('TEXTCOLOR',     (1, 5), (1, 5), NARANJA),
+        ('FONTNAME',      (1, 5), (1, 5), 'Helvetica-Bold'),
+        ('FONTSIZE',      (1, 5), (1, 5), 11),
+    ])
+    t_prest.setStyle(estilo_prest)
+    story.append(t_prest)
+    story.append(Spacer(1, 0.5*cm))
+
+    # ── Netbooks del carro ────────────────────────────────────────
+    if prestamo.carro and prestamo.carro.netbooks:
+        story.append(Paragraph(
+            f'NETBOOKS DEL CARRO {prestamo.carro.display} '
+            f'({prestamo.carro.total_netbooks} equipo(s))',
+            STYLE_SECCION))
+        nb_data = [['N°', 'N° Interno', 'N° de Serie', 'Alumno Asignado', 'Estado']]
+        netbooks_ord = sorted(prestamo.carro.netbooks,
+                              key=lambda n: (n.numero_interno or '').zfill(10))
+        for i, nb in enumerate(netbooks_ord, start=1):
+            estado_nb = 'Operativa' if nb.estado == 'operativa' else 'Serv. Téc.'
+            nb_data.append([
+                str(i),
+                nb.numero_interno or '—',
+                nb.numero_serie or '—',
+                nb.alumno or '—',
+                estado_nb,
+            ])
+        t_nb = Table(nb_data, colWidths=[0.8*cm, 2.5*cm, 5.5*cm, 6.7*cm, 2*cm])
+        estilo_nb = _tabla_estilo()
+        for i, nb in enumerate(netbooks_ord, start=1):
+            if nb.estado != 'operativa':
+                estilo_nb.add('TEXTCOLOR', (4, i), (4, i), NARANJA)
+                estilo_nb.add('FONTNAME',  (4, i), (4, i), 'Helvetica-Bold')
+        t_nb.setStyle(estilo_nb)
+        story.append(t_nb)
+        story.append(Spacer(1, 0.3*cm))
+        story.append(Paragraph(
+            f'Total: {prestamo.carro.total_netbooks}  ·  '
+            f'Operativas: {prestamo.carro.operativas}  ·  '
+            f'En servicio: {prestamo.carro.en_servicio}',
+            STYLE_NORMAL))
+
+    _bloque_firmas(story, ahora_arg)
+    doc.build(story)
+    buffer.seek(0)
+    nombre = (f'alerta_demora_carro_'
+              f'{prestamo.carro.numero_fisico if prestamo.carro else prestamo.id}.pdf')
+    return send_file(buffer, as_attachment=True,
+                     download_name=nombre, mimetype='application/pdf')
+
+
+def pdf_alerta_demora_netbooks(prestamo_id):
+    """
+    Parte de Alerta para un préstamo de NETBOOKS (Espacio Digital) en demora.
+    Incluye datos del docente, datos del préstamo y listado individual de
+    cada netbook (N° interno + N° de serie + alumno asignado).
+    """
+    from models import PrestamoNetbook
+    prestamo   = PrestamoNetbook.query.get_or_404(prestamo_id)
+    ahora_arg  = datetime.utcnow() + ARG_OFFSET
+    retiro_arg = prestamo.hora_retiro + ARG_OFFSET
+    delta_mins = int((datetime.utcnow() - prestamo.hora_retiro).total_seconds() / 60)
+    horas, mins = delta_mins // 60, delta_mins % 60
+    tiempo_str = f'{horas}h {mins}m' if horas else f'{mins}m'
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                             rightMargin=1.5*cm, leftMargin=1.5*cm,
+                             topMargin=1.5*cm, bottomMargin=1.5*cm)
+    story = []
+    _encabezado(story, 'PARTE DE ALERTA — PRÉSTAMO EN DEMORA',
+                'Espacio Digital — Préstamo de Netbooks Individuales')
+    story.append(Spacer(1, 0.3*cm))
+    _banner_demora(story, tiempo_str)
+
+    # ── Docente ───────────────────────────────────────────────────
+    _tabla_docente(story, prestamo.docente)
+
+    # ── Préstamo ──────────────────────────────────────────────────
+    story.append(Paragraph('DATOS DEL PRÉSTAMO', STYLE_SECCION))
+    prest_data = [
+        ['Código',              prestamo.codigo or '—'],
+        ['Cantidad de Netbooks', str(len(prestamo.items))],
+        ['Hora de Retiro',      retiro_arg.strftime('%d/%m/%Y  %H:%M')],
+        ['Tiempo Transcurrido', tiempo_str],
+        ['Registrado por',      prestamo.encargado_retiro or '—'],
+    ]
+    t_prest = Table(prest_data, colWidths=[4.5*cm, 13*cm])
+    estilo_prest = TableStyle([
+        ('BACKGROUND',    (0, 0), (0, -1), AZUL_CLARO),
+        ('FONTNAME',      (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME',      (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE',      (0, 0), (-1, -1), 9),
+        ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+        ('TOPPADDING',    (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        # fila "Tiempo Transcurrido" (índice 3) resaltada en naranja
+        ('BACKGROUND',    (1, 3), (1, 3), NARANJA_CLARO),
+        ('TEXTCOLOR',     (1, 3), (1, 3), NARANJA),
+        ('FONTNAME',      (1, 3), (1, 3), 'Helvetica-Bold'),
+        ('FONTSIZE',      (1, 3), (1, 3), 11),
+    ])
+    t_prest.setStyle(estilo_prest)
+    story.append(t_prest)
+    story.append(Spacer(1, 0.5*cm))
+
+    # ── Netbooks prestadas ────────────────────────────────────────
+    if prestamo.items:
+        story.append(Paragraph(
+            f'NETBOOKS PRESTADAS ({len(prestamo.items)} equipo(s))',
+            STYLE_SECCION))
+        nb_data = [['N°', 'N° Interno', 'N° de Serie', 'Alumno Asignado']]
+        for i, item in enumerate(prestamo.items, start=1):
+            nb_data.append([
+                str(i),
+                item.numero_interno or '—',
+                item.numero_serie or '—',
+                item.alumno or '—',
+            ])
+        t_nb = Table(nb_data, colWidths=[0.8*cm, 2.5*cm, 6*cm, 8.2*cm])
+        t_nb.setStyle(_tabla_estilo())
+        story.append(t_nb)
+
+    _bloque_firmas(story, ahora_arg)
+    doc.build(story)
+    buffer.seek(0)
+    nombre = f'alerta_demora_espacio_digital_{prestamo.id}.pdf'
+    return send_file(buffer, as_attachment=True,
+                     download_name=nombre, mimetype='application/pdf')
