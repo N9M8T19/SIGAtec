@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% block title %}Sesiones de Encargados{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  {# ── Cabecera ──────────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold text-uppercase" style="color:#1a2a6c; letter-spacing:.04em;">
+        Sesiones de Encargados
+      </h2>
+      <small class="text-muted">Inicios de sesión registrados — hora Argentina (UTC-3)</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      {# Badge contador de sesiones activas ahora mismo #}
+      <span class="badge rounded-pill px-3 py-2 fs-6
+                   {% if total_activas > 0 %}bg-success{% else %}bg-secondary{% endif %}">
+        ● {{ total_activas }} activa{{ total_activas | pluralize('','s') }}
+      </span>
+    </div>
+  </div>
+
+  {# ── Filtros ───────────────────────────────────────────────────────────── #}
+  <form method="GET" action="{{ url_for('sesiones.index') }}"
+        class="row g-2 align-items-end mb-4 p-3 rounded-3"
+        style="background:#f0f4ff; border:1px solid #c5cee8;">
+
+    <div class="col-12 col-md-4">
+      <label class="form-label fw-semibold mb-1" style="color:#1a2a6c;">Encargado</label>
+      <select name="usuario_id" class="form-select form-select-sm">
+        <option value="">— Todos —</option>
+        {% for enc in encargados %}
+          <option value="{{ enc.id }}"
+                  {% if filtro_usuario == enc.id %}selected{% endif %}>
+            {{ enc.apellido }}, {{ enc.nombre }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <label class="form-label fw-semibold mb-1" style="color:#1a2a6c;">Fecha</label>
+      <input type="date" name="fecha" class="form-control form-control-sm"
+             value="{{ filtro_fecha }}">
+    </div>
+
+    <div class="col-12 col-md-3 d-flex align-items-end">
+      <div class="form-check mb-2 ms-1">
+        <input class="form-check-input" type="checkbox" id="chkActivas"
+               name="solo_activas" value="1"
+               {% if solo_activas %}checked{% endif %}>
+        <label class="form-check-label fw-semibold" for="chkActivas"
+               style="color:#1a2a6c;">
+          Solo sesiones activas
+        </label>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-2 d-flex gap-2">
+      <button type="submit" class="btn btn-sm w-50"
+              style="background:#1a2a6c; color:#fff; border:none;">
+        Filtrar
+      </button>
+      <a href="{{ url_for('sesiones.index') }}" class="btn btn-sm btn-outline-secondary w-50">
+        Limpiar
+      </a>
+    </div>
+  </form>
+
+  {# ── Mensajes flash ────────────────────────────────────────────────────── #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} alert-dismissible fade show py-2" role="alert">
+        {{ msg }}
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {# ── Tabla ─────────────────────────────────────────────────────────────── #}
+  {% if sesiones %}
+  <div class="table-responsive rounded-3 shadow-sm"
+       style="border:1px solid #c5cee8;">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.88rem;">
+      <thead style="background:#1a2a6c; color:#fff;">
+        <tr>
+          <th class="ps-3">ENCARGADO</th>
+          <th>INICIO</th>
+          <th>DURACIÓN</th>
+          <th>IP</th>
+          <th>DISPOSITIVO</th>
+          <th>ESTADO</th>
+          <th class="text-center pe-3">ACCIONES</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sesiones %}
+        {% set inicio_arg = s.inicio + arg_offset %}
+        <tr class="{% if s.activa %}table-success bg-opacity-25{% endif %}">
+
+          {# Encargado #}
+          <td class="ps-3 fw-semibold" style="color:#1a2a6c;">
+            {{ s.usuario.apellido }}, {{ s.usuario.nombre }}
+            <br>
+            <small class="text-muted fw-normal">@{{ s.usuario.username }}</small>
+          </td>
+
+          {# Inicio #}
+          <td>
+            <span class="fw-semibold">{{ inicio_arg.strftime('%d/%m/%Y') }}</span>
+            <br>
+            <small class="text-muted">{{ inicio_arg.strftime('%H:%M:%S') }}</small>
+          </td>
+
+          {# Duración #}
+          <td>
+            {% if s.activa %}
+              <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle"
+                    id="dur-{{ s.id }}">
+                {{ duracion(s.inicio, none) }}
+              </span>
+            {% else %}
+              <span class="text-muted">{{ duracion(s.inicio, s.fin) }}</span>
+            {% endif %}
+          </td>
+
+          {# IP #}
+          <td>
+            <code style="font-size:.82rem;">{{ s.ip or '—' }}</code>
+          </td>
+
+          {# User Agent resumido #}
+          <td>
+            {% if s.user_agent %}
+              {% set ua = s.user_agent %}
+              {% if 'Mobile' in ua or 'Android' in ua or 'iPhone' in ua %}
+                📱
+              {% else %}
+                🖥️
+              {% endif %}
+              <small class="text-muted" title="{{ ua }}">
+                {% if 'Chrome' in ua %}Chrome
+                {% elif 'Firefox' in ua %}Firefox
+                {% elif 'Safari' in ua %}Safari
+                {% elif 'Edge' in ua %}Edge
+                {% else %}Otro
+                {% endif %}
+              </small>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          {# Estado #}
+          <td>
+            {% if s.activa %}
+              <span class="badge rounded-pill"
+                    style="background:#2ebd4e; font-size:.78rem;">
+                ● ACTIVA
+              </span>
+            {% else %}
+              <span class="badge rounded-pill bg-secondary" style="font-size:.78rem;">
+                CERRADA
+              </span>
+              {% if s.cerrada_por and s.admin %}
+                <br>
+                <small class="text-muted" title="Cerrada manualmente">
+                  ✕ por {{ s.admin.username }}
+                </small>
+              {% endif %}
+            {% endif %}
+          </td>
+
+          {# Acciones #}
+          <td class="text-center pe-3">
+            {% if s.activa %}
+              <form method="POST"
+                    action="{{ url_for('sesiones.cerrar_sesion', sesion_id=s.id) }}"
+                    onsubmit="return confirm('¿Cerrar la sesión de {{ s.usuario.nombre }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm"
+                        style="background:#e8821a; color:#fff; border:none;
+                               font-size:.78rem; padding:3px 10px;"
+                        title="Forzar cierre de sesión">
+                  ✕ Cerrar
+                </button>
+              </form>
+            {% else %}
+              <span class="text-muted" style="font-size:.78rem;">—</span>
+            {% endif %}
+          </td>
+
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Cerrar TODAS las sesiones activas de un encargado específico #}
+  {% if filtro_usuario and total_activas > 0 %}
+  <div class="mt-3 text-end">
+    <form method="POST" action="{{ url_for('sesiones.cerrar_todas') }}"
+          onsubmit="return confirm('¿Cerrar TODAS las sesiones activas de este encargado?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="usuario_id" value="{{ filtro_usuario }}">
+      <button type="submit" class="btn btn-danger btn-sm">
+        ✕ Cerrar todas las sesiones activas de este encargado
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+  <p class="text-muted mt-2" style="font-size:.8rem;">
+    Mostrando {{ sesiones | length }} registro(s).
+    {% if sesiones | length == 200 %}— Se muestran los últimos 200.{% endif %}
+  </p>
+
+  {% else %}
+    <div class="alert alert-info mt-2">
+      No hay sesiones que coincidan con los filtros seleccionados.
+    </div>
+  {% endif %}
+
+</div>
+
+{# ── Script: actualiza duración de sesiones activas cada 30 seg ─────────── #}
+<script>
+(function() {
+  function calcDuracion(inicioISO) {
+    const inicio = new Date(inicioISO);
+    const ahora  = new Date();
+    let segs = Math.floor((ahora - inicio) / 1000);
+    if (segs < 0) return '—';
+    const h = Math.floor(segs / 3600);
+    const m = Math.floor((segs % 3600) / 60);
+    return h > 0 ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m`;
+  }
+
+  // Obtener duraciones actualizadas desde la API cada 30 segundos
+  function actualizarDuraciones() {
+    fetch('{{ url_for("sesiones.api_activas") }}')
+      .then(r => r.json())
+      .then(lista => {
+        lista.forEach(s => {
+          const el = document.getElementById('dur-' + s.id);
+          if (el) el.textContent = s.duracion;
+        });
+      })
+      .catch(() => {}); // silencioso si falla
+  }
+
+  setInterval(actualizarDuraciones, 30000);
+})();
+</script>
+{% endblock %}
