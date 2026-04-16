@@ -5,7 +5,7 @@ Ejecutar una sola vez: python migrate_sesiones.py
 """
 
 from app import create_app
-from extensions import db   # o donde tengas db = SQLAlchemy()
+from models import db
 import sqlalchemy as sa
 
 def migrate():
@@ -20,20 +20,17 @@ def migrate():
 
             conn.execute(sa.text("""
                 CREATE TABLE sesiones_encargados (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id          SERIAL PRIMARY KEY,
                     usuario_id  INTEGER NOT NULL
                                 REFERENCES usuarios(id) ON DELETE CASCADE,
                     ip          VARCHAR(45),
                     user_agent  VARCHAR(300),
                     inicio      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     fin         TIMESTAMP,
-                    activa      BOOLEAN NOT NULL DEFAULT 1,
+                    activa      BOOLEAN NOT NULL DEFAULT TRUE,
                     cerrada_por INTEGER REFERENCES usuarios(id)
                 )
             """))
-            # Para PostgreSQL el autoincrement es SERIAL, pero SQLAlchemy
-            # lo resuelve solo en producción. Si estás en Postgres reemplazá
-            # `INTEGER PRIMARY KEY AUTOINCREMENT` por `SERIAL PRIMARY KEY`.
             conn.commit()
             print("✓ Tabla 'sesiones_encargados' creada correctamente.")
 

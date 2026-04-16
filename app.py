@@ -88,6 +88,7 @@ def create_app():
     from routes.alumnos        import alumnos_bp
     from routes.etiquetas      import etiquetas_bp
     from routes.impresoras3d   import impresoras3d_bp
+    from routes.sesiones       import sesiones_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(carros_bp)
@@ -107,6 +108,7 @@ def create_app():
     app.register_blueprint(alumnos_bp)
     app.register_blueprint(etiquetas_bp)
     app.register_blueprint(impresoras3d_bp)
+    app.register_blueprint(sesiones_bp)
 
     with app.app_context():
         import models_extra.horarios_notificaciones  # noqa

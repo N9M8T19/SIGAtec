@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, session,
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_dance.contrib.google import make_google_blueprint, google
 from models import db, Usuario
+from models.sesion import SesionEncargado
+from datetime import datetime
 import os
 
 auth_bp = Blueprint('auth', __name__)
@@ -47,6 +49,18 @@ def google_callback():
         return redirect(url_for('auth.login'))
 
     login_user(usuario, remember=True)
+
+    # ── Registrar inicio de sesión si es Encargado ────────────────────────
+    if usuario.rol == 'Encargado':
+        s = SesionEncargado(
+            usuario_id = usuario.id,
+            ip         = request.remote_addr,
+            user_agent = request.user_agent.string[:300],
+        )
+        db.session.add(s)
+        db.session.commit()
+        session['sesion_id'] = s.id
+
     flash(f'Bienvenido, {usuario.nombre_completo}!', 'success')
     return redirect(url_for('main.dashboard'))
 
@@ -67,5 +81,15 @@ def logout():
         del google_bp.token
 
     logout_user()
+
+    # ── Cerrar sesión registrada si existía ──────────────────────────────
+    sid = session.pop('sesion_id', None)
+    if sid:
+        s = SesionEncargado.query.get(sid)
+        if s and s.activa:
+            s.activa = False
+            s.fin    = datetime.utcnow()
+            db.session.commit()
+
     flash('Sesión cerrada correctamente.', 'info')
     return redirect(url_for('auth.login'))
