@@ -36,10 +36,29 @@
     </div>
 </div>
 
+<div id="barraMasiva" class="hidden mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 flex-wrap">
+    <span id="contadorSel" class="text-sm font-semibold text-red-700"></span>
+    <button type="button"
+            onclick="confirmarBajaMasiva()"
+            class="bg-red-600 hover:bg-red-700 text-white text-sm px-3 py-1 rounded-lg font-semibold">
+        <i class="fas fa-trash-alt mr-1"></i>Dar de baja seleccionadas
+    </button>
+    <button type="button" onclick="deseleccionarTodo()"
+            class="text-sm text-gray-500 hover:text-gray-700 underline">
+        Cancelar
+    </button>
+</div>
+
+<form id="formBajaMasiva" method="POST" action="{{ url_for('netbooks.baja_masiva') }}">
+    <input type="hidden" name="carro_id" value="{{ carro.id }}">
 <div class="bg-white rounded-xl shadow-sm overflow-hidden">
     <table class="w-full text-sm">
         <thead class="bg-blue-900 text-white">
             <tr>
+                <th class="px-4 py-3 w-8">
+                    <input type="checkbox" id="checkTodos" onchange="toggleTodos(this)"
+                           class="rounded accent-white cursor-pointer">
+                </th>
                 <th class="px-4 py-3 text-left">N° Interno</th>
                 <th class="px-4 py-3 text-left">N° Serie</th>
                 <th class="px-4 py-3 text-left">☀️ Mañana</th>
@@ -51,6 +70,11 @@
         <tbody class="divide-y divide-gray-100">
             {% for nb in carro.netbooks %}
             <tr class="hover:bg-gray-50 {% if nb.estado == 'servicio_tecnico' %}bg-orange-50{% endif %}">
+                <td class="px-4 py-3">
+                    <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
+                           class="check-nb rounded accent-blue-900 cursor-pointer"
+                           onchange="actualizarBarra()">
+                </td>
                 <td class="px-4 py-3 font-semibold">{{ nb.numero_interno or '—' }}</td>
                 <td class="px-4 py-3 font-mono text-xs">{{ nb.numero_serie or 'SIN SERIE' }}</td>
 
@@ -164,7 +188,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" class="px-4 py-8 text-center text-gray-400">
+                <td colspan="7" class="px-4 py-8 text-center text-gray-400">
                     No hay netbooks en este carro
                 </td>
             </tr>
@@ -172,6 +196,7 @@
         </tbody>
     </table>
 </div>
+</form>
 
 <!-- ── Modal Asignar Alumno ─────────────────────────────────────────────────── -->
 <div id="modalAsignar" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black bg-opacity-40">
@@ -486,6 +511,42 @@ function actualizarConteo(turno) {
             badge.textContent = data.count + ' alumnos';
             badge.classList.remove('hidden');
         });
+}
+</script>
+
+<script>
+function toggleTodos(cb) {
+    document.querySelectorAll('.check-nb').forEach(c => c.checked = cb.checked);
+    actualizarBarra();
+}
+
+function deseleccionarTodo() {
+    document.querySelectorAll('.check-nb, #checkTodos').forEach(c => c.checked = false);
+    actualizarBarra();
+}
+
+function actualizarBarra() {
+    const seleccionadas = document.querySelectorAll('.check-nb:checked').length;
+    const total         = document.querySelectorAll('.check-nb').length;
+    const barra         = document.getElementById('barraMasiva');
+    const contador      = document.getElementById('contadorSel');
+    const checkTodos    = document.getElementById('checkTodos');
+
+    if (seleccionadas > 0) {
+        barra.classList.remove('hidden');
+        contador.textContent = `${seleccionadas} netbook${seleccionadas !== 1 ? 's' : ''} seleccionada${seleccionadas !== 1 ? 's' : ''}`;
+    } else {
+        barra.classList.add('hidden');
+    }
+    checkTodos.indeterminate = seleccionadas > 0 && seleccionadas < total;
+    checkTodos.checked       = seleccionadas === total && total > 0;
+}
+
+function confirmarBajaMasiva() {
+    const n = document.querySelectorAll('.check-nb:checked').length;
+    if (confirm(`¿Dar de baja ${n} netbook${n !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) {
+        document.getElementById('formBajaMasiva').submit();
+    }
 }
 </script>
 

@@ -214,6 +214,31 @@ def dar_de_baja(id):
     return redirect(url_for('carros.netbooks', id=carro_id) + '?descargar_baja=1')
 
 
+@netbooks_bp.route('/baja-masiva', methods=['POST'])
+@login_required
+def baja_masiva():
+    """Da de baja múltiples netbooks de una vez."""
+    ids      = request.form.getlist('netbook_ids')
+    carro_id = request.form.get('carro_id', type=int)
+
+    if not ids:
+        flash('No seleccionaste ninguna netbook.', 'warning')
+        return redirect(url_for('carros.netbooks', id=carro_id))
+
+    eliminadas = 0
+    for nid in ids:
+        nb = Netbook.query.get(int(nid))
+        if nb:
+            if not carro_id:
+                carro_id = nb.carro_id
+            db.session.delete(nb)
+            eliminadas += 1
+
+    db.session.commit()
+    flash(f'{eliminadas} netbook{"s" if eliminadas != 1 else ""} dadas de baja.', 'success')
+    return redirect(url_for('carros.netbooks', id=carro_id))
+
+
 @netbooks_bp.route('/descargar-baja-pdf')
 @login_required
 def descargar_baja_pdf():
