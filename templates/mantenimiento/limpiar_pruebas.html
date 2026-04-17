@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% block title %}Limpiar Registros de Prueba{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-8 px-4">
+
+  {# ── Encabezado ─────────────────────────────────────────────────────────── #}
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold uppercase tracking-wide mb-1"
+        style="color: var(--azul-oscuro)">
+      🧹 Limpiar Registros de Prueba
+    </h1>
+    <p class="text-sm text-gray-500">
+      Eliminá préstamos de carros y del Espacio Digital por docente o por estado activo.
+      Esta acción <strong>no se puede deshacer</strong>. Hacé un backup antes si es necesario.
+    </p>
+  </div>
+
+  {# ── Mensajes flash ──────────────────────────────────────────────────────── #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="mb-5 px-4 py-3 rounded-lg text-sm font-medium
+        {% if cat == 'success' %}bg-green-100 text-green-800 border border-green-300
+        {% elif cat == 'danger'  %}bg-red-100   text-red-800   border border-red-300
+        {% else %}bg-yellow-100 text-yellow-800 border border-yellow-300{% endif %}">
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {# ══════════════════════════════════════════════════════════════════════════
+     SECCIÓN 1 — Por docente
+  ══════════════════════════════════════════════════════════════════════════ #}
+  <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-8">
+
+    <div class="px-6 py-4 border-b flex items-center gap-3"
+         style="background-color: var(--azul-oscuro)">
+      <i class="fas fa-user-times text-white text-lg"></i>
+      <h2 class="text-white font-bold uppercase tracking-wide text-sm">
+        Sección 1 — Limpiar por docente
+      </h2>
+    </div>
+
+    {% if resumen %}
+    <form method="POST" action="{{ url_for('mantenimiento.ejecutar_limpieza') }}"
+          id="form-docente" onsubmit="return validarFormulario('form-docente', 'conf-docente')">
+      <input type="hidden" name="modo" value="docente">
+
+      {# Filtro solo activos #}
+      <div class="px-6 py-4 bg-gray-50 border-b flex items-center gap-3">
+        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+          <input type="checkbox" name="solo_activos" value="1" id="solo-activos-docente"
+                 class="rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                 onchange="actualizarContadores()">
+          Eliminar solo los préstamos <strong>activos</strong> (sin devolución registrada)
+        </label>
+        <span class="text-xs text-gray-400 ml-2">
+          — Dejá sin marcar para eliminar <em>todo</em> el historial del docente
+        </span>
+      </div>
+
+      {# Tabla #}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead style="background-color: #f1f5f9">
+            <tr class="text-gray-600 text-left border-b">
+              <th class="px-4 py-3 w-10">
+                <input type="checkbox" id="sel-todos"
+                       class="rounded border-gray-300"
+                       title="Seleccionar todos"
+                       onchange="toggleTodos(this)">
+              </th>
+              <th class="px-4 py-3">Docente</th>
+              <th class="px-4 py-3 text-center">
+                Carros<br>
+                <span class="font-normal text-xs text-gray-400">total / activos</span>
+              </th>
+              <th class="px-4 py-3 text-center">
+                Espacio Digital<br>
+                <span class="font-normal text-xs text-gray-400">total / activos</span>
+              </th>
+              <th class="px-4 py-3 text-center" id="col-total-header">
+                Total a eliminar
+              </th>
+            </tr>
+          </thead>
+          <tbody id="tabla-docentes">
+            {% for item in resumen %}
+            <tr class="border-b hover:bg-blue-50 transition"
+                data-total="{{ item.total }}"
+                data-activos="{{ item.total_activos }}"
+                data-carros-total="{{ item.carros_total }}"
+                data-carros-activos="{{ item.carros_activos }}"
+                data-ed-total="{{ item.ed_total }}"
+                data-ed-activos="{{ item.ed_activos }}">
+              <td class="px-4 py-3">
+                <input type="checkbox" name="docente_ids" value="{{ item.docente.id }}"
+                       class="checkbox-docente rounded border-gray-300">
+              </td>
+              <td class="px-4 py-3">
+                <span class="font-semibold text-gray-800">
+                  {{ item.docente.apellido }}, {{ item.docente.nombre }}
+                </span>
+                {% if item.docente.turno %}
+                  <span class="ml-2 text-xs px-2 py-0.5 rounded-full
+                    {% if item.docente.turno == 'Mañana' %}bg-yellow-100 text-yellow-700
+                    {% else %}bg-indigo-100 text-indigo-700{% endif %}">
+                    {{ item.docente.turno }}
+                  </span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 text-center text-gray-600">
+                <span class="carros-val">{{ item.carros_total }}</span>
+                <span class="text-gray-300 mx-1">/</span>
+                <span class="text-orange-500 font-medium">{{ item.carros_activos }}</span>
+              </td>
+              <td class="px-4 py-3 text-center text-gray-600">
+                <span class="ed-val">{{ item.ed_total }}</span>
+                <span class="text-gray-300 mx-1">/</span>
+                <span class="text-orange-500 font-medium">{{ item.ed_activos }}</span>
+              </td>
+              <td class="px-4 py-3 text-center">
+                <span class="total-val font-bold text-red-600">{{ item.total }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {# Confirmación #}
+      <div class="px-6 py-5 bg-red-50 border-t border-red-100">
+        <p class="text-sm text-red-700 mb-3">
+          ⚠️ Para confirmar escribí <strong class="font-mono">CONFIRMAR</strong>:
+        </p>
+        <div class="flex flex-wrap items-center gap-3">
+          <input type="text" name="confirmacion" id="conf-docente"
+                 placeholder="CONFIRMAR" autocomplete="off"
+                 class="border border-red-300 rounded-lg px-3 py-2 text-sm w-48
+                        focus:outline-none focus:ring-2 focus:ring-red-400 bg-white">
+          <button type="submit"
+                  class="px-5 py-2 rounded-lg text-white text-sm font-semibold
+                         transition hover:opacity-90 active:scale-95"
+                  style="background-color: #dc2626">
+            <i class="fas fa-trash-alt mr-1"></i> Eliminar seleccionados
+          </button>
+          <span class="text-xs text-gray-400" id="seleccionados-label">
+            0 docentes seleccionados
+          </span>
+        </div>
+      </div>
+    </form>
+
+    {% else %}
+    <div class="px-6 py-10 text-center text-gray-400">
+      <i class="fas fa-check-circle text-green-400 text-3xl mb-3 block"></i>
+      No hay docentes con registros de préstamos en el sistema.
+    </div>
+    {% endif %}
+  </div>
+
+  {# ══════════════════════════════════════════════════════════════════════════
+     SECCIÓN 2 — Borrar todos los activos
+  ══════════════════════════════════════════════════════════════════════════ #}
+  <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-8">
+
+    <div class="px-6 py-4 border-b flex items-center gap-3"
+         style="background-color: var(--azul-oscuro)">
+      <i class="fas fa-bolt text-orange-400 text-lg"></i>
+      <h2 class="text-white font-bold uppercase tracking-wide text-sm">
+        Sección 2 — Borrar todos los préstamos activos
+      </h2>
+    </div>
+
+    <div class="px-6 py-5">
+      <p class="text-sm text-gray-600 mb-4">
+        Elimina <strong>todos</strong> los préstamos activos del sistema (sin importar el docente).
+        Útil para limpiar sesiones de prueba que quedaron abiertas.
+      </p>
+
+      {# Resumen de activos #}
+      <div class="flex flex-wrap gap-4 mb-6">
+        <div class="flex items-center gap-3 bg-blue-50 border border-blue-200
+                    rounded-xl px-5 py-3 min-w-[180px]">
+          <i class="fas fa-laptop text-blue-500 text-xl"></i>
+          <div>
+            <div class="text-2xl font-bold text-blue-700">{{ activos_carros }}</div>
+            <div class="text-xs text-blue-500 uppercase tracking-wide">Carros activos</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 bg-orange-50 border border-orange-200
+                    rounded-xl px-5 py-3 min-w-[180px]">
+          <i class="fas fa-desktop text-orange-500 text-xl"></i>
+          <div>
+            <div class="text-2xl font-bold text-orange-600">{{ activos_ed }}</div>
+            <div class="text-xs text-orange-400 uppercase tracking-wide">Espacio Digital activos</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 bg-red-50 border border-red-200
+                    rounded-xl px-5 py-3 min-w-[180px]">
+          <i class="fas fa-exclamation-circle text-red-500 text-xl"></i>
+          <div>
+            <div class="text-2xl font-bold text-red-600">{{ activos_carros + activos_ed }}</div>
+            <div class="text-xs text-red-400 uppercase tracking-wide">Total a eliminar</div>
+          </div>
+        </div>
+      </div>
+
+      {% if activos_carros + activos_ed > 0 %}
+      <form method="POST" action="{{ url_for('mantenimiento.ejecutar_limpieza') }}"
+            id="form-activos" onsubmit="return validarFormulario('form-activos', 'conf-activos')">
+        <input type="hidden" name="modo" value="activos">
+
+        <div class="bg-red-50 border border-red-100 rounded-xl p-4">
+          <p class="text-sm text-red-700 mb-3">
+            ⚠️ Para confirmar escribí <strong class="font-mono">CONFIRMAR</strong>:
+          </p>
+          <div class="flex flex-wrap items-center gap-3">
+            <input type="text" name="confirmacion" id="conf-activos"
+                   placeholder="CONFIRMAR" autocomplete="off"
+                   class="border border-red-300 rounded-lg px-3 py-2 text-sm w-48
+                          focus:outline-none focus:ring-2 focus:ring-red-400 bg-white">
+            <button type="submit"
+                    class="px-5 py-2 rounded-lg text-white text-sm font-semibold
+                           transition hover:opacity-90 active:scale-95"
+                    style="background-color: #dc2626">
+              <i class="fas fa-fire mr-1"></i> Eliminar todos los activos
+            </button>
+          </div>
+        </div>
+      </form>
+      {% else %}
+      <div class="text-sm text-green-600 font-medium">
+        <i class="fas fa-check-circle mr-1"></i> No hay préstamos activos en el sistema.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Toggle "seleccionar todos" ────────────────────────────────────────────
+function toggleTodos(master) {
+  document.querySelectorAll('.checkbox-docente')
+    .forEach(cb => cb.checked = master.checked);
+  actualizarContadores();
+}
+
+// Escuchar cambios individuales para actualizar el label
+document.querySelectorAll('.checkbox-docente').forEach(cb => {
+  cb.addEventListener('change', actualizarContadores);
+});
+
+// ── Actualizar columna "Total a eliminar" según solo_activos ─────────────
+function actualizarContadores() {
+  const soloActivos = document.getElementById('solo-activos-docente')?.checked;
+  document.querySelectorAll('#tabla-docentes tr').forEach(tr => {
+    const total   = tr.dataset.total;
+    const activos = tr.dataset.activos;
+    const span    = tr.querySelector('.total-val');
+    if (span) span.textContent = soloActivos ? activos : total;
+  });
+
+  // Label cantidad seleccionados
+  const n = document.querySelectorAll('.checkbox-docente:checked').length;
+  const lbl = document.getElementById('seleccionados-label');
+  if (lbl) lbl.textContent = `${n} docente${n !== 1 ? 's' : ''} seleccionado${n !== 1 ? 's' : ''}`;
+}
+
+// ── Validación antes de submit ────────────────────────────────────────────
+function validarFormulario(formId, confId) {
+  if (formId === 'form-docente') {
+    const checks = document.querySelectorAll('.checkbox-docente:checked');
+    if (checks.length === 0) {
+      alert('Seleccioná al menos un docente.');
+      return false;
+    }
+  }
+  const conf = document.getElementById(confId)?.value.trim();
+  if (conf !== 'CONFIRMAR') {
+    alert('Escribí CONFIRMAR para continuar.');
+    return false;
+  }
+  return true;
+}
+</script>
+{% endblock %}
