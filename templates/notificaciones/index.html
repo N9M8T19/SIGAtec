@@ -97,7 +97,7 @@
         <tbody class="divide-y divide-gray-100">
             {% for log in logs %}
             <tr class="hover:bg-gray-50">
-                <td class="px-4 py-2 text-xs text-gray-400">{{ log.created_at.strftime('%d/%m %H:%M') }}</td>
+                <td class="px-4 py-2 text-xs text-gray-400">{{ log.created_at | arg_datetime }}</td>
                 <td class="px-4 py-2">
                     <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ log.evento }}</span>
                 </td>
