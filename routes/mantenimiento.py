@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from models import db, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem
 from functools import wraps
@@ -16,7 +16,7 @@ def solo_admin_directivo(f):
     return decorated
 
 
-@mantenimiento_bp.route('/limpiar-pruebas')
+@mantenimiento_bp.route('/administrar-historial')
 @login_required
 @solo_admin_directivo
 def limpiar_pruebas():
@@ -65,7 +65,7 @@ def limpiar_pruebas():
     )
 
 
-@mantenimiento_bp.route('/limpiar-pruebas/ejecutar', methods=['POST'])
+@mantenimiento_bp.route('/administrar-historial/ejecutar', methods=['POST'])
 @login_required
 @solo_admin_directivo
 def ejecutar_limpieza():
@@ -104,14 +104,12 @@ def ejecutar_limpieza():
 
     # ── Modo: todos los activos ──────────────────────────────────────────────
     elif modo == 'activos':
-        # Espacio Digital activos
         prestamos_ed_activos = PrestamoNetbook.query.filter_by(estado='activo').all()
         for p in prestamos_ed_activos:
             PrestamoNetbookItem.query.filter_by(prestamo_id=p.id).delete()
         total_ed = PrestamoNetbook.query.filter_by(estado='activo').delete(
             synchronize_session=False
         )
-        # Carros activos
         total_carros = PrestamoCarro.query.filter_by(estado='activo').delete(
             synchronize_session=False
         )
@@ -123,6 +121,95 @@ def ejecutar_limpieza():
         f'Limpieza completada ({tipo_txt}): '
         f'{total_carros} préstamo(s) de carros y '
         f'{total_ed} préstamo(s) del Espacio Digital eliminados.',
+        'success',
+    )
+    return redirect(url_for('mantenimiento.limpiar_pruebas'))
+
+
+# ── Sección 3: préstamos de un docente específico ────────────────────────────
+
+@mantenimiento_bp.route('/administrar-historial/prestamos-docente')
+@login_required
+@solo_admin_directivo
+def prestamos_docente():
+    """Devuelve JSON con todos los préstamos de un docente para la Sección 3."""
+    docente_id = request.args.get('docente_id', type=int)
+    if not docente_id:
+        return jsonify({'carros': [], 'ed': []})
+
+    from datetime import timedelta
+    ARG_OFFSET = timedelta(hours=-3)
+
+    def fmt(dt):
+        if dt is None:
+            return '—'
+        return (dt + ARG_OFFSET).strftime('%d/%m/%Y %H:%M')
+
+    carros = PrestamoCarro.query.filter_by(docente_id=docente_id)\
+                .order_by(PrestamoCarro.fecha_retiro.desc()).all()
+    ed     = PrestamoNetbook.query.filter_by(docente_id=docente_id)\
+                .order_by(PrestamoNetbook.fecha_retiro.desc()).all()
+
+    carros_data = []
+    for p in carros:
+        carros_data.append({
+            'id':           p.id,
+            'codigo':       p.codigo if hasattr(p, 'codigo') and p.codigo else f'#{p.id}',
+            'carro':        p.carro.nombre if p.carro else '—',
+            'aula':         p.carro.aula if p.carro else '—',
+            'fecha_retiro': fmt(p.fecha_retiro),
+            'fecha_devolucion': fmt(p.fecha_devolucion) if p.fecha_devolucion else None,
+            'estado':       p.estado,
+        })
+
+    ed_data = []
+    for p in ed:
+        cant = len(p.items) if hasattr(p, 'items') else 0
+        ed_data.append({
+            'id':               p.id,
+            'fecha_retiro':     fmt(p.fecha_retiro),
+            'fecha_devolucion': fmt(p.fecha_devolucion) if p.fecha_devolucion else None,
+            'estado':           p.estado,
+            'cant_netbooks':    cant,
+        })
+
+    return jsonify({'carros': carros_data, 'ed': ed_data})
+
+
+@mantenimiento_bp.route('/administrar-historial/borrar-prestamos', methods=['POST'])
+@login_required
+@solo_admin_directivo
+def borrar_prestamos_individuales():
+    """Borra préstamos individuales seleccionados en la Sección 3."""
+    confirmacion = request.form.get('confirmacion', '').strip()
+    if confirmacion != 'CONFIRMAR':
+        flash('Escribí CONFIRMAR para ejecutar la limpieza.', 'warning')
+        return redirect(url_for('mantenimiento.limpiar_pruebas'))
+
+    ids_carros = request.form.getlist('ids_carros')
+    ids_ed     = request.form.getlist('ids_ed')
+
+    if not ids_carros and not ids_ed:
+        flash('No seleccionaste ningún préstamo.', 'warning')
+        return redirect(url_for('mantenimiento.limpiar_pruebas'))
+
+    total_carros = 0
+    total_ed     = 0
+
+    for pid in ids_carros:
+        deleted = PrestamoCarro.query.filter_by(id=pid).delete()
+        total_carros += deleted
+
+    for pid in ids_ed:
+        PrestamoNetbookItem.query.filter_by(prestamo_id=pid).delete()
+        deleted = PrestamoNetbook.query.filter_by(id=pid).delete()
+        total_ed += deleted
+
+    db.session.commit()
+
+    flash(
+        f'Eliminados: {total_carros} préstamo(s) de carros y '
+        f'{total_ed} préstamo(s) del Espacio Digital.',
         'success',
     )
     return redirect(url_for('mantenimiento.limpiar_pruebas'))

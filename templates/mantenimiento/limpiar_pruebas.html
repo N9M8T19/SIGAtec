@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Limpiar Registros de Prueba{% endblock %}
+{% block title %}Administrar Historial{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto py-8 px-4">
@@ -8,10 +8,11 @@
   <div class="mb-8">
     <h1 class="text-2xl font-bold uppercase tracking-wide mb-1"
         style="color: var(--azul-oscuro)">
-      🧹 Limpiar Registros de Prueba
+      🗂 Administrar Historial
     </h1>
     <p class="text-sm text-gray-500">
-      Eliminá préstamos de carros y del Espacio Digital por docente o por estado activo.
+      Eliminá préstamos de carros y del Espacio Digital por docente, por estado activo
+      o seleccionando préstamos individuales.
       Esta acción <strong>no se puede deshacer</strong>. Hacé un backup antes si es necesario.
     </p>
   </div>
@@ -237,22 +238,162 @@
     </div>
   </div>
 
+  {# ══════════════════════════════════════════════════════════════════════════
+     SECCIÓN 3 — Por préstamo individual
+  ══════════════════════════════════════════════════════════════════════════ #}
+  <div class="bg-white rounded-2xl shadow-md overflow-hidden mb-8">
+
+    <div class="px-6 py-4 border-b flex items-center gap-3"
+         style="background-color: var(--azul-oscuro)">
+      <i class="fas fa-search text-white text-lg"></i>
+      <h2 class="text-white font-bold uppercase tracking-wide text-sm">
+        Sección 3 — Borrar préstamos individuales
+      </h2>
+    </div>
+
+    <div class="px-6 py-5">
+      <p class="text-sm text-gray-600 mb-4">
+        Seleccioná un docente para ver sus préstamos y elegir cuáles eliminar uno por uno.
+      </p>
+
+      {# Selector de docente #}
+      <div class="mb-5">
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+          Docente
+        </label>
+        <select id="sel-docente-s3"
+                class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full max-w-sm
+                       focus:outline-none focus:ring-2 focus:ring-blue-400"
+                onchange="cargarPrestamos(this.value)">
+          <option value="">— Seleccioná un docente —</option>
+          {% for item in resumen %}
+          <option value="{{ item.docente.id }}">
+            {{ item.docente.apellido }}, {{ item.docente.nombre }}
+            {% if item.docente.turno %}({{ item.docente.turno }}){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Spinner de carga #}
+      <div id="s3-spinner" class="hidden text-sm text-gray-400 py-4">
+        <i class="fas fa-spinner fa-spin mr-2"></i> Cargando préstamos...
+      </div>
+
+      {# Tablas de préstamos — se rellenan por JS #}
+      <div id="s3-contenido" class="hidden">
+
+        {# Carros #}
+        <div class="mb-6">
+          <h3 class="text-sm font-bold uppercase tracking-wide mb-2"
+              style="color: var(--azul-oscuro)">
+            <i class="fas fa-key mr-1"></i> Préstamos de Carros
+          </h3>
+          <div id="s3-tabla-carros-wrap" class="overflow-x-auto rounded-xl border border-gray-200">
+            <table class="w-full text-sm">
+              <thead style="background-color: #f1f5f9">
+                <tr class="text-gray-600 text-left border-b text-xs uppercase tracking-wide">
+                  <th class="px-3 py-2 w-8">
+                    <input type="checkbox" id="sel-todos-carros"
+                           onchange="toggleGrupo('carros', this.checked)"
+                           class="rounded border-gray-300">
+                  </th>
+                  <th class="px-3 py-2">Código</th>
+                  <th class="px-3 py-2">Carro / Aula</th>
+                  <th class="px-3 py-2">Retiro</th>
+                  <th class="px-3 py-2">Devolución</th>
+                  <th class="px-3 py-2 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody id="s3-tbody-carros"></tbody>
+            </table>
+          </div>
+          <p id="s3-sin-carros" class="hidden text-xs text-gray-400 mt-2 px-1">
+            Este docente no tiene préstamos de carros.
+          </p>
+        </div>
+
+        {# Espacio Digital #}
+        <div class="mb-6">
+          <h3 class="text-sm font-bold uppercase tracking-wide mb-2"
+              style="color: var(--azul-oscuro)">
+            <i class="fas fa-desktop mr-1"></i> Préstamos Espacio Digital
+          </h3>
+          <div id="s3-tabla-ed-wrap" class="overflow-x-auto rounded-xl border border-gray-200">
+            <table class="w-full text-sm">
+              <thead style="background-color: #f1f5f9">
+                <tr class="text-gray-600 text-left border-b text-xs uppercase tracking-wide">
+                  <th class="px-3 py-2 w-8">
+                    <input type="checkbox" id="sel-todos-ed"
+                           onchange="toggleGrupo('ed', this.checked)"
+                           class="rounded border-gray-300">
+                  </th>
+                  <th class="px-3 py-2">Retiro</th>
+                  <th class="px-3 py-2">Devolución</th>
+                  <th class="px-3 py-2 text-center">Netbooks</th>
+                  <th class="px-3 py-2 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody id="s3-tbody-ed"></tbody>
+            </table>
+          </div>
+          <p id="s3-sin-ed" class="hidden text-xs text-gray-400 mt-2 px-1">
+            Este docente no tiene préstamos del Espacio Digital.
+          </p>
+        </div>
+
+        {# Confirmación y submit #}
+        <form method="POST"
+              action="{{ url_for('mantenimiento.borrar_prestamos_individuales') }}"
+              id="form-s3"
+              onsubmit="return validarS3()">
+          <div id="s3-hidden-carros"></div>
+          <div id="s3-hidden-ed"></div>
+
+          <div class="bg-red-50 border border-red-100 rounded-xl p-4">
+            <p class="text-sm text-red-700 mb-3">
+              ⚠️ Para confirmar escribí <strong class="font-mono">CONFIRMAR</strong>:
+            </p>
+            <div class="flex flex-wrap items-center gap-3">
+              <input type="text" name="confirmacion" id="conf-s3"
+                     placeholder="CONFIRMAR" autocomplete="off"
+                     class="border border-red-300 rounded-lg px-3 py-2 text-sm w-48
+                            focus:outline-none focus:ring-2 focus:ring-red-400 bg-white">
+              <button type="submit"
+                      class="px-5 py-2 rounded-lg text-white text-sm font-semibold
+                             transition hover:opacity-90 active:scale-95"
+                      style="background-color: #dc2626">
+                <i class="fas fa-trash-alt mr-1"></i> Eliminar seleccionados
+              </button>
+              <span id="s3-sel-label" class="text-xs text-gray-400">
+                0 préstamos seleccionados
+              </span>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {# Estado vacío inicial #}
+      <div id="s3-vacio" class="text-sm text-gray-400 py-4">
+        <i class="fas fa-arrow-up mr-1"></i> Seleccioná un docente para ver sus préstamos.
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
-// ── Toggle "seleccionar todos" ────────────────────────────────────────────
+// ── Sección 1: toggle todos ───────────────────────────────────────────────
 function toggleTodos(master) {
   document.querySelectorAll('.checkbox-docente')
     .forEach(cb => cb.checked = master.checked);
   actualizarContadores();
 }
 
-// Escuchar cambios individuales para actualizar el label
 document.querySelectorAll('.checkbox-docente').forEach(cb => {
   cb.addEventListener('change', actualizarContadores);
 });
 
-// ── Actualizar columna "Total a eliminar" según solo_activos ─────────────
 function actualizarContadores() {
   const soloActivos = document.getElementById('solo-activos-docente')?.checked;
   document.querySelectorAll('#tabla-docentes tr').forEach(tr => {
@@ -261,23 +402,158 @@ function actualizarContadores() {
     const span    = tr.querySelector('.total-val');
     if (span) span.textContent = soloActivos ? activos : total;
   });
-
-  // Label cantidad seleccionados
   const n = document.querySelectorAll('.checkbox-docente:checked').length;
   const lbl = document.getElementById('seleccionados-label');
   if (lbl) lbl.textContent = `${n} docente${n !== 1 ? 's' : ''} seleccionado${n !== 1 ? 's' : ''}`;
 }
 
-// ── Validación antes de submit ────────────────────────────────────────────
 function validarFormulario(formId, confId) {
   if (formId === 'form-docente') {
     const checks = document.querySelectorAll('.checkbox-docente:checked');
-    if (checks.length === 0) {
-      alert('Seleccioná al menos un docente.');
-      return false;
-    }
+    if (checks.length === 0) { alert('Seleccioná al menos un docente.'); return false; }
   }
   const conf = document.getElementById(confId)?.value.trim();
+  if (conf !== 'CONFIRMAR') { alert('Escribí CONFIRMAR para continuar.'); return false; }
+  return true;
+}
+
+// ── Sección 3: carga dinámica de préstamos ────────────────────────────────
+function badgeEstado(estado) {
+  const activo = estado === 'activo';
+  return `<span class="text-xs px-2 py-0.5 rounded-full font-medium
+    ${activo ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}">
+    ${activo ? 'Activo' : 'Devuelto'}
+  </span>`;
+}
+
+function actualizarSelLabel() {
+  const n = document.querySelectorAll('.cb-s3:checked').length;
+  const lbl = document.getElementById('s3-sel-label');
+  if (lbl) lbl.textContent = `${n} préstamo${n !== 1 ? 's' : ''} seleccionado${n !== 1 ? 's' : ''}`;
+}
+
+function toggleGrupo(grupo, checked) {
+  document.querySelectorAll(`.cb-s3-${grupo}`).forEach(cb => cb.checked = checked);
+  actualizarSelLabel();
+}
+
+function cargarPrestamos(docenteId) {
+  const contenido = document.getElementById('s3-contenido');
+  const spinner   = document.getElementById('s3-spinner');
+  const vacio     = document.getElementById('s3-vacio');
+
+  if (!docenteId) {
+    contenido.classList.add('hidden');
+    vacio.classList.remove('hidden');
+    return;
+  }
+
+  spinner.classList.remove('hidden');
+  contenido.classList.add('hidden');
+  vacio.classList.add('hidden');
+
+  fetch(`{{ url_for('mantenimiento.prestamos_docente') }}?docente_id=${docenteId}`)
+    .then(r => r.json())
+    .then(data => {
+      spinner.classList.add('hidden');
+      contenido.classList.remove('hidden');
+
+      // ── Carros ──
+      const tbodyC = document.getElementById('s3-tbody-carros');
+      const wrapC  = document.getElementById('s3-tabla-carros-wrap');
+      const sinC   = document.getElementById('s3-sin-carros');
+      tbodyC.innerHTML = '';
+      if (data.carros.length === 0) {
+        wrapC.classList.add('hidden');
+        sinC.classList.remove('hidden');
+      } else {
+        wrapC.classList.remove('hidden');
+        sinC.classList.add('hidden');
+        data.carros.forEach(p => {
+          tbodyC.insertAdjacentHTML('beforeend', `
+            <tr class="border-b hover:bg-red-50 transition">
+              <td class="px-3 py-2">
+                <input type="checkbox" class="cb-s3 cb-s3-carros rounded border-gray-300"
+                       data-id="${p.id}" data-tipo="carro"
+                       onchange="actualizarSelLabel()">
+              </td>
+              <td class="px-3 py-2 font-mono text-xs text-gray-500">${p.codigo}</td>
+              <td class="px-3 py-2">
+                <span class="font-medium text-gray-800">${p.carro}</span>
+                <span class="text-xs text-gray-400 ml-1">Aula ${p.aula}</span>
+              </td>
+              <td class="px-3 py-2 text-gray-600">${p.fecha_retiro}</td>
+              <td class="px-3 py-2 text-gray-600">${p.fecha_devolucion || '<span class="text-orange-500">—</span>'}</td>
+              <td class="px-3 py-2 text-center">${badgeEstado(p.estado)}</td>
+            </tr>`);
+        });
+      }
+
+      // ── Espacio Digital ──
+      const tbodyED = document.getElementById('s3-tbody-ed');
+      const wrapED  = document.getElementById('s3-tabla-ed-wrap');
+      const sinED   = document.getElementById('s3-sin-ed');
+      tbodyED.innerHTML = '';
+      if (data.ed.length === 0) {
+        wrapED.classList.add('hidden');
+        sinED.classList.remove('hidden');
+      } else {
+        wrapED.classList.remove('hidden');
+        sinED.classList.add('hidden');
+        data.ed.forEach(p => {
+          tbodyED.insertAdjacentHTML('beforeend', `
+            <tr class="border-b hover:bg-red-50 transition">
+              <td class="px-3 py-2">
+                <input type="checkbox" class="cb-s3 cb-s3-ed rounded border-gray-300"
+                       data-id="${p.id}" data-tipo="ed"
+                       onchange="actualizarSelLabel()">
+              </td>
+              <td class="px-3 py-2 text-gray-600">${p.fecha_retiro}</td>
+              <td class="px-3 py-2 text-gray-600">${p.fecha_devolucion || '<span class="text-orange-500">—</span>'}</td>
+              <td class="px-3 py-2 text-center text-gray-600">${p.cant_netbooks}</td>
+              <td class="px-3 py-2 text-center">${badgeEstado(p.estado)}</td>
+            </tr>`);
+        });
+      }
+
+      actualizarSelLabel();
+    })
+    .catch(() => {
+      spinner.classList.add('hidden');
+      vacio.classList.remove('hidden');
+      vacio.textContent = 'Error al cargar los préstamos. Intentá de nuevo.';
+    });
+}
+
+function validarS3() {
+  // Recopilar IDs seleccionados y meterlos en hidden inputs
+  const hiddenC  = document.getElementById('s3-hidden-carros');
+  const hiddenED = document.getElementById('s3-hidden-ed');
+  hiddenC.innerHTML  = '';
+  hiddenED.innerHTML = '';
+
+  let totalC = 0, totalED = 0;
+  document.querySelectorAll('.cb-s3:checked').forEach(cb => {
+    const input = document.createElement('input');
+    input.type  = 'hidden';
+    if (cb.dataset.tipo === 'carro') {
+      input.name  = 'ids_carros';
+      input.value = cb.dataset.id;
+      hiddenC.appendChild(input);
+      totalC++;
+    } else {
+      input.name  = 'ids_ed';
+      input.value = cb.dataset.id;
+      hiddenED.appendChild(input);
+      totalED++;
+    }
+  });
+
+  if (totalC + totalED === 0) {
+    alert('Seleccioná al menos un préstamo.');
+    return false;
+  }
+  const conf = document.getElementById('conf-s3')?.value.trim();
   if (conf !== 'CONFIRMAR') {
     alert('Escribí CONFIRMAR para continuar.');
     return false;
