@@ -10,6 +10,10 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _database_url
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,      # verifica la conexión antes de usarla
+        'pool_recycle':  280,       # recicla conexiones cada 280 seg (< timeout de Render)
+    }
     APP_NOMBRE          = 'SIGA-Tec'
     APP_ESCUELA         = 'E.T. N°7 D.E. 5'
     APP_ESCUELA_NOMBRE  = 'Dolores Lavalle de Lavalle'
