@@ -155,7 +155,7 @@ def prestamos_docente():
         carros_data.append({
             'id':             p.id,
             'codigo':         p.codigo if hasattr(p, 'codigo') and p.codigo else f'#{p.id}',
-            'carro':          p.carro.nombre if p.carro else '—',
+            'carro':          p.carro.display if p.carro else '—',
             'aula':           p.carro.aula if p.carro else '—',
             'fecha_retiro':   fmt(p.hora_retiro),
             'fecha_devolucion': fmt(p.hora_devolucion) if p.hora_devolucion else None,
