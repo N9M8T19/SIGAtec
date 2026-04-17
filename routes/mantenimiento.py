@@ -146,20 +146,20 @@ def prestamos_docente():
         return (dt + ARG_OFFSET).strftime('%d/%m/%Y %H:%M')
 
     carros = PrestamoCarro.query.filter_by(docente_id=docente_id)\
-                .order_by(PrestamoCarro.fecha_retiro.desc()).all()
+                .order_by(PrestamoCarro.hora_retiro.desc()).all()
     ed     = PrestamoNetbook.query.filter_by(docente_id=docente_id)\
-                .order_by(PrestamoNetbook.fecha_retiro.desc()).all()
+                .order_by(PrestamoNetbook.hora_retiro.desc()).all()
 
     carros_data = []
     for p in carros:
         carros_data.append({
-            'id':           p.id,
-            'codigo':       p.codigo if hasattr(p, 'codigo') and p.codigo else f'#{p.id}',
-            'carro':        p.carro.nombre if p.carro else '—',
-            'aula':         p.carro.aula if p.carro else '—',
-            'fecha_retiro': fmt(p.fecha_retiro),
-            'fecha_devolucion': fmt(p.fecha_devolucion) if p.fecha_devolucion else None,
-            'estado':       p.estado,
+            'id':             p.id,
+            'codigo':         p.codigo if hasattr(p, 'codigo') and p.codigo else f'#{p.id}',
+            'carro':          p.carro.nombre if p.carro else '—',
+            'aula':           p.carro.aula if p.carro else '—',
+            'fecha_retiro':   fmt(p.hora_retiro),
+            'fecha_devolucion': fmt(p.hora_devolucion) if p.hora_devolucion else None,
+            'estado':         p.estado,
         })
 
     ed_data = []
@@ -167,8 +167,8 @@ def prestamos_docente():
         cant = len(p.items) if hasattr(p, 'items') else 0
         ed_data.append({
             'id':               p.id,
-            'fecha_retiro':     fmt(p.fecha_retiro),
-            'fecha_devolucion': fmt(p.fecha_devolucion) if p.fecha_devolucion else None,
+            'fecha_retiro':     fmt(p.hora_retiro),
+            'fecha_devolucion': fmt(p.hora_devolucion) if p.hora_devolucion else None,
             'estado':           p.estado,
             'cant_netbooks':    cant,
         })
