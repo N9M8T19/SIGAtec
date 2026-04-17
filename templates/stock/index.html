@@ -4,6 +4,11 @@
 
 {% block content %}
 
+<style>
+/* ── VENTANA DE IMPRESIÓN ── */
+@page { size: 59mm 38mm; margin: 0; }
+</style>
+
 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
     <i class="fas fa-info-circle mr-2"></i>
     Seleccioná un carro para iniciar el relevamiento físico. Vas a poder escanear o escribir
@@ -12,29 +17,183 @@
 
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
     {% for carro in carros %}
-    <a href="{{ url_for('stock.relevar', carro_id=carro.id) }}"
-       class="bg-white rounded-xl shadow-sm p-5 hover:shadow-md hover:border-blue-300 border-2 border-transparent transition-all">
-        <div class="text-2xl font-bold text-blue-900 mb-1">{{ carro.display }}</div>
-        <div class="text-xs text-gray-500 mb-3">{{ carro.aula or 'Sin aula' }} | {{ carro.division or '—' }}</div>
-        <div class="flex gap-3 text-xs">
-            <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
-                {{ carro.operativas }} op.
-            </span>
-            {% if carro.en_servicio > 0 %}
-            <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold">
-                {{ carro.en_servicio }} serv.
-            </span>
-            {% endif %}
+    <div class="bg-white rounded-xl shadow-sm border-2 border-transparent hover:border-blue-300 hover:shadow-md transition-all flex flex-col">
+        <a href="{{ url_for('stock.relevar', carro_id=carro.id) }}" class="flex-1 p-5 block">
+            <div class="text-2xl font-bold text-blue-900 mb-1">{{ carro.display }}</div>
+            <div class="text-xs text-gray-500 mb-3">{{ carro.aula or 'Sin aula' }} | {{ carro.division or '—' }}</div>
+            <div class="flex gap-3 text-xs">
+                <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
+                    {{ carro.operativas }} op.
+                </span>
+                {% if carro.en_servicio > 0 %}
+                <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold">
+                    {{ carro.en_servicio }} serv.
+                </span>
+                {% endif %}
+            </div>
+            <div class="mt-3 text-xs text-blue-600 font-semibold">
+                <i class="fas fa-clipboard-check mr-1"></i>Iniciar relevamiento →
+            </div>
+        </a>
+        <div class="border-t border-gray-100 px-5 py-2">
+            <button onclick="imprimirEtiquetaStock({{ carro.id }}, '{{ carro.display }}', '{{ carro.aula or '' }}', '{{ carro.division or '' }}', {{ carro.total_netbooks }}, {{ carro.operativas }}, {{ carro.en_servicio }})"
+                    class="w-full text-xs text-gray-500 hover:text-blue-700 font-semibold py-1 flex items-center justify-center gap-1 transition-colors">
+                <i class="fas fa-tag"></i> Imprimir etiqueta
+            </button>
         </div>
-        <div class="mt-3 text-xs text-blue-600 font-semibold">
-            <i class="fas fa-clipboard-check mr-1"></i>Iniciar relevamiento →
-        </div>
-    </a>
+    </div>
     {% else %}
     <div class="col-span-4 text-center text-gray-400 py-8">
         No hay carros registrados
     </div>
     {% endfor %}
 </div>
+
+<script>
+function imprimirEtiquetaStock(id, display, aula, division, total, operativas, enServicio) {
+    const ahora = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const fecha = `${pad(ahora.getDate())}/${pad(ahora.getMonth()+1)}/${ahora.getFullYear()} ${pad(ahora.getHours())}:${pad(ahora.getMinutes())}`;
+
+    const numeroCarro = display.replace('Carro ', '');
+
+    const ventana = window.open('', '_blank', 'width=300,height=200');
+    ventana.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>Etiqueta Stock — ${display}</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+@page { size: 59mm 38mm; margin: 0; }
+body { width: 59mm; height: 38mm; font-family: Arial, sans-serif; background: white; overflow: hidden; }
+
+.etiqueta {
+    width: 59mm;
+    height: 38mm;
+    border: 1px solid #1a2a6c;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.et-hdr {
+    background: #1a2a6c;
+    color: white;
+    padding: 3px 7px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+.et-hdr-accent { width: 2px; height: 14px; background: #e8821a; border-radius: 1px; flex-shrink: 0; }
+.et-hdr-titulo { font-size: 8px; font-weight: 700; letter-spacing: .4px; }
+
+.et-carro {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 7px;
+    background: white;
+    flex-shrink: 0;
+    border-bottom: .4px solid #e5e7eb;
+}
+.et-carro-lbl { font-size: 6px; color: #9ca3af; text-transform: uppercase; letter-spacing: .3px; }
+.et-carro-val { font-size: 26px; font-weight: 900; color: #1a2a6c; line-height: 1; letter-spacing: -0.5px; }
+
+.et-info {
+    display: flex;
+    background: white;
+    flex-shrink: 0;
+    border-bottom: .4px solid #e5e7eb;
+}
+.et-info-col {
+    flex: 1;
+    padding: 2px 6px;
+    border-right: .4px solid #e5e7eb;
+}
+.et-info-col:last-child { border-right: none; }
+.et-info-lbl { font-size: 6px; color: #9ca3af; text-transform: uppercase; }
+.et-info-val { font-size: 9px; font-weight: 700; color: #1a2a6c; }
+
+.et-stats {
+    display: flex;
+    background: white;
+    flex-shrink: 0;
+    border-bottom: .4px solid #e5e7eb;
+}
+.et-stat {
+    flex: 1;
+    padding: 2px 4px;
+    text-align: center;
+    border-right: .4px solid #e5e7eb;
+}
+.et-stat:last-child { border-right: none; }
+.et-stat-lbl { font-size: 6px; text-transform: uppercase; font-weight: 700; }
+.et-stat-val { font-size: 11px; font-weight: 900; }
+.et-stat.total .et-stat-lbl { color: #9ca3af; }
+.et-stat.total .et-stat-val { color: #1a2a6c; }
+.et-stat.oper .et-stat-lbl  { color: #16a34a; }
+.et-stat.oper .et-stat-val  { color: #16a34a; }
+.et-stat.serv .et-stat-lbl  { color: #e8821a; }
+.et-stat.serv .et-stat-val  { color: #e8821a; }
+
+.et-fecha {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    background: #f8f9fa;
+    padding: 2px 7px;
+    gap: 4px;
+}
+.et-fecha-lbl { font-size: 6px; color: #9ca3af; text-transform: uppercase; }
+.et-fecha-val { font-size: 8px; font-weight: 700; color: #1a2a6c; }
+</style>
+</head><body>
+<div class="etiqueta">
+    <div class="et-hdr">
+        <div class="et-hdr-accent"></div>
+        <span class="et-hdr-titulo">STOCK &nbsp;·&nbsp; E.T. N°7 D.E. 5</span>
+    </div>
+    <div class="et-carro">
+        <span class="et-carro-lbl">Carro</span>
+        <span class="et-carro-val">${numeroCarro}</span>
+    </div>
+    <div class="et-info">
+        <div class="et-info-col">
+            <div class="et-info-lbl">Aula</div>
+            <div class="et-info-val">${aula || '—'}</div>
+        </div>
+        <div class="et-info-col">
+            <div class="et-info-lbl">División</div>
+            <div class="et-info-val">${division || '—'}</div>
+        </div>
+    </div>
+    <div class="et-stats">
+        <div class="et-stat total">
+            <div class="et-stat-lbl">Total</div>
+            <div class="et-stat-val">${total}</div>
+        </div>
+        <div class="et-stat oper">
+            <div class="et-stat-lbl">Oper.</div>
+            <div class="et-stat-val">${operativas}</div>
+        </div>
+        <div class="et-stat serv">
+            <div class="et-stat-lbl">Serv.</div>
+            <div class="et-stat-val">${enServicio}</div>
+        </div>
+    </div>
+    <div class="et-fecha">
+        <span class="et-fecha-lbl">Relevado:</span>
+        <span class="et-fecha-val">${fecha}</span>
+    </div>
+</div>
+<script>
+window.onload = function() { setTimeout(function(){ window.print(); }, 300); };
+<\/script>
+</body></html>`);
+    ventana.document.close();
+}
+</script>
 
 {% endblock %}
