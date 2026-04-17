@@ -12,8 +12,9 @@ TURNO_TARDE  = 'Tarde'
 TURNO_NOCHE  = 'Noche'
 
 def _turno_actual():
-    """Retorna el turno según la hora actual."""
-    hora = datetime.now().hour
+    """Retorna el turno según la hora actual (Argentina UTC-3)."""
+    ARG_OFFSET = timedelta(hours=-3)
+    hora = (datetime.utcnow() + ARG_OFFSET).hour
     if 7 <= hora < 13:
         return TURNO_MANANA
     elif 13 <= hora < 18:
