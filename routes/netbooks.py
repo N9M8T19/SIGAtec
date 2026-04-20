@@ -11,10 +11,23 @@ def nuevo(carro_id):
     carro = Carro.query.get_or_404(carro_id)
 
     if request.method == 'POST':
+        numero_serie = request.form.get('numero_serie', '').strip()
+
+        # Validación: número de serie duplicado
+        existente = Netbook.query.filter_by(numero_serie=numero_serie).first()
+        if existente and numero_serie:
+            flash(
+                f'El número de serie <strong>{numero_serie}</strong> ya está registrado '
+                f'en el carro <strong>{existente.carro.display}</strong> '
+                f'(N° interno {existente.numero_interno}).',
+                'danger'
+            )
+            return render_template('netbooks/form.html', carro=carro, netbook=None)
+
         nb = Netbook(
             carro_id       = carro_id,
             numero_interno = request.form.get('numero_interno', '').strip(),
-            numero_serie   = request.form.get('numero_serie', '').strip(),
+            numero_serie   = numero_serie,
             alumno         = request.form.get('alumno', '').strip(),
         )
         db.session.add(nb)
@@ -31,14 +44,54 @@ def editar(id):
     nb = Netbook.query.get_or_404(id)
 
     if request.method == 'POST':
+        numero_serie = request.form.get('numero_serie', '').strip()
+
+        # Validación: número de serie duplicado (excluyendo la netbook actual)
+        existente = Netbook.query.filter(
+            Netbook.numero_serie == numero_serie,
+            Netbook.id != id
+        ).first()
+        if existente and numero_serie:
+            flash(
+                f'El número de serie <strong>{numero_serie}</strong> ya está registrado '
+                f'en el carro <strong>{existente.carro.display}</strong> '
+                f'(N° interno {existente.numero_interno}).',
+                'danger'
+            )
+            return render_template('netbooks/form.html', carro=nb.carro, netbook=nb)
+
         nb.numero_interno = request.form.get('numero_interno', '').strip()
-        nb.numero_serie   = request.form.get('numero_serie', '').strip()
+        nb.numero_serie   = numero_serie
         nb.alumno         = request.form.get('alumno', '').strip()
         db.session.commit()
         flash('Netbook actualizada.', 'success')
         return redirect(url_for('carros.netbooks', id=nb.carro_id))
 
     return render_template('netbooks/form.html', carro=nb.carro, netbook=nb)
+
+
+@netbooks_bp.route('/verificar-serie')
+@login_required
+def verificar_serie():
+    """AJAX — verifica si un número de serie ya existe. excluir_id se usa en edición."""
+    numero_serie = request.args.get('numero_serie', '').strip()
+    excluir_id   = request.args.get('excluir_id', type=int)
+
+    if not numero_serie:
+        return jsonify({'duplicado': False})
+
+    query = Netbook.query.filter_by(numero_serie=numero_serie)
+    if excluir_id:
+        query = query.filter(Netbook.id != excluir_id)
+
+    existente = query.first()
+    if existente:
+        return jsonify({
+            'duplicado':       True,
+            'carro':           existente.carro.display,
+            'numero_interno':  existente.numero_interno,
+        })
+    return jsonify({'duplicado': False})
 
 
 @netbooks_bp.route('/<int:id>/servicio', methods=['POST'])
