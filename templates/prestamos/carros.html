@@ -13,7 +13,7 @@
            class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
             <i class="fas fa-file-pdf"></i> Planilla
         </a>
-        <button onclick="document.getElementById('modal-planilla-mail').classList.remove('hidden')"
+        <button onclick="abrirModalPlanilla()"
                 title="Enviar planilla por mail"
                 class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
             <i class="fas fa-envelope"></i> Enviar por mail
@@ -28,26 +28,49 @@
 {# ── Modal envío por mail ─────────────────────────────────────────────────── #}
 <div id="modal-planilla-mail"
      class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg mx-4">
         <h3 class="text-lg font-bold text-blue-900 mb-1 flex items-center gap-2">
             <i class="fas fa-envelope text-indigo-600"></i> Enviar Planilla por Mail
         </h3>
         <p class="text-sm text-gray-500 mb-4">
-            La planilla se enviará automáticamente a todos los <strong>Directivos</strong>
-            y <strong>Administradores</strong> con correo cargado en el sistema,
-            y a <strong>et7de5@bue.edu.ar</strong>.
+            Seleccioná a quién enviar la planilla de movimientos activos.
         </p>
-        <form method="POST" action="{{ url_for('prestamos.movimientos_activos_mail') }}">
+
+        <form method="POST" action="{{ url_for('prestamos.movimientos_activos_mail') }}" id="form-planilla-mail">
+            {# Lista de destinatarios — se carga via AJAX #}
+            <div id="lista-destinatarios" class="border border-gray-200 rounded-lg divide-y divide-gray-100 mb-4 max-h-64 overflow-y-auto">
+                <div class="px-4 py-3 text-sm text-gray-400 text-center">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Cargando destinatarios...
+                </div>
+            </div>
+
+            {# Seleccionar / Deseleccionar todos #}
+            <div class="flex items-center gap-3 mb-4">
+                <button type="button" id="btn-todos"
+                        onclick="seleccionarTodos(true)"
+                        class="text-xs text-indigo-600 hover:underline font-semibold">
+                    Seleccionar todos
+                </button>
+                <span class="text-gray-300">|</span>
+                <button type="button"
+                        onclick="seleccionarTodos(false)"
+                        class="text-xs text-gray-500 hover:underline">
+                    Ninguno
+                </button>
+                <span id="contador-seleccionados" class="ml-auto text-xs text-gray-500"></span>
+            </div>
+
             <div class="flex justify-end gap-3">
                 <button type="button"
-                        onclick="document.getElementById('modal-planilla-mail').classList.add('hidden')"
+                        onclick="cerrarModalPlanilla()"
                         class="px-4 py-2 rounded-lg text-sm font-semibold text-gray-600
                                border border-gray-300 hover:bg-gray-100">
                     Cancelar
                 </button>
-                <button type="submit"
+                <button type="submit" id="btn-enviar-planilla"
                         class="px-4 py-2 rounded-lg text-sm font-semibold text-white
-                               bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
+                               bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2
+                               disabled:opacity-50 disabled:cursor-not-allowed">
                     <i class="fas fa-paper-plane"></i> Enviar
                 </button>
             </div>
@@ -161,5 +184,74 @@
 {% endblock %}
 
 {% block scripts %}
-<script>setTimeout(() => location.reload(), 60000);</script>
+<script>
+setTimeout(() => location.reload(), 60000);
+
+// ── Modal planilla mail ──────────────────────────────────────────────────────
+function abrirModalPlanilla() {
+    document.getElementById('modal-planilla-mail').classList.remove('hidden');
+    cargarDestinatarios();
+}
+
+function cerrarModalPlanilla() {
+    document.getElementById('modal-planilla-mail').classList.add('hidden');
+}
+
+// Cerrar modal al hacer clic en el fondo oscuro
+document.getElementById('modal-planilla-mail').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalPlanilla();
+});
+
+function cargarDestinatarios() {
+    const lista = document.getElementById('lista-destinatarios');
+    lista.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400 text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Cargando...</div>';
+
+    fetch('{{ url_for("prestamos.movimientos_activos_destinatarios") }}')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.length) {
+                lista.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400 text-center">No hay destinatarios disponibles.</div>';
+                return;
+            }
+            lista.innerHTML = data.map(d => `
+                <label class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" name="destinatarios[]" value="${d.correo}"
+                           class="w-4 h-4 rounded text-indigo-600 dest-check"
+                           onchange="actualizarContador()" checked>
+                    <div>
+                        <div class="text-sm font-semibold text-gray-800">${d.nombre}</div>
+                        <div class="text-xs text-gray-400">${d.correo}</div>
+                    </div>
+                </label>
+            `).join('');
+            actualizarContador();
+        })
+        .catch(() => {
+            lista.innerHTML = '<div class="px-4 py-3 text-sm text-red-500 text-center">Error al cargar destinatarios.</div>';
+        });
+}
+
+function seleccionarTodos(valor) {
+    document.querySelectorAll('.dest-check').forEach(cb => cb.checked = valor);
+    actualizarContador();
+}
+
+function actualizarContador() {
+    const total      = document.querySelectorAll('.dest-check').length;
+    const marcados   = document.querySelectorAll('.dest-check:checked').length;
+    const contador   = document.getElementById('contador-seleccionados');
+    const btnEnviar  = document.getElementById('btn-enviar-planilla');
+    contador.textContent = `${marcados} de ${total} seleccionado(s)`;
+    btnEnviar.disabled   = marcados === 0;
+}
+
+// Validar antes de enviar
+document.getElementById('form-planilla-mail').addEventListener('submit', function(e) {
+    const marcados = document.querySelectorAll('.dest-check:checked').length;
+    if (marcados === 0) {
+        e.preventDefault();
+        alert('Seleccioná al menos un destinatario.');
+    }
+});
+</script>
 {% endblock %}

@@ -397,33 +397,38 @@ def movimientos_activos_pdf():
     return pdf_movimientos_activos()
 
 
-@prestamos_bp.route('/movimientos-activos/mail', methods=['POST'])
+@prestamos_bp.route('/movimientos-activos/destinatarios')
 @login_required
-def movimientos_activos_mail():
-    """
-    Envía la Planilla de Movimientos Activos a:
-      - Todos los usuarios con rol Directivo o Administrador que tengan correo cargado.
-      - El mail institucional fijo et7de5@bue.edu.ar
-    No requiere ingresar destinatario manualmente.
-    """
+def movimientos_activos_destinatarios():
+    """Devuelve JSON con la lista de posibles destinatarios (Directivos + Admins + et7de5)."""
     from models import Usuario
-
     MAIL_DET = 'et7de5@bue.edu.ar'
-
-    # Directivos y Administradores con correo
-    usuarios_dest = Usuario.query.filter(
+    usuarios = Usuario.query.filter(
         Usuario.rol.in_(['Directivo', 'Administrador']),
         Usuario.activo == True,
         Usuario.correo != None,
         Usuario.correo != ''
-    ).all()
+    ).order_by(Usuario.apellido).all()
+    lista = [{'nombre': u.nombre_completo, 'correo': u.correo} for u in usuarios]
+    # Agregar mail DET si no está ya en la lista
+    correos_existentes = {u['correo'] for u in lista}
+    if MAIL_DET not in correos_existentes:
+        lista.append({'nombre': 'DET 5 (institucional)', 'correo': MAIL_DET})
+    return jsonify(lista)
 
-    destinatarios = list({u.correo for u in usuarios_dest})
-    if MAIL_DET not in destinatarios:
-        destinatarios.append(MAIL_DET)
+
+@prestamos_bp.route('/movimientos-activos/mail', methods=['POST'])
+@login_required
+def movimientos_activos_mail():
+    """
+    Envía la Planilla de Movimientos Activos a los destinatarios seleccionados en el modal.
+    Recibe lista 'destinatarios[]' via POST form.
+    """
+    destinatarios = request.form.getlist('destinatarios[]')
+    destinatarios = [d.strip() for d in destinatarios if d.strip()]
 
     if not destinatarios:
-        flash('No hay destinatarios configurados (ningún Directivo o Administrador tiene correo cargado).', 'danger')
+        flash('Seleccioná al menos un destinatario.', 'danger')
         return redirect(url_for('prestamos.carros'))
 
     try:
@@ -446,12 +451,11 @@ def movimientos_activos_mail():
             )
         else:
             flash(
-                f'Planilla enviada a {len(destinatarios)} destinatario(s): '
-                f'{", ".join(destinatarios)}.',
+                f'Planilla enviada correctamente a {len(destinatarios)} destinatario(s).',
                 'success'
             )
     except Exception as e:
         current_app.logger.error(f'Error generando planilla movimientos: {e}')
-        flash('Error al generar o enviar el PDF. Revisá los logs.', 'danger')
+        flash('Error al generar el PDF. Revisá los logs.', 'danger')
 
     return redirect(url_for('prestamos.carros'))
