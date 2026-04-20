@@ -466,13 +466,15 @@ def pdf_historial_netbooks(prestamos, periodo='todos'):
                               if hasattr(p.docente, 'apellido')
                               else str(p.docente))
 
-        # Carro(s): deduplicar por id a partir de los ítems
+        # Carro(s): buscar via netbook_id (PrestamoNetbookItem no tiene relationship definida)
+        from models import Netbook
         carros_vistos = {}
         if p.items:
             for item in p.items:
-                nb = getattr(item, 'netbook', None)
-                if nb and nb.carro and nb.carro.id not in carros_vistos:
-                    carros_vistos[nb.carro.id] = nb.carro.display
+                if item.netbook_id:
+                    nb = Netbook.query.get(item.netbook_id)
+                    if nb and nb.carro and nb.carro.id not in carros_vistos:
+                        carros_vistos[nb.carro.id] = nb.carro.display
         carro_cell = Paragraph('\n'.join(carros_vistos.values()) if carros_vistos else '—',
                                 STYLE_CELL)
 
