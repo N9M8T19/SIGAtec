@@ -98,7 +98,8 @@
                 <th class="px-4 py-3 text-left">Retiro</th>
                 <th class="px-4 py-3 text-left">Devolución</th>
                 <th class="px-4 py-3 text-left">Duración</th>
-                <th class="px-4 py-3 text-left">Autorizó</th>
+                <th class="px-4 py-3 text-left">Autorizó Retiro</th>
+                <th class="px-4 py-3 text-left">Autorizó Devolución</th>
                 <th class="px-4 py-3 text-center">Estado</th>
             </tr>
         </thead>
@@ -124,7 +125,8 @@
                         {{ p.tiempo_transcurrido }}
                     {% endif %}
                 </td>
-                <td class="px-4 py-3 text-gray-400 text-xs">{{ p.encargado_retiro }}</td>
+                <td class="px-4 py-3 text-gray-400 text-xs">{{ p.encargado_retiro or '—' }}</td>
+                <td class="px-4 py-3 text-gray-400 text-xs">{{ p.encargado_devolucion or '—' }}</td>
                 <td class="px-4 py-3 text-center">
                     <span class="px-2 py-1 rounded-full text-xs font-semibold
                         {% if p.estado == 'activo' %}bg-yellow-100 text-yellow-700
@@ -135,7 +137,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                <td colspan="9" class="px-4 py-8 text-center text-gray-400">
                     No hay registros para este período
                 </td>
             </tr>

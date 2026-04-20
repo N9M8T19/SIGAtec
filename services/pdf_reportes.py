@@ -372,15 +372,21 @@ def pdf_transferencia(netbooks_transferidas, carro_origen, carro_destino, usuari
 # ─────────────────────────────────────────────────────────────────────────────
 
 def pdf_historial_carros(prestamos, periodo='todos'):
+    from reportlab.lib.pagesizes import landscape
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
                              rightMargin=1.5*cm, leftMargin=1.5*cm,
                              topMargin=1.5*cm, bottomMargin=1.5*cm)
     story = []
     _encabezado(story, 'Historial de Préstamos — Carros',
                 f'Período: {periodo.capitalize()}')
 
-    data = [['Código', 'Docente', 'Carro', 'Retiro', 'Devolución', 'Duración', 'Estado']]
+    STYLE_CELL = ParagraphStyle('Cell', parent=styles['Normal'],
+        fontSize=8, fontName='Helvetica')
+
+    # 9 columnas — ancho útil landscape A4 ≈ 25.7 cm
+    data = [['Código', 'Docente', 'Carro', 'Retiro', 'Devolución', 'Duración',
+             'Autorizó Retiro', 'Autorizó Devolución', 'Estado']]
     for p in prestamos:
         dur = '—'
         if p.duracion_minutos:
@@ -390,24 +396,32 @@ def pdf_historial_carros(prestamos, periodo='todos'):
             dur = f'{diff//60}h {diff%60}m'
         nombre_docente = ''
         if p.docente:
-            nombre_docente = f'{p.docente.apellido}, {p.docente.nombre}' if hasattr(p.docente, 'apellido') else (p.docente.nombre_completo if hasattr(p.docente, 'nombre_completo') else str(p.docente))
+            nombre_docente = (f'{p.docente.apellido}, {p.docente.nombre}'
+                              if hasattr(p.docente, 'apellido')
+                              else (p.docente.nombre_completo
+                                    if hasattr(p.docente, 'nombre_completo')
+                                    else str(p.docente)))
         data.append([
             p.codigo or '—',
-            Paragraph(nombre_docente, STYLE_NORMAL),
+            Paragraph(nombre_docente, STYLE_CELL),
             p.carro.display if p.carro else '—',
             _arg(p.hora_retiro),
             _arg(p.hora_devolucion) if p.hora_devolucion else '—',
             dur,
-            'Activo' if p.estado == 'activo' else 'Devuelto'
+            Paragraph(p.encargado_retiro    or '—', STYLE_CELL),
+            Paragraph(p.encargado_devolucion or '—', STYLE_CELL),
+            'Activo' if p.estado == 'activo' else 'Devuelto',
         ])
 
     if len(data) > 1:
-        t = Table(data, colWidths=[1.6*cm, 5.5*cm, 1.6*cm, 2.7*cm, 2.7*cm, 1.8*cm, 2.1*cm])
+        # suma colWidths = 25.7 cm
+        t = Table(data, colWidths=[1.5*cm, 5.0*cm, 2.2*cm, 2.7*cm, 2.7*cm,
+                                    1.8*cm, 4.5*cm, 4.5*cm, 1.8*cm])
         estilo = _tabla_estilo()
         for i, p in enumerate(prestamos, start=1):
             if p.estado == 'activo':
-                estilo.add('TEXTCOLOR', (6, i), (6, i), NARANJA)
-                estilo.add('FONTNAME',  (6, i), (6, i), 'Helvetica-Bold')
+                estilo.add('TEXTCOLOR', (8, i), (8, i), NARANJA)
+                estilo.add('FONTNAME',  (8, i), (8, i), 'Helvetica-Bold')
         t.setStyle(estilo)
         story.append(t)
         story.append(Spacer(1, 0.3*cm))
@@ -424,8 +438,9 @@ def pdf_historial_carros(prestamos, periodo='todos'):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def pdf_historial_netbooks(prestamos, periodo='todos'):
+    from reportlab.lib.pagesizes import landscape
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
                              rightMargin=1.5*cm, leftMargin=1.5*cm,
                              topMargin=1.5*cm, bottomMargin=1.5*cm)
     story = []
@@ -436,48 +451,62 @@ def pdf_historial_netbooks(prestamos, periodo='todos'):
         fontSize=7, fontName='Helvetica', textColor=colors.HexColor('#374151'))
     STYLE_NB = ParagraphStyle('NB', parent=styles['Normal'],
         fontSize=7, fontName='Helvetica-Bold', textColor=AZUL_ESCUELA)
+    STYLE_CELL = ParagraphStyle('Cell', parent=styles['Normal'],
+        fontSize=8, fontName='Helvetica')
 
-    # Cabecera principal
-    data = [['Código', 'Docente', 'Netbooks', 'Retiro', 'Devolución', 'Autorizado por', 'Estado']]
+    # 9 columnas — ancho útil landscape A4 ≈ 25.7 cm
+    data = [['Código', 'Docente', 'Carro(s)', 'Netbooks', 'Retiro', 'Devolución',
+             'Autorizó Retiro', 'Autorizó Devolución', 'Estado']]
     row_estados = []
 
     for p in prestamos:
         nombre_docente = ''
         if p.docente:
-            nombre_docente = f'{p.docente.apellido}, {p.docente.nombre}' if hasattr(p.docente, 'apellido') else str(p.docente)
+            nombre_docente = (f'{p.docente.apellido}, {p.docente.nombre}'
+                              if hasattr(p.docente, 'apellido')
+                              else str(p.docente))
 
-        # Armar celda de netbooks: "N°12 — Apellido, Nombre" por línea
+        # Carro(s): deduplicar por id a partir de los ítems
+        carros_vistos = {}
         if p.items:
-            lineas = []
             for item in p.items:
-                linea = f'N°{item.numero_interno}'
-                if item.alumno:
-                    linea += f' — {item.alumno}'
-                lineas.append(linea)
+                nb = getattr(item, 'netbook', None)
+                if nb and nb.carro and nb.carro.id not in carros_vistos:
+                    carros_vistos[nb.carro.id] = nb.carro.display
+        carro_cell = Paragraph('\n'.join(carros_vistos.values()) if carros_vistos else '—',
+                                STYLE_CELL)
+
+        # Netbooks: "N°12 — Alumno" por línea
+        if p.items:
+            lineas = [f'N°{i.numero_interno}' + (f' — {i.alumno}' if i.alumno else '')
+                      for i in p.items]
             nb_cell = Paragraph('\n'.join(lineas), STYLE_NB)
         else:
             nb_cell = Paragraph('—', STYLE_DETALLE)
 
         data.append([
             p.codigo or '—',
-            Paragraph(nombre_docente, STYLE_NORMAL),
+            Paragraph(nombre_docente, STYLE_CELL),
+            carro_cell,
             nb_cell,
             _arg(p.hora_retiro),
             _arg(p.hora_devolucion) if p.hora_devolucion else '—',
-            Paragraph(p.encargado_retiro or '—', STYLE_DETALLE),
-            'Activo' if p.estado == 'activo' else 'Devuelto'
+            Paragraph(p.encargado_retiro    or '—', STYLE_CELL),
+            Paragraph(p.encargado_devolucion or '—', STYLE_CELL),
+            'Activo' if p.estado == 'activo' else 'Devuelto',
         ])
         row_estados.append(p.estado)
 
     if len(data) > 1:
-        t = Table(data, colWidths=[1.6*cm, 4.5*cm, 3.8*cm, 2.5*cm, 2.5*cm, 3.5*cm, 1.6*cm])
+        # suma colWidths = 25.7 cm
+        t = Table(data, colWidths=[1.5*cm, 4.2*cm, 2.3*cm, 4.0*cm,
+                                    2.5*cm, 2.5*cm, 4.0*cm, 3.9*cm, 1.8*cm])
         estilo = _tabla_estilo(colors.HexColor('#1d4ed8'))
-        # Alinear columna Netbooks a la izquierda
-        estilo.add('ALIGN', (2, 0), (2, -1), 'LEFT')
+        estilo.add('ALIGN', (3, 0), (3, -1), 'LEFT')
         for i, estado in enumerate(row_estados, start=1):
             if estado == 'activo':
-                estilo.add('TEXTCOLOR', (6, i), (6, i), NARANJA)
-                estilo.add('FONTNAME',  (6, i), (6, i), 'Helvetica-Bold')
+                estilo.add('TEXTCOLOR', (8, i), (8, i), NARANJA)
+                estilo.add('FONTNAME',  (8, i), (8, i), 'Helvetica-Bold')
         t.setStyle(estilo)
         story.append(t)
         story.append(Spacer(1, 0.3*cm))
