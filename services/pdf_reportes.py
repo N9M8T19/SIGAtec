@@ -1323,28 +1323,32 @@ def pdf_movimientos_activos(como_buffer=False):
     """
     Genera la Planilla de Movimientos Activos con todos los préstamos activos
     (carros + Espacio Digital) con casilleros para tildar devoluciones a mano.
+    Orientación: landscape (A4 horizontal).
     Si como_buffer=True devuelve el BytesIO en lugar de un send_file()
     (usado para adjuntar al mail).
     """
     from models import PrestamoCarro, PrestamoNetbook
+    from reportlab.lib.pagesizes import landscape
 
     ahora_arg = datetime.utcnow() + ARG_OFFSET
 
-    prestamos_carros    = PrestamoCarro.query.filter_by(estado='activo').order_by(PrestamoCarro.hora_retiro).all()
-    prestamos_netbooks  = PrestamoNetbook.query.filter_by(estado='activo').order_by(PrestamoNetbook.hora_retiro).all()
+    prestamos_carros   = PrestamoCarro.query.filter_by(estado='activo').order_by(PrestamoCarro.hora_retiro).all()
+    prestamos_netbooks = PrestamoNetbook.query.filter_by(estado='activo').order_by(PrestamoNetbook.hora_retiro).all()
 
-    STYLE_NOTA = ParagraphStyle('Nota', parent=styles['Normal'],
+    # Ancho útil landscape A4 ≈ 25.7 cm
+    ANCHO_UTIL = 25.7*cm
+
+    STYLE_NOTA = ParagraphStyle('MovNota', parent=styles['Normal'],
         fontSize=7, fontName='Helvetica', textColor=colors.grey, alignment=TA_CENTER)
-    STYLE_CHICO = ParagraphStyle('Chico', parent=styles['Normal'],
+    STYLE_CHICO = ParagraphStyle('MovChico', parent=styles['Normal'],
         fontSize=8, fontName='Helvetica')
-    STYLE_CHICO_BOLD = ParagraphStyle('ChicoBold', parent=styles['Normal'],
+    STYLE_CHICO_BOLD = ParagraphStyle('MovChicoBold', parent=styles['Normal'],
         fontSize=8, fontName='Helvetica-Bold')
-    ROJO_CLARO   = colors.HexColor('#fee2e2')
-    VERDE_CLARO  = colors.HexColor('#dcfce7')
-    AMARILLO     = colors.HexColor('#fef9c3')
+    ROJO_CLARO  = colors.HexColor('#fee2e2')
+    VERDE_CLARO = colors.HexColor('#dcfce7')
 
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
                              rightMargin=1.5*cm, leftMargin=1.5*cm,
                              topMargin=1.5*cm, bottomMargin=1.5*cm)
     story = []
@@ -1355,11 +1359,11 @@ def pdf_movimientos_activos(como_buffer=False):
 
     # ── Aviso de uso ─────────────────────────────────────────────────────────
     aviso = Table([[Paragraph(
-        '📋  Esta planilla lista todos los préstamos activos al momento de su generación. '
+        'Esta planilla lista todos los préstamos activos al momento de su generación. '
         'Usarla para tildar devoluciones cuando el encargado no esté presente.',
-        ParagraphStyle('Aviso', parent=styles['Normal'],
+        ParagraphStyle('MovAviso', parent=styles['Normal'],
             fontSize=9, fontName='Helvetica', textColor=colors.HexColor('#92400e')))
-    ]], colWidths=[17.5*cm])
+    ]], colWidths=[ANCHO_UTIL])
     aviso.setStyle(TableStyle([
         ('BACKGROUND',    (0, 0), (-1, -1), colors.HexColor('#fef3c7')),
         ('BOX',           (0, 0), (-1, -1), 1, colors.HexColor('#d97706')),
@@ -1378,7 +1382,6 @@ def pdf_movimientos_activos(como_buffer=False):
     story.append(Spacer(1, 0.2*cm))
 
     if prestamos_carros:
-        # Encabezado de tabla con columna "Devuelto ✓"
         cab = [
             Paragraph('Carro', STYLE_CHICO_BOLD),
             Paragraph('Docente', STYLE_CHICO_BOLD),
@@ -1390,7 +1393,6 @@ def pdf_movimientos_activos(como_buffer=False):
         ]
         data_c = [cab]
         for p in prestamos_carros:
-            delta_mins = int((datetime.utcnow() - p.hora_retiro).total_seconds() / 60)
             retiro_str = (p.hora_retiro + ARG_OFFSET).strftime('%H:%M')
             data_c.append([
                 Paragraph(p.carro.display if p.carro else '—', STYLE_CHICO),
@@ -1399,18 +1401,17 @@ def pdf_movimientos_activos(como_buffer=False):
                 Paragraph(p.aula or (p.carro.aula if p.carro else '—') or '—', STYLE_CHICO),
                 Paragraph(retiro_str, STYLE_CHICO),
                 Paragraph(p.encargado_retiro or '—', STYLE_CHICO),
-                '',   # casillero en blanco para tildar a mano
+                '',  # casillero en blanco para tildar a mano
             ])
 
-        t_c = Table(data_c, colWidths=[2.5*cm, 4.5*cm, 3.5*cm, 1.8*cm, 2*cm, 2.7*cm, 2*cm])
+        # landscape: 7 columnas en 25.7 cm
+        t_c = Table(data_c, colWidths=[2.8*cm, 5.5*cm, 5*cm, 2*cm, 2.5*cm, 5.5*cm, 2.4*cm])
         estilo_c = TableStyle([
-            # Encabezado
             ('BACKGROUND',    (0, 0), (-1, 0),  AZUL_ESCUELA),
             ('TEXTCOLOR',     (0, 0), (-1, 0),  colors.white),
             ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
             ('FONTSIZE',      (0, 0), (-1, 0),  8),
             ('ALIGN',         (0, 0), (-1, 0),  'CENTER'),
-            # Cuerpo
             ('FONTNAME',      (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE',      (0, 1), (-1, -1), 8),
             ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, GRIS_CLARO]),
@@ -1420,11 +1421,9 @@ def pdf_movimientos_activos(como_buffer=False):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
             ('LEFTPADDING',   (0, 0), (-1, -1), 5),
             ('RIGHTPADDING',  (0, 0), (-1, -1), 5),
-            # Columna "Devuelto" — borde más grueso y fondo diferenciado
             ('ALIGN',         (6, 0), (6, -1), 'CENTER'),
             ('BACKGROUND',    (6, 1), (6, -1), VERDE_CLARO),
         ])
-        # Filas con más de 2 horas → fondo rojo claro
         for i, p in enumerate(prestamos_carros, start=1):
             delta_mins = int((datetime.utcnow() - p.hora_retiro).total_seconds() / 60)
             if delta_mins >= 120:
@@ -1440,9 +1439,9 @@ def pdf_movimientos_activos(como_buffer=False):
     else:
         cuadro_vacio = Table([[Paragraph(
             'No hay préstamos de carros activos al momento de generar esta planilla.',
-            ParagraphStyle('V', parent=styles['Normal'], fontSize=9,
+            ParagraphStyle('MovV', parent=styles['Normal'], fontSize=9,
                            fontName='Helvetica', textColor=colors.grey, alignment=TA_CENTER))
-        ]], colWidths=[17.5*cm])
+        ]], colWidths=[ANCHO_UTIL])
         cuadro_vacio.setStyle(TableStyle([
             ('BACKGROUND',    (0,0), (-1,-1), GRIS_CLARO),
             ('BOX',           (0,0), (-1,-1), 0.5, colors.HexColor('#d1d5db')),
@@ -1465,7 +1464,6 @@ def pdf_movimientos_activos(como_buffer=False):
             retiro_str = (p.hora_retiro + ARG_OFFSET).strftime('%H:%M')
             demora     = delta_mins >= 120
 
-            # Sub-encabezado del préstamo
             color_fondo = ROJO_CLARO if demora else AZUL_CLARO
             color_texto = colors.HexColor('#991b1b') if demora else AZUL_ESCUELA
             encab_prest = Table([[
@@ -1476,9 +1474,9 @@ def pdf_movimientos_activos(como_buffer=False):
                     f'  ·  Registró: {p.encargado_retiro or "—"}'
                     f'  ·  Código: {p.codigo or "—"}'
                     + ('  ⚠️ DEMORA' if demora else ''),
-                    ParagraphStyle('EP', parent=styles['Normal'],
+                    ParagraphStyle('MovEP', parent=styles['Normal'],
                         fontSize=8, fontName='Helvetica-Bold', textColor=color_texto))
-            ]], colWidths=[17.5*cm])
+            ]], colWidths=[ANCHO_UTIL])
             encab_prest.setStyle(TableStyle([
                 ('BACKGROUND',    (0,0), (-1,-1), color_fondo),
                 ('BOX',           (0,0), (-1,-1), 0.5, color_texto),
@@ -1488,7 +1486,7 @@ def pdf_movimientos_activos(como_buffer=False):
             ]))
             story.append(encab_prest)
 
-            # Tabla de netbooks del préstamo
+            # Tabla de netbooks — 5 columnas en 25.7 cm
             cab_nb = [
                 Paragraph('N°', STYLE_CHICO_BOLD),
                 Paragraph('N° Interno', STYLE_CHICO_BOLD),
@@ -1505,7 +1503,7 @@ def pdf_movimientos_activos(como_buffer=False):
                     Paragraph(item.alumno or '—', STYLE_CHICO),
                     '',
                 ])
-            t_nb = Table(data_nb, colWidths=[0.8*cm, 2.5*cm, 5.5*cm, 7.2*cm, 1.5*cm])
+            t_nb = Table(data_nb, colWidths=[0.8*cm, 3*cm, 7*cm, 12.4*cm, 2.5*cm])
             estilo_nb = TableStyle([
                 ('BACKGROUND',    (0, 0), (-1, 0),  AZUL_ESCUELA),
                 ('TEXTCOLOR',     (0, 0), (-1, 0),  colors.white),
@@ -1535,9 +1533,9 @@ def pdf_movimientos_activos(como_buffer=False):
     else:
         cuadro_vacio2 = Table([[Paragraph(
             'No hay préstamos del Espacio Digital activos al momento de generar esta planilla.',
-            ParagraphStyle('V2', parent=styles['Normal'], fontSize=9,
+            ParagraphStyle('MovV2', parent=styles['Normal'], fontSize=9,
                            fontName='Helvetica', textColor=colors.grey, alignment=TA_CENTER))
-        ]], colWidths=[17.5*cm])
+        ]], colWidths=[ANCHO_UTIL])
         cuadro_vacio2.setStyle(TableStyle([
             ('BACKGROUND',    (0,0), (-1,-1), GRIS_CLARO),
             ('BOX',           (0,0), (-1,-1), 0.5, colors.HexColor('#d1d5db')),
@@ -1546,21 +1544,8 @@ def pdf_movimientos_activos(como_buffer=False):
         ]))
         story.append(cuadro_vacio2)
 
-    # ── Pie: firma ───────────────────────────────────────────────────────────
-    story.append(Spacer(1, 1*cm))
-    HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#d1d5db'))
-    firmas_data = [[
-        Paragraph('___________________________\nEncargado que entrega', STYLE_NORMAL),
-        Paragraph('___________________________\nEncargado que recibe', STYLE_NORMAL),
-        Paragraph('___________________________\nDirectivo/a', STYLE_NORMAL),
-    ]]
-    t_firmas = Table(firmas_data, colWidths=[5.8*cm, 5.8*cm, 5.8*cm])
-    t_firmas.setStyle(TableStyle([
-        ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
-        ('TOPPADDING',    (0, 0), (-1, -1), 6),
-    ]))
-    story.append(t_firmas)
-    story.append(Spacer(1, 0.3*cm))
+    # ── Pie sin firmas ───────────────────────────────────────────────────────
+    story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph(
         f'SIGA-Tec — E.T. N°7 D.E. 5  ·  Planilla generada el '
         f'{ahora_arg.strftime("%d/%m/%Y a las %H:%M")} hs',

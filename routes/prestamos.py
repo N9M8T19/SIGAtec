@@ -400,20 +400,58 @@ def movimientos_activos_pdf():
 @prestamos_bp.route('/movimientos-activos/mail', methods=['POST'])
 @login_required
 def movimientos_activos_mail():
-    """Envía la Planilla de Movimientos Activos por mail al destinatario indicado."""
-    destinatario = request.form.get('destinatario', '').strip()
-    if not destinatario:
-        flash('Ingresá una dirección de correo para enviar la planilla.', 'danger')
+    """
+    Envía la Planilla de Movimientos Activos a:
+      - Todos los usuarios con rol Directivo o Administrador que tengan correo cargado.
+      - El mail institucional fijo et7de5@bue.edu.ar
+    No requiere ingresar destinatario manualmente.
+    """
+    from models import Usuario
+
+    MAIL_DET = 'et7de5@bue.edu.ar'
+
+    # Directivos y Administradores con correo
+    usuarios_dest = Usuario.query.filter(
+        Usuario.rol.in_(['Directivo', 'Administrador']),
+        Usuario.activo == True,
+        Usuario.correo != None,
+        Usuario.correo != ''
+    ).all()
+
+    destinatarios = list({u.correo for u in usuarios_dest})
+    if MAIL_DET not in destinatarios:
+        destinatarios.append(MAIL_DET)
+
+    if not destinatarios:
+        flash('No hay destinatarios configurados (ningún Directivo o Administrador tiene correo cargado).', 'danger')
         return redirect(url_for('prestamos.carros'))
 
     try:
         from services.pdf_reportes import pdf_movimientos_activos
         from services.mail import enviar_planilla_movimientos
         buffer = pdf_movimientos_activos(como_buffer=True)
-        enviar_planilla_movimientos(destinatario, buffer, current_user.nombre_completo)
-        flash(f'Planilla enviada a {destinatario}.', 'success')
+        errores = []
+        for correo in destinatarios:
+            try:
+                buffer.seek(0)
+                enviar_planilla_movimientos(correo, buffer, current_user.nombre_completo)
+            except Exception as e:
+                current_app.logger.error(f'Error enviando planilla a {correo}: {e}')
+                errores.append(correo)
+
+        if errores:
+            flash(
+                f'Planilla enviada con errores. No se pudo enviar a: {", ".join(errores)}.',
+                'warning'
+            )
+        else:
+            flash(
+                f'Planilla enviada a {len(destinatarios)} destinatario(s): '
+                f'{", ".join(destinatarios)}.',
+                'success'
+            )
     except Exception as e:
-        current_app.logger.error(f'Error enviando planilla movimientos: {e}')
-        flash('Error al enviar el correo. Verificá la dirección e intentá de nuevo.', 'danger')
+        current_app.logger.error(f'Error generando planilla movimientos: {e}')
+        flash('Error al generar o enviar el PDF. Revisá los logs.', 'danger')
 
     return redirect(url_for('prestamos.carros'))
