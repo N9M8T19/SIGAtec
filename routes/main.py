@@ -255,14 +255,20 @@ def config_espacio_digital():
 
     if request.method == 'POST':
         carro_id       = request.form.get('carro_id', type=int)
+        carro_id_2     = request.form.get('carro_id_2', type=int) or None
         nombre         = request.form.get('nombre', 'Carro Espacio Digital').strip()
         minutos_alerta = request.form.get('minutos_alerta', 120, type=int)
+
+        if carro_id_2 and carro_id_2 == carro_id:
+            flash('El Carro 2 debe ser diferente al Carro 1.', 'danger')
+            return redirect(url_for('main.config_espacio_digital'))
 
         if not config:
             config = ConfigEspacioDigital()
             db.session.add(config)
 
         config.carro_id       = carro_id
+        config.carro_id_2     = carro_id_2
         config.nombre         = nombre
         config.minutos_alerta = minutos_alerta
         db.session.commit()

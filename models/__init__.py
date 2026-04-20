@@ -260,9 +260,11 @@ class ConfigEspacioDigital(db.Model):
 
     id             = db.Column(db.Integer, primary_key=True)
     carro_id       = db.Column(db.Integer, db.ForeignKey('carros.id'))
+    carro_id_2     = db.Column(db.Integer, db.ForeignKey('carros.id'), nullable=True)
     nombre         = db.Column(db.String(200), default='Carro Espacio Digital')
     minutos_alerta = db.Column(db.Integer, default=120)
-    carro = db.relationship('Carro', foreign_keys=[carro_id])
+    carro  = db.relationship('Carro', foreign_keys=[carro_id])
+    carro_2 = db.relationship('Carro', foreign_keys=[carro_id_2])
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  PANTALLA DIGITAL

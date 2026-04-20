@@ -169,10 +169,11 @@ def devolucion_carro(id):
 def espacio_digital():
     config    = ConfigEspacioDigital.query.first()
     carro     = config.carro if config else None
+    carro_2   = config.carro_2 if config else None
     prestamos = PrestamoNetbook.query.filter_by(estado='activo').all()
     now       = datetime.utcnow()
     return render_template('prestamos/espacio_digital.html',
-                           prestamos=prestamos, carro=carro, config=config, now=now)
+                           prestamos=prestamos, carro=carro, carro_2=carro_2, config=config, now=now)
 
 
 @prestamos_bp.route('/espacio-digital/retiro', methods=['GET', 'POST'])
@@ -180,6 +181,7 @@ def espacio_digital():
 def retiro_netbooks():
     config = ConfigEspacioDigital.query.first()
     carro  = config.carro if config else None
+    carro_2 = config.carro_2 if config else None
 
     if not carro:
         flash('El carro del Espacio Digital no está configurado.', 'danger')
@@ -233,12 +235,19 @@ def retiro_netbooks():
 
     prestadas_ids = {item.netbook_id for p in PrestamoNetbook.query.filter_by(estado='activo').all()
                      for item in p.items}
-    disponibles   = [nb for nb in carro.netbooks
-                     if nb.estado == 'operativa' and nb.id not in prestadas_ids]
-    docentes      = Docente.query.filter_by(activo=True).order_by(Docente.apellido).all()
+
+    # Netbooks disponibles de ambos carros
+    netbooks_carro_1 = [nb for nb in carro.netbooks
+                        if nb.estado == 'operativa' and nb.id not in prestadas_ids]
+    netbooks_carro_2 = [nb for nb in carro_2.netbooks
+                        if nb.estado == 'operativa' and nb.id not in prestadas_ids] if carro_2 else []
+    disponibles = netbooks_carro_1 + netbooks_carro_2
+
+    docentes = Docente.query.filter_by(activo=True).order_by(Docente.apellido).all()
 
     return render_template('prestamos/retiro_netbooks.html',
-                           docentes=docentes, disponibles=disponibles, carro=carro)
+                           docentes=docentes, disponibles=disponibles,
+                           carro=carro, carro_2=carro_2)
 
 
 @prestamos_bp.route('/espacio-digital/<int:prestamo_id>/devolucion-item/<int:item_id>', methods=['POST'])

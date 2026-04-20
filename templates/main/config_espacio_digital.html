@@ -9,9 +9,15 @@
         {% if config and config.carro %}
         <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6 text-sm text-blue-800">
             <i class="fas fa-info-circle mr-2"></i>
-            Carro actual: <strong>{{ config.carro.display }}</strong>
+            <strong>Carro 1:</strong> {{ config.carro.display }}
             — {{ config.carro.aula or 'Sin aula' }}
             — {{ config.carro.total_netbooks }} netbooks
+            {% if config.carro_2 %}
+            <br><i class="fas fa-info-circle mr-2 mt-1"></i>
+            <strong>Carro 2:</strong> {{ config.carro_2.display }}
+            — {{ config.carro_2.aula or 'Sin aula' }}
+            — {{ config.carro_2.total_netbooks }} netbooks
+            {% endif %}
         </div>
         {% endif %}
 
@@ -27,7 +33,7 @@
 
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Carro asignado al Espacio Digital *
+                    Carro 1 <span class="text-red-500">*</span>
                 </label>
                 <select name="carro_id" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
@@ -39,6 +45,26 @@
                     </option>
                     {% endfor %}
                 </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Carro 2 <span class="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <select name="carro_id_2"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="">-- Ninguno --</option>
+                    {% for c in carros %}
+                    <option value="{{ c.id }}"
+                        {% if config and config.carro_id_2 == c.id %}selected{% endif %}>
+                        {{ c.display }} — {{ c.aula or 'Sin aula' }} ({{ c.total_netbooks }} netbooks)
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-gray-400 mt-1">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Las netbooks de ambos carros estarán disponibles para préstamo en el Espacio Digital.
+                </p>
             </div>
 
             <div class="mb-6">
