@@ -5,10 +5,59 @@
 {% block content %}
 <div class="flex justify-between items-center mb-6">
     <p class="text-gray-500">{{ prestamos|length }} prestamo(s) activo(s)</p>
-    <a href="{{ url_for('prestamos.retiro_carro') }}"
-       class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-        <i class="fas fa-plus mr-2"></i>Registrar Retiro
-    </a>
+    <div class="flex items-center gap-2">
+        {# ── Planilla de movimientos activos — visible para todos los roles ── #}
+        <a href="{{ url_for('prestamos.movimientos_activos_pdf') }}"
+           target="_blank"
+           title="Descargar planilla para tildar devoluciones"
+           class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+            <i class="fas fa-file-pdf"></i> Planilla
+        </a>
+        <button onclick="document.getElementById('modal-planilla-mail').classList.remove('hidden')"
+                title="Enviar planilla por mail"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+            <i class="fas fa-envelope"></i> Enviar por mail
+        </button>
+        <a href="{{ url_for('prestamos.retiro_carro') }}"
+           class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-plus mr-2"></i>Registrar Retiro
+        </a>
+    </div>
+</div>
+
+{# ── Modal envío por mail ─────────────────────────────────────────────────── #}
+<div id="modal-planilla-mail"
+     class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-bold text-blue-900 mb-1 flex items-center gap-2">
+            <i class="fas fa-envelope text-indigo-600"></i> Enviar Planilla por Mail
+        </h3>
+        <p class="text-sm text-gray-500 mb-4">
+            Se enviará la planilla de movimientos activos como PDF adjunto al correo indicado.
+        </p>
+        <form method="POST" action="{{ url_for('prestamos.movimientos_activos_mail') }}">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">
+                Dirección de correo destinataria
+            </label>
+            <input type="email" name="destinatario" required
+                   placeholder="ejemplo@det.bue.edu.ar"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4
+                          focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            <div class="flex justify-end gap-3">
+                <button type="button"
+                        onclick="document.getElementById('modal-planilla-mail').classList.add('hidden')"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold text-gray-600
+                               border border-gray-300 hover:bg-gray-100">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 rounded-lg text-sm font-semibold text-white
+                               bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
+                    <i class="fas fa-paper-plane"></i> Enviar
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 {% if prestamos %}

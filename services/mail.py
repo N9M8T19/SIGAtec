@@ -234,3 +234,54 @@ def init_mail(app):
         f'Servicio de mail: SMTP Gmail. '
         f'Usuario: {usuario} | App Password configurada: {tiene}'
     )
+
+
+# ── Planilla de Movimientos Activos ───────────────────────────────────────────
+
+def enviar_planilla_movimientos(destinatario, pdf_buffer, remitente_nombre=''):
+    """
+    Envía la Planilla de Movimientos Activos como adjunto PDF al destinatario indicado.
+    pdf_buffer: BytesIO con el PDF ya generado.
+    """
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.base import MIMEBase
+    from email import encoders
+
+    if not GMAIL_PASSWORD:
+        raise RuntimeError(
+            'GMAIL_APP_PASSWORD no está configurada. '
+            'Agregala como variable de entorno en Render.'
+        )
+
+    from datetime import datetime
+    AR = timezone(timedelta(hours=-3))
+    ahora_ar = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(AR)
+    fecha_str = ahora_ar.strftime('%d/%m/%Y %H:%M')
+    nombre_archivo = f'movimientos_activos_{ahora_ar.strftime("%Y%m%d_%H%M")}.pdf'
+
+    asunto = f'Planilla de Movimientos Activos — {fecha_str}'
+    cuerpo = (
+        f'Se adjunta la Planilla de Movimientos Activos generada el {fecha_str} hs.\n\n'
+        f'Contiene todos los préstamos activos (carros y Espacio Digital) '
+        f'al momento de su generación.\n\n'
+        f'Generada por: {remitente_nombre or "SIGA-Tec"}\n'
+        f'Sistema: SIGA-Tec — E.T. N°7 D.E. 5\n'
+    )
+
+    mensaje = MIMEMultipart()
+    mensaje['To']      = destinatario
+    mensaje['From']    = GMAIL_FROM
+    mensaje['Subject'] = asunto
+    mensaje.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
+
+    # Adjunto PDF
+    adjunto = MIMEBase('application', 'pdf')
+    adjunto.set_payload(pdf_buffer.read())
+    encoders.encode_base64(adjunto)
+    adjunto.add_header('Content-Disposition', 'attachment',
+                       filename=nombre_archivo)
+    mensaje.attach(adjunto)
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login(GMAIL_USER, GMAIL_PASSWORD)
+        smtp.sendmail(GMAIL_FROM, destinatario, mensaje.as_bytes())

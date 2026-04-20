@@ -383,3 +383,37 @@ def alerta_pdf_netbooks(id):
     """Genera el Parte de Alerta en PDF para un préstamo de netbooks en demora."""
     from services.pdf_reportes import pdf_alerta_demora_netbooks
     return pdf_alerta_demora_netbooks(id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  PLANILLA DE MOVIMIENTOS ACTIVOS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@prestamos_bp.route('/movimientos-activos/pdf')
+@login_required
+def movimientos_activos_pdf():
+    """Descarga la Planilla de Movimientos Activos en PDF. Accesible para todos los roles."""
+    from services.pdf_reportes import pdf_movimientos_activos
+    return pdf_movimientos_activos()
+
+
+@prestamos_bp.route('/movimientos-activos/mail', methods=['POST'])
+@login_required
+def movimientos_activos_mail():
+    """Envía la Planilla de Movimientos Activos por mail al destinatario indicado."""
+    destinatario = request.form.get('destinatario', '').strip()
+    if not destinatario:
+        flash('Ingresá una dirección de correo para enviar la planilla.', 'danger')
+        return redirect(url_for('prestamos.carros'))
+
+    try:
+        from services.pdf_reportes import pdf_movimientos_activos
+        from services.mail import enviar_planilla_movimientos
+        buffer = pdf_movimientos_activos(como_buffer=True)
+        enviar_planilla_movimientos(destinatario, buffer, current_user.nombre_completo)
+        flash(f'Planilla enviada a {destinatario}.', 'success')
+    except Exception as e:
+        current_app.logger.error(f'Error enviando planilla movimientos: {e}')
+        flash('Error al enviar el correo. Verificá la dirección e intentá de nuevo.', 'danger')
+
+    return redirect(url_for('prestamos.carros'))
