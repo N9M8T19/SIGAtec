@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Importar Horarios de Docentes{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+
+  {# ── Encabezado ── #}
+  <div class="flex items-center gap-3 mb-6">
+    <div class="bg-[var(--color-primary)] text-white rounded-lg p-2">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3
+                 M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M8 7h8"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-xl font-bold text-[var(--color-primary)] uppercase tracking-wide">
+        Importar Horarios de Docentes
+      </h1>
+      <p class="text-sm text-gray-500">
+        Carga masiva desde la planilla unificada en Google Sheets
+      </p>
+    </div>
+  </div>
+
+  {# ── Mensajes flash ── #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="mb-4 px-4 py-3 rounded-lg text-sm font-medium
+        {{ 'bg-red-100 text-red-800 border border-red-300' if category == 'danger'
+           else 'bg-green-100 text-green-800 border border-green-300' }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {# ── Formulario ── #}
+  <div class="bg-white rounded-xl shadow border border-gray-200 p-6 mb-6">
+    <h2 class="text-base font-bold text-gray-700 uppercase mb-4">
+      📋 Datos de la planilla
+    </h2>
+
+    <form method="POST" id="form-importar">
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-gray-600 mb-1">
+          URL de Google Sheets
+        </label>
+        <input type="url" name="url_sheet" id="url_sheet" required
+               value="{{ url_sheet or '' }}"
+               placeholder="https://docs.google.com/spreadsheets/d/..."
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
+        <p class="text-xs text-gray-400 mt-1">
+          La cuenta de servicio debe tener acceso de lectura a esta planilla.
+        </p>
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-sm font-semibold text-gray-600 mb-1">
+          Nombre de la pestaña
+        </label>
+        <input type="text" name="nombre_hoja" id="nombre_hoja"
+               value="{{ nombre_hoja or 'IMPORTAR' }}"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
+        <p class="text-xs text-gray-400 mt-1">
+          Por defecto: <strong>IMPORTAR</strong>
+        </p>
+      </div>
+
+      {# ── Aviso importante ── #}
+      <div class="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-6 text-sm text-amber-800">
+        <strong>⚠ Atención:</strong> Esta operación <strong>reemplaza completamente</strong>
+        los horarios actuales de cada docente que aparezca en la planilla.
+        Los docentes que <em>no</em> estén en la planilla no se modifican.
+      </div>
+
+      <div class="flex gap-3">
+        <button type="button" id="btn-preview"
+                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700
+                       rounded-lg text-sm font-semibold transition">
+          👁 Vista previa
+        </button>
+        <button type="submit"
+                class="px-5 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]
+                       text-white rounded-lg text-sm font-semibold transition">
+          ⬆ Importar horarios
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {# ── Vista previa AJAX ── #}
+  <div id="panel-preview" class="hidden bg-white rounded-xl shadow border border-gray-200 p-6 mb-6">
+    <h2 class="text-base font-bold text-gray-700 uppercase mb-3">👁 Vista previa</h2>
+    <div id="preview-contenido"></div>
+  </div>
+
+  {# ── Resultados ── #}
+  {% if resultados %}
+  <div class="bg-white rounded-xl shadow border border-gray-200 p-6">
+    <h2 class="text-base font-bold text-gray-700 uppercase mb-4">📊 Resultado de la importación</h2>
+
+    {# Resumen numérico #}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+        <div class="text-2xl font-bold text-green-700">{{ resultados.actualizados }}</div>
+        <div class="text-xs text-green-600 font-semibold mt-1">Docentes actualizados</div>
+      </div>
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+        <div class="text-2xl font-bold text-blue-700">{{ resultados.importados }}</div>
+        <div class="text-xs text-blue-600 font-semibold mt-1">Módulos cargados</div>
+      </div>
+      <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+        <div class="text-2xl font-bold text-red-700">{{ resultados.errores|length }}</div>
+        <div class="text-xs text-red-600 font-semibold mt-1">Errores</div>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+        <div class="text-2xl font-bold text-amber-700">{{ resultados.advertencias|length }}</div>
+        <div class="text-xs text-amber-600 font-semibold mt-1">Advertencias</div>
+      </div>
+    </div>
+
+    {# Docentes actualizados OK #}
+    {% if resultados.docentes_ok %}
+    <div class="mb-4">
+      <h3 class="text-sm font-bold text-green-700 mb-2">✅ Docentes importados correctamente</h3>
+      <ul class="text-sm text-gray-700 space-y-1">
+        {% for d in resultados.docentes_ok %}
+          <li class="flex items-center gap-2">
+            <span class="text-green-500">●</span> {{ d }}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {# Docentes no encontrados #}
+    {% if resultados.docentes_no_encontrados %}
+    <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+      <h3 class="text-sm font-bold text-red-700 mb-2">
+        ❌ Docentes no encontrados en SIGA-Tec
+      </h3>
+      <p class="text-xs text-red-600 mb-2">
+        Verificá que el nombre en la planilla coincida exactamente con el cargado en SIGA-Tec
+        (Apellido + espacio + Nombre, todo en mayúsculas).
+      </p>
+      <ul class="text-sm text-red-700 space-y-1">
+        {% for d in resultados.docentes_no_encontrados %}
+          <li class="flex items-center gap-2">
+            <span>⚠</span> {{ d }}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {# Advertencias #}
+    {% if resultados.advertencias %}
+    <div class="mb-4">
+      <h3 class="text-sm font-bold text-amber-700 mb-2">⚠ Advertencias</h3>
+      <ul class="text-xs text-amber-700 space-y-1 max-h-40 overflow-y-auto">
+        {% for a in resultados.advertencias %}
+          <li>{{ a }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {# Errores técnicos #}
+    {% if resultados.errores %}
+    <div>
+      <h3 class="text-sm font-bold text-red-700 mb-2">🔴 Errores</h3>
+      <ul class="text-xs text-red-700 space-y-1 max-h-40 overflow-y-auto">
+        {% for e in resultados.errores %}
+          <li>{{ e }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+document.getElementById('btn-preview').addEventListener('click', async function () {
+  const url        = document.getElementById('url_sheet').value.trim();
+  const nombreHoja = document.getElementById('nombre_hoja').value.trim() || 'IMPORTAR';
+  const panel      = document.getElementById('panel-preview');
+  const contenido  = document.getElementById('preview-contenido');
+
+  if (!url) {
+    alert('Ingresá la URL de la planilla primero.');
+    return;
+  }
+
+  contenido.innerHTML = '<p class="text-sm text-gray-500">Cargando...</p>';
+  panel.classList.remove('hidden');
+
+  const fd = new FormData();
+  fd.append('url_sheet',   url);
+  fd.append('nombre_hoja', nombreHoja);
+
+  try {
+    const resp = await fetch('{{ url_for("importar.horarios_docentes_preview") }}',
+                             { method: 'POST', body: fd });
+    const data = await resp.json();
+
+    if (!data.ok) {
+      contenido.innerHTML = `<p class="text-sm text-red-600">❌ ${data.error}</p>`;
+      return;
+    }
+
+    // Tabla con las primeras filas
+    let html = `
+      <div class="flex gap-6 mb-3 text-sm">
+        <span class="text-gray-600">Total de filas de datos: <strong>${data.total_filas}</strong></span>
+        <span class="text-gray-600">Docentes en la muestra: <strong>${data.docentes_aprox}+</strong></span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
+          <thead class="bg-[var(--color-primary)] text-white">
+            <tr>`;
+
+    for (const h of data.encabezados) {
+      html += `<th class="px-3 py-2 text-left font-semibold">${h}</th>`;
+    }
+    html += `</tr></thead><tbody>`;
+
+    data.muestra.forEach((fila, i) => {
+      html += `<tr class="${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">`;
+      for (const celda of fila) {
+        html += `<td class="px-3 py-1.5 border-t border-gray-100">${celda ?? ''}</td>`;
+      }
+      html += `</tr>`;
+    });
+
+    html += `</tbody></table></div>
+      <p class="text-xs text-gray-400 mt-2">
+        Mostrando las primeras ${data.muestra.length} filas de datos.
+      </p>`;
+
+    contenido.innerHTML = html;
+
+  } catch (e) {
+    contenido.innerHTML = `<p class="text-sm text-red-600">Error de conexión: ${e}</p>`;
+  }
+});
+</script>
+{% endblock %}
