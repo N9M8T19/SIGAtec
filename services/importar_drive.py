@@ -526,6 +526,14 @@ def importar_horarios_docentes(sheet_id, nombre_hoja='IMPORTAR'):
             ))
             cargados += 1
 
+        # Actualizar materia y turno en el perfil del docente
+        registros_cargados = [
+            {'modulo': CODIGO_A_NUMERO_MODULO.get(i['modulo'], 0), 'materia': i['materia']}
+            for i in items
+            if DIAS_NORMALIZADOS.get(i['dia']) and CODIGO_A_NUMERO_MODULO.get(i['modulo'])
+        ]
+        _actualizar_materia_turno(docente, registros_cargados)
+
         resultados['importados']   += cargados
         resultados['actualizados'] += 1
         resultados['docentes_ok'].append(
@@ -709,10 +717,9 @@ def parsear_excel_horario(archivo_bytes, nombre_archivo, nombre_hoja='HORARIO 26
     todas_las_filas = list(ws.iter_rows(values_only=True))
     wb.close()
 
-    # Nombre del docente
-    nombre_docente = _extraer_nombre_desde_planilla(todas_las_filas)
-    if not nombre_docente:
-        nombre_docente = _nombre_desde_archivo(nombre_archivo)
+    # Nombre del docente — siempre desde el nombre del archivo (APELLIDO_NOMBRE_HORARIO...)
+    # La planilla puede tener el nombre en formato 'NOMBRE APELLIDO' que no coincide con la BD
+    nombre_docente = _nombre_desde_archivo(nombre_archivo)
     resultado['nombre_docente'] = nombre_docente
 
     # Encontrar fila de días
@@ -773,6 +780,42 @@ def parsear_excel_horario(archivo_bytes, nombre_archivo, nombre_hoja='HORARIO 26
     return resultado
 
 
+
+# Módulos de turno mañana (1-8) y tarde (9-15)
+_MODULOS_MANANA = set(range(1, 9))
+_MODULOS_TARDE  = set(range(9, 16))
+
+def _actualizar_materia_turno(docente, registros):
+    """
+    Actualiza los campos materia y turno del docente
+    a partir de los módulos importados.
+    - materia: lista de materias únicas separadas por coma (excluye EXTRA CLASES)
+    - turno: Mañana / Tarde / Mañana y Tarde
+    """
+    materias_unicas = []
+    seen = set()
+    for r in registros:
+        m = (r.get('materia') or '').strip().upper()
+        if m and m not in ('EXTRA CLASES', 'EXTRA', 'TAREAS DOCENTES', '') and m not in seen:
+            seen.add(m)
+            materias_unicas.append(m)
+
+    modulos = {r['modulo'] for r in registros}
+    tiene_manana = bool(modulos & _MODULOS_MANANA)
+    tiene_tarde  = bool(modulos & _MODULOS_TARDE)
+
+    if tiene_manana and tiene_tarde:
+        turno = 'Mañana y Tarde'
+    elif tiene_manana:
+        turno = 'Mañana'
+    elif tiene_tarde:
+        turno = 'Tarde'
+    else:
+        turno = docente.turno  # no cambiar si no se puede determinar
+
+    docente.materia = ', '.join(materias_unicas) if materias_unicas else docente.materia
+    docente.turno   = turno
+
 def importar_horarios_desde_excel(archivos):
     """
     Procesa una lista de archivos Excel subidos directamente desde SIGA-Tec
@@ -831,6 +874,9 @@ def importar_horarios_desde_excel(archivos):
                 materia    = item['materia'] or None,
                 aula       = item['curso']   or None,
             ))
+
+        # Actualizar materia y turno en el perfil del docente
+        _actualizar_materia_turno(docente, registros)
 
         resultados['importados']   += len(registros)
         resultados['actualizados'] += 1
@@ -961,6 +1007,14 @@ def importar_horarios_docentes(sheet_id, nombre_hoja='IMPORTAR'):
                 aula       = item['curso']   or None,
             ))
             cargados += 1
+
+        # Actualizar materia y turno en el perfil del docente
+        registros_cargados = [
+            {'modulo': CODIGO_A_NUMERO_MODULO.get(i['modulo'], 0), 'materia': i['materia']}
+            for i in items
+            if DIAS_NORMALIZADOS.get(i['dia']) and CODIGO_A_NUMERO_MODULO.get(i['modulo'])
+        ]
+        _actualizar_materia_turno(docente, registros_cargados)
 
         resultados['importados']   += cargados
         resultados['actualizados'] += 1
