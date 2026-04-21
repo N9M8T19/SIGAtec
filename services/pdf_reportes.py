@@ -1568,11 +1568,15 @@ def pdf_movimientos_activos(como_buffer=False):
 
 def pdf_horario_docente(docente):
     """
-    Genera un PDF landscape con la grilla de horarios del docente.
-    Días fusionados (SPAN), sin columna Turno.
-    Columnas: DÍA · MÓD. · HORARIO · MATERIA · CURSO · CARRO
+    PDF landscape — horario del docente con carro asignado por curso.
+    - Fila de títulos única arriba de todo
+    - Cada día tiene franja azul como separador
+    - Normaliza formato GxNy / NxGy y múltiples cursos con /
+    - Sin firmas al pie
     """
+    import re
     from reportlab.lib.pagesizes import landscape
+    from itertools import groupby
     from models import Carro
     from models_extra.horarios_notificaciones import HorarioDocente, MODULOS, DIAS_SEMANA
 
@@ -1583,7 +1587,6 @@ def pdf_horario_docente(docente):
         rightMargin=1.5*cm, leftMargin=1.5*cm,
         topMargin=1.5*cm, bottomMargin=1.5*cm
     )
-
     story = []
 
     _encabezado(
@@ -1598,108 +1601,123 @@ def pdf_horario_docente(docente):
 
     if not horarios:
         story.append(Paragraph('Este docente no tiene horarios cargados.', STYLE_NORMAL))
-        return _generar_response(buffer, f'horario_{docente.apellido.lower()}.pdf')
+        doc.build(story)
+        return _generar_response(buffer, f'horario_{docente.apellido.lower()}_{docente.nombre.lower()}.pdf')
 
+    # ── Normalizar curso: GxNy → NxGy ──
+    def _norm(s):
+        s = s.strip().upper().replace(' ', '')
+        m = re.match(r'G(\d+)N(\d+)$', s)
+        if m:
+            return f'N{m.group(2)}G{m.group(1)}'
+        return s
+
+    # ── Índice carro: todas las variantes de curso → carro ──
     todos_los_carros = Carro.query.filter(Carro.estado != 'baja').all()
     carros_por_curso = {}
     for c in todos_los_carros:
-        if c.division:
-            carros_por_curso[c.division.strip().upper()] = c
+        if not c.division:
+            continue
+        for parte in re.split(r'[/,\s]+', c.division.strip().upper()):
+            parte = parte.strip()
+            if parte:
+                carros_por_curso[_norm(parte)] = c
+                carros_por_curso[parte] = c
 
+    # ── Ordenar ──
     DIAS_ORDEN = {d: i for i, d in enumerate(DIAS_SEMANA)}
     horarios_ord = sorted(horarios, key=lambda x: (DIAS_ORDEN.get(x.dia, 99), x.modulo))
 
-    encabezados = [
-        Paragraph('DÍA',     STYLE_CAMPO),
-        Paragraph('MÓD.',    STYLE_CAMPO),
-        Paragraph('HORARIO', STYLE_CAMPO),
-        Paragraph('MATERIA', STYLE_CAMPO),
-        Paragraph('CURSO',   STYLE_CAMPO),
-        Paragraph('CARRO',   STYLE_CAMPO),
-    ]
-    filas = [encabezados]
+    # ── Estilos ──
+    STYLE_DIA_HDR = ParagraphStyle('DiaHdr', parent=styles['Normal'],
+        fontSize=9, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_CENTER)
+    STYLE_TITULO_COL = ParagraphStyle('TituloCol', parent=styles['Normal'],
+        fontSize=9, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_CENTER)
+    STYLE_GRIS = ParagraphStyle('Gris', parent=styles['Normal'],
+        fontSize=8, fontName='Helvetica-Oblique', textColor=colors.HexColor('#9ca3af'))
 
-    span_commands = []
-    dia_actual    = None
-    dia_inicio    = 1
+    col_widths = [1.8*cm, 3.2*cm, 7.5*cm, 2.5*cm, 9.5*cm]
 
-    for idx_h, h in enumerate(horarios_ord):
-        modulo_info = MODULOS.get(h.modulo, ('—', '—', '—', '—'))
-        horario_str = f'{modulo_info[0]} - {modulo_info[1]}'
-        codigo_mod  = modulo_info[3]
-
-        curso = (h.aula or '').strip().upper()
-        carro = carros_por_curso.get(curso)
-        if carro:
-            carro_str = f'N° {carro.numero_fisico}'
-            if carro.aula:
-                carro_str += f' — Aula {carro.aula}'
-        elif curso:
-            carro_str = 'Sin carro asignado'
-        else:
-            carro_str = '—'
-
-        fila_actual = idx_h + 1
-
-        if h.dia != dia_actual:
-            if dia_actual is not None and fila_actual - 1 > dia_inicio:
-                span_commands.append(('SPAN', (0, dia_inicio), (0, fila_actual - 1)))
-            dia_actual = h.dia
-            dia_inicio = fila_actual
-            dia_cell = Paragraph(h.dia or '—', STYLE_CAMPO)
-        else:
-            dia_cell = Paragraph('', STYLE_NORMAL)
-
-        filas.append([
-            dia_cell,
-            Paragraph(codigo_mod,       STYLE_NORMAL),
-            Paragraph(horario_str,      STYLE_NORMAL),
-            Paragraph(h.materia or '—', STYLE_NORMAL),
-            Paragraph(curso or '—',     STYLE_NORMAL),
-            Paragraph(carro_str,        STYLE_NORMAL),
-        ])
-
-    ultima_fila = len(filas) - 1
-    if ultima_fila > dia_inicio:
-        span_commands.append(('SPAN', (0, dia_inicio), (0, ultima_fila)))
-
-    col_widths = [3*cm, 1.8*cm, 3.5*cm, 7*cm, 2.5*cm, 9.9*cm]
-
-    tabla = Table(filas, colWidths=col_widths, repeatRows=1)
-    tabla.setStyle(_tabla_estilo())
-
-    for cmd in span_commands:
-        tabla.setStyle(TableStyle([
-            cmd,
-            ('VALIGN',   cmd[1], cmd[2], 'MIDDLE'),
-            ('ALIGN',    cmd[1], cmd[2], 'CENTER'),
-            ('FONTNAME', cmd[1], cmd[2], 'Helvetica-Bold'),
-            ('TEXTCOLOR',cmd[1], cmd[2], AZUL_ESCUELA),
-        ]))
-
-    for i, h in enumerate(horarios_ord, start=1):
-        mat = (h.materia or '').upper()
-        if mat in ('EXTRA CLASES', 'EXTRA', 'TAREAS DOCENTES'):
-            tabla.setStyle(TableStyle([
-                ('TEXTCOLOR', (1, i), (-1, i), colors.HexColor('#9ca3af')),
-                ('FONTNAME',  (1, i), (-1, i), 'Helvetica-Oblique'),
-            ]))
-
-    story.append(tabla)
-    story.append(Spacer(1, 0.8*cm))
-
-    firma_data = [[
-        _campo_firma('Firma del docente',  ancho=7*cm),
-        _campo_firma('Sello / Aclaración', ancho=7*cm),
-        _campo_firma('Firma Directivo',    ancho=7*cm),
-    ]]
-    firma_tabla = Table(firma_data, colWidths=[9*cm, 9*cm, 9*cm])
-    firma_tabla.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-        ('ALIGN',  (0, 0), (-1, -1), 'CENTER'),
+    # ── Fila de títulos única arriba de todo ──
+    fila_titulos = Table([[
+        Paragraph('MÓD.',    STYLE_TITULO_COL),
+        Paragraph('HORARIO', STYLE_TITULO_COL),
+        Paragraph('MATERIA', STYLE_TITULO_COL),
+        Paragraph('CURSO',   STYLE_TITULO_COL),
+        Paragraph('CARRO',   STYLE_TITULO_COL),
+    ]], colWidths=col_widths)
+    fila_titulos.setStyle(TableStyle([
+        ('BACKGROUND',   (0, 0), (-1, 0), AZUL_ESCUELA),
+        ('TOPPADDING',   (0, 0), (-1, 0), 5),
+        ('BOTTOMPADDING',(0, 0), (-1, 0), 5),
+        ('LEFTPADDING',  (0, 0), (-1, 0), 6),
+        ('RIGHTPADDING', (0, 0), (-1, 0), 6),
     ]))
-    story.append(firma_tabla)
+    story.append(fila_titulos)
 
+    # ── Bloques por día ──
+    for dia, items_iter in groupby(horarios_ord, key=lambda x: x.dia):
+        items = list(items_iter)
+
+        # Franja azul con nombre del día
+        franja_dia = Table([[Paragraph(dia.upper(), STYLE_DIA_HDR), '', '', '', '']],
+                            colWidths=col_widths)
+        franja_dia.setStyle(TableStyle([
+            ('BACKGROUND',   (0, 0), (-1, 0), colors.HexColor('#1e3a6e')),
+            ('SPAN',         (0, 0), (-1, 0)),
+            ('TOPPADDING',   (0, 0), (-1, 0), 4),
+            ('BOTTOMPADDING',(0, 0), (-1, 0), 4),
+        ]))
+        story.append(franja_dia)
+
+        # Filas de módulos del día
+        filas_dia = []
+        for h in items:
+            modulo_info = MODULOS.get(h.modulo, ('—', '—', '—', '—'))
+            horario_str = f'{modulo_info[0]} - {modulo_info[1]}'
+            codigo_mod  = modulo_info[3]
+
+            curso = _norm(h.aula or '')
+            carro = carros_por_curso.get(curso)
+            if not carro and h.aula:
+                carro = carros_por_curso.get((h.aula or '').strip().upper())
+
+            if carro:
+                carro_str = f'Carro N° {carro.numero_fisico}'
+                if carro.aula:
+                    carro_str += f' — Aula {carro.aula}'
+            elif curso:
+                carro_str = 'Sin carro asignado'
+            else:
+                carro_str = '—'
+
+            mat = (h.materia or '').upper()
+            es_extra = mat in ('EXTRA CLASES', 'EXTRA', 'TAREAS DOCENTES')
+            st = STYLE_GRIS if es_extra else STYLE_NORMAL
+
+            filas_dia.append([
+                Paragraph(codigo_mod,       st),
+                Paragraph(horario_str,      st),
+                Paragraph(h.materia or '—', st),
+                Paragraph(h.aula or '—',    st),
+                Paragraph(carro_str,        st),
+            ])
+
+        tabla_dia = Table(filas_dia, colWidths=col_widths)
+        tabla_dia.setStyle(TableStyle([
+            ('FONTNAME',      (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE',      (0, 0), (-1, -1), 8),
+            ('ROWBACKGROUNDS',(0, 0), (-1, -1), [colors.white, GRIS_CLARO]),
+            ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+        ]))
+        story.append(tabla_dia)
+
+    story.append(Spacer(1, 0.3*cm))
     doc.build(story)
     nombre_archivo = f'horario_{docente.apellido.lower()}_{docente.nombre.lower()}.pdf'
     return _generar_response(buffer, nombre_archivo)
