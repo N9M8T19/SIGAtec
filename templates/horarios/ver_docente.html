@@ -12,6 +12,11 @@
            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
             <i class="fas fa-arrow-left mr-1"></i>Volver
         </a>
+        <a href="{{ url_for('horarios.pdf_docente', docente_id=docente.id) }}"
+           target="_blank"
+           class="bg-[var(--color-accent)] hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-file-pdf mr-1"></i>PDF Horario
+        </a>
         {% if current_user.tiene_permiso('estadisticas') %}
         <a href="{{ url_for('horarios.agregar', docente_id=docente.id) }}"
            class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">

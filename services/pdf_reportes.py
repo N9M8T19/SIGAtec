@@ -1560,3 +1560,134 @@ def pdf_movimientos_activos(como_buffer=False):
     nombre = f'movimientos_activos_{ahora_arg.strftime("%Y%m%d_%H%M")}.pdf'
     return send_file(buffer, as_attachment=True,
                      download_name=nombre, mimetype='application/pdf')
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  PDF HORARIO DE DOCENTE CON CARRO ASIGNADO
+# ─────────────────────────────────────────────────────────────────────────────
+
+def pdf_horario_docente(docente):
+    """
+    Genera un PDF landscape con la grilla de horarios del docente.
+    Por cada módulo muestra: Día, Módulo, Horario, Materia, Curso y Carro asignado.
+    El carro se busca por el campo 'division' del modelo Carro que coincida con el curso.
+    """
+    from reportlab.lib.pagesizes import landscape
+    from models import Carro
+    from models_extra.horarios_notificaciones import HorarioDocente, MODULOS, DIAS_SEMANA
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=1.5*cm, leftMargin=1.5*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm
+    )
+
+    story = []
+
+    # ── Encabezado ──
+    _encabezado(
+        story,
+        titulo=f'HORARIO — {docente.apellido.upper()} {docente.nombre.upper()}',
+        subtitulo=f'Materia/s: {docente.materia or "—"}  |  Turno: {docente.turno or "—"}'
+    )
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Obtener horarios ordenados por día y módulo ──
+    horarios = HorarioDocente.query.filter_by(docente_id=docente.id)\
+        .order_by(HorarioDocente.dia, HorarioDocente.modulo).all()
+
+    if not horarios:
+        story.append(Paragraph('Este docente no tiene horarios cargados.', STYLE_NORMAL))
+        return _generar_response(buffer, f'horario_{docente.apellido.lower()}.pdf')
+
+    # ── Construir caché de carros por curso ──
+    # Busca en el campo 'division' del carro que coincida con el curso del módulo
+    todos_los_carros = Carro.query.filter(
+        Carro.estado != 'baja'
+    ).all()
+
+    # índice: division.upper() → carro
+    carros_por_curso = {}
+    for c in todos_los_carros:
+        if c.division:
+            carros_por_curso[c.division.strip().upper()] = c
+
+    # ── Tabla de horarios ──
+    DIAS_ORDEN = {d: i for i, d in enumerate(DIAS_SEMANA)}
+
+    encabezados = [
+        Paragraph('DÍA',      STYLE_CAMPO),
+        Paragraph('MÓD.',     STYLE_CAMPO),
+        Paragraph('HORARIO',  STYLE_CAMPO),
+        Paragraph('MATERIA',  STYLE_CAMPO),
+        Paragraph('CURSO',    STYLE_CAMPO),
+        Paragraph('CARRO',    STYLE_CAMPO),
+        Paragraph('TURNO',    STYLE_CAMPO),
+    ]
+
+    filas = [encabezados]
+
+    for h in sorted(horarios, key=lambda x: (DIAS_ORDEN.get(x.dia, 99), x.modulo)):
+        modulo_info = MODULOS.get(h.modulo, ('—', '—', '—', '—'))
+        horario_str = f'{modulo_info[0]} - {modulo_info[1]}'
+        turno_mod   = modulo_info[2]
+        codigo_mod  = modulo_info[3]
+
+        # Buscar carro por curso (campo aula en HorarioDocente = curso)
+        curso = (h.aula or '').strip().upper()
+        carro = carros_por_curso.get(curso)
+        if carro:
+            carro_str = f'N° {carro.numero_fisico}'
+            if carro.aula:
+                carro_str += f' — Aula {carro.aula}'
+        elif curso:
+            carro_str = 'Sin carro asignado'
+        else:
+            carro_str = '—'
+
+        filas.append([
+            Paragraph(h.dia or '—',              STYLE_NORMAL),
+            Paragraph(codigo_mod,                 STYLE_NORMAL),
+            Paragraph(horario_str,                STYLE_NORMAL),
+            Paragraph(h.materia or '—',           STYLE_NORMAL),
+            Paragraph(curso or '—',               STYLE_NORMAL),
+            Paragraph(carro_str,                  STYLE_NORMAL),
+            Paragraph(turno_mod,                  STYLE_NORMAL),
+        ])
+
+    # Anchos de columna (landscape A4 = ~27.7cm útiles)
+    col_widths = [3*cm, 1.8*cm, 3.2*cm, 6*cm, 2.5*cm, 6*cm, 2.5*cm]
+
+    tabla = Table(filas, colWidths=col_widths, repeatRows=1)
+    tabla.setStyle(_tabla_estilo())
+
+    # Colorear filas de EXTRA CLASES y TAREAS DOCENTES en gris
+    for i, h in enumerate(horarios, start=1):
+        mat = (h.materia or '').upper()
+        if mat in ('EXTRA CLASES', 'EXTRA', 'TAREAS DOCENTES'):
+            tabla.setStyle(TableStyle([
+                ('TEXTCOLOR', (0, i), (-1, i), colors.HexColor('#6b7280')),
+                ('FONTNAME',  (0, i), (-1, i), 'Helvetica-Oblique'),
+            ]))
+
+    story.append(tabla)
+    story.append(Spacer(1, 0.8*cm))
+
+    # ── Pie con firma ──
+    firma_data = [[
+        _campo_firma('Firma del docente', ancho=7*cm),
+        _campo_firma('Sello / Aclaración', ancho=7*cm),
+        _campo_firma('Firma Directivo', ancho=7*cm),
+    ]]
+    firma_tabla = Table(firma_data, colWidths=[9*cm, 9*cm, 9*cm])
+    firma_tabla.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('ALIGN',  (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    story.append(firma_tabla)
+
+    doc.build(story)
+    nombre_archivo = f'horario_{docente.apellido.lower()}_{docente.nombre.lower()}.pdf'
+    return _generar_response(buffer, nombre_archivo)

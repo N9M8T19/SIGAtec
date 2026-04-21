@@ -82,3 +82,12 @@ def eliminar(id):
     db.session.commit()
     flash('Módulo eliminado.', 'warning')
     return redirect(url_for('horarios.ver_docente', docente_id=docente_id))
+
+
+@horarios_bp.route('/docente/<int:docente_id>/pdf')
+@login_required
+def pdf_docente(docente_id):
+    """Genera el PDF de horarios del docente con el carro asignado por curso."""
+    docente = Docente.query.get_or_404(docente_id)
+    from services.pdf_reportes import pdf_horario_docente
+    return pdf_horario_docente(docente)
