@@ -1569,8 +1569,8 @@ def pdf_movimientos_activos(como_buffer=False):
 def pdf_horario_docente(docente):
     """
     Genera un PDF landscape con la grilla de horarios del docente.
-    Por cada módulo muestra: Día, Módulo, Horario, Materia, Curso y Carro asignado.
-    El carro se busca por el campo 'division' del modelo Carro que coincida con el curso.
+    Días fusionados (SPAN), sin columna Turno.
+    Columnas: DÍA · MÓD. · HORARIO · MATERIA · CURSO · CARRO
     """
     from reportlab.lib.pagesizes import landscape
     from models import Carro
@@ -1586,7 +1586,6 @@ def pdf_horario_docente(docente):
 
     story = []
 
-    # ── Encabezado ──
     _encabezado(
         story,
         titulo=f'HORARIO — {docente.apellido.upper()} {docente.nombre.upper()}',
@@ -1594,7 +1593,6 @@ def pdf_horario_docente(docente):
     )
     story.append(Spacer(1, 0.4*cm))
 
-    # ── Obtener horarios ordenados por día y módulo ──
     horarios = HorarioDocente.query.filter_by(docente_id=docente.id)\
         .order_by(HorarioDocente.dia, HorarioDocente.modulo).all()
 
@@ -1602,40 +1600,34 @@ def pdf_horario_docente(docente):
         story.append(Paragraph('Este docente no tiene horarios cargados.', STYLE_NORMAL))
         return _generar_response(buffer, f'horario_{docente.apellido.lower()}.pdf')
 
-    # ── Construir caché de carros por curso ──
-    # Busca en el campo 'division' del carro que coincida con el curso del módulo
-    todos_los_carros = Carro.query.filter(
-        Carro.estado != 'baja'
-    ).all()
-
-    # índice: division.upper() → carro
+    todos_los_carros = Carro.query.filter(Carro.estado != 'baja').all()
     carros_por_curso = {}
     for c in todos_los_carros:
         if c.division:
             carros_por_curso[c.division.strip().upper()] = c
 
-    # ── Tabla de horarios ──
     DIAS_ORDEN = {d: i for i, d in enumerate(DIAS_SEMANA)}
+    horarios_ord = sorted(horarios, key=lambda x: (DIAS_ORDEN.get(x.dia, 99), x.modulo))
 
     encabezados = [
-        Paragraph('DÍA',      STYLE_CAMPO),
-        Paragraph('MÓD.',     STYLE_CAMPO),
-        Paragraph('HORARIO',  STYLE_CAMPO),
-        Paragraph('MATERIA',  STYLE_CAMPO),
-        Paragraph('CURSO',    STYLE_CAMPO),
-        Paragraph('CARRO',    STYLE_CAMPO),
-        Paragraph('TURNO',    STYLE_CAMPO),
+        Paragraph('DÍA',     STYLE_CAMPO),
+        Paragraph('MÓD.',    STYLE_CAMPO),
+        Paragraph('HORARIO', STYLE_CAMPO),
+        Paragraph('MATERIA', STYLE_CAMPO),
+        Paragraph('CURSO',   STYLE_CAMPO),
+        Paragraph('CARRO',   STYLE_CAMPO),
     ]
-
     filas = [encabezados]
 
-    for h in sorted(horarios, key=lambda x: (DIAS_ORDEN.get(x.dia, 99), x.modulo)):
+    span_commands = []
+    dia_actual    = None
+    dia_inicio    = 1
+
+    for idx_h, h in enumerate(horarios_ord):
         modulo_info = MODULOS.get(h.modulo, ('—', '—', '—', '—'))
         horario_str = f'{modulo_info[0]} - {modulo_info[1]}'
-        turno_mod   = modulo_info[2]
         codigo_mod  = modulo_info[3]
 
-        # Buscar carro por curso (campo aula en HorarioDocente = curso)
         curso = (h.aula or '').strip().upper()
         carro = carros_por_curso.get(curso)
         if carro:
@@ -1647,39 +1639,59 @@ def pdf_horario_docente(docente):
         else:
             carro_str = '—'
 
+        fila_actual = idx_h + 1
+
+        if h.dia != dia_actual:
+            if dia_actual is not None and fila_actual - 1 > dia_inicio:
+                span_commands.append(('SPAN', (0, dia_inicio), (0, fila_actual - 1)))
+            dia_actual = h.dia
+            dia_inicio = fila_actual
+            dia_cell = Paragraph(h.dia or '—', STYLE_CAMPO)
+        else:
+            dia_cell = Paragraph('', STYLE_NORMAL)
+
         filas.append([
-            Paragraph(h.dia or '—',              STYLE_NORMAL),
-            Paragraph(codigo_mod,                 STYLE_NORMAL),
-            Paragraph(horario_str,                STYLE_NORMAL),
-            Paragraph(h.materia or '—',           STYLE_NORMAL),
-            Paragraph(curso or '—',               STYLE_NORMAL),
-            Paragraph(carro_str,                  STYLE_NORMAL),
-            Paragraph(turno_mod,                  STYLE_NORMAL),
+            dia_cell,
+            Paragraph(codigo_mod,       STYLE_NORMAL),
+            Paragraph(horario_str,      STYLE_NORMAL),
+            Paragraph(h.materia or '—', STYLE_NORMAL),
+            Paragraph(curso or '—',     STYLE_NORMAL),
+            Paragraph(carro_str,        STYLE_NORMAL),
         ])
 
-    # Anchos de columna (landscape A4 = ~27.7cm útiles)
-    col_widths = [3*cm, 1.8*cm, 3.2*cm, 6*cm, 2.5*cm, 6*cm, 2.5*cm]
+    ultima_fila = len(filas) - 1
+    if ultima_fila > dia_inicio:
+        span_commands.append(('SPAN', (0, dia_inicio), (0, ultima_fila)))
+
+    col_widths = [3*cm, 1.8*cm, 3.5*cm, 7*cm, 2.5*cm, 9.9*cm]
 
     tabla = Table(filas, colWidths=col_widths, repeatRows=1)
     tabla.setStyle(_tabla_estilo())
 
-    # Colorear filas de EXTRA CLASES y TAREAS DOCENTES en gris
-    for i, h in enumerate(horarios, start=1):
+    for cmd in span_commands:
+        tabla.setStyle(TableStyle([
+            cmd,
+            ('VALIGN',   cmd[1], cmd[2], 'MIDDLE'),
+            ('ALIGN',    cmd[1], cmd[2], 'CENTER'),
+            ('FONTNAME', cmd[1], cmd[2], 'Helvetica-Bold'),
+            ('TEXTCOLOR',cmd[1], cmd[2], AZUL_ESCUELA),
+        ]))
+
+    for i, h in enumerate(horarios_ord, start=1):
         mat = (h.materia or '').upper()
         if mat in ('EXTRA CLASES', 'EXTRA', 'TAREAS DOCENTES'):
             tabla.setStyle(TableStyle([
-                ('TEXTCOLOR', (0, i), (-1, i), colors.HexColor('#6b7280')),
-                ('FONTNAME',  (0, i), (-1, i), 'Helvetica-Oblique'),
+                ('TEXTCOLOR', (1, i), (-1, i), colors.HexColor('#9ca3af')),
+                ('FONTNAME',  (1, i), (-1, i), 'Helvetica-Oblique'),
             ]))
 
     story.append(tabla)
     story.append(Spacer(1, 0.8*cm))
 
-    # ── Pie con firma ──
     firma_data = [[
-        _campo_firma('Firma del docente', ancho=7*cm),
+        _campo_firma('Firma del docente',  ancho=7*cm),
         _campo_firma('Sello / Aclaración', ancho=7*cm),
-        _campo_firma('Firma Directivo', ancho=7*cm),
+        _campo_firma('Firma Directivo',    ancho=7*cm),
     ]]
     firma_tabla = Table(firma_data, colWidths=[9*cm, 9*cm, 9*cm])
     firma_tabla.setStyle(TableStyle([

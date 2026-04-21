@@ -14,7 +14,7 @@
         </a>
         <a href="{{ url_for('horarios.pdf_docente', docente_id=docente.id) }}"
            target="_blank"
-           class="bg-[var(--color-accent)] hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+           class="bg-[#e8821a] hover:bg-[#d4731a] text-white px-4 py-2 rounded-lg text-sm font-semibold">
             <i class="fas fa-file-pdf mr-1"></i>PDF Horario
         </a>
         {% if current_user.tiene_permiso('estadisticas') %}
