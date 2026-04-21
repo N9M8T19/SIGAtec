@@ -18,7 +18,7 @@
         Importar Horarios de Docentes
       </h1>
       <p class="text-sm text-gray-500">
-        Carga masiva desde la planilla unificada en Google Sheets
+        Carga masiva desde archivos Excel o desde Google Sheets
       </p>
     </div>
   </div>
@@ -34,63 +34,128 @@
     {% endfor %}
   {% endwith %}
 
-  {# ── Formulario ── #}
-  <div class="bg-white rounded-xl shadow border border-gray-200 p-6 mb-6">
-    <h2 class="text-base font-bold text-gray-700 uppercase mb-4">
-      📋 Datos de la planilla
-    </h2>
+  {# ── Solapas ── #}
+  <div class="bg-white rounded-xl shadow border border-gray-200 mb-6 overflow-hidden">
 
-    <form method="POST" id="form-importar">
-      <div class="mb-4">
-        <label class="block text-sm font-semibold text-gray-600 mb-1">
-          URL de Google Sheets
-        </label>
-        <input type="url" name="url_sheet" id="url_sheet" required
-               value="{{ url_sheet or '' }}"
-               placeholder="https://docs.google.com/spreadsheets/d/..."
-               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-                      focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
-        <p class="text-xs text-gray-400 mt-1">
-          La cuenta de servicio debe tener acceso de lectura a esta planilla.
-        </p>
-      </div>
+    {# Pestañas #}
+    <div class="flex border-b border-gray-200">
+      <button id="tab-excel" onclick="cambiarTab('excel')"
+              class="tab-btn flex-1 py-3 px-4 text-sm font-semibold transition
+                     border-b-2 border-[var(--color-primary)] text-[var(--color-primary)]">
+        📁 Subir archivos Excel
+      </button>
+      <button id="tab-sheets" onclick="cambiarTab('sheets')"
+              class="tab-btn flex-1 py-3 px-4 text-sm font-semibold transition
+                     border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+        📊 Google Sheets
+      </button>
+    </div>
 
-      <div class="mb-6">
-        <label class="block text-sm font-semibold text-gray-600 mb-1">
-          Nombre de la pestaña
-        </label>
-        <input type="text" name="nombre_hoja" id="nombre_hoja"
-               value="{{ nombre_hoja or 'IMPORTAR' }}"
-               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-                      focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
-        <p class="text-xs text-gray-400 mt-1">
-          Por defecto: <strong>IMPORTAR</strong>
-        </p>
-      </div>
+    {# ── Panel Excel ── #}
+    <div id="panel-excel" class="p-6">
+      <p class="text-sm text-gray-600 mb-4">
+        Subí uno o varios archivos Excel de horarios individuales de docentes
+        (formato <strong>APELLIDO_NOMBRE_HORARIO_2026.xlsx</strong>).
+        El sistema los procesa automáticamente y actualiza los horarios en SIGA-Tec.
+      </p>
 
-      {# ── Aviso importante ── #}
-      <div class="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-6 text-sm text-amber-800">
-        <strong>⚠ Atención:</strong> Esta operación <strong>reemplaza completamente</strong>
-        los horarios actuales de cada docente que aparezca en la planilla.
-        Los docentes que <em>no</em> estén en la planilla no se modifican.
-      </div>
+      <form method="POST" enctype="multipart/form-data" id="form-excel">
+        <input type="hidden" name="metodo" value="excel">
 
-      <div class="flex gap-3">
-        <button type="button" id="btn-preview"
-                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700
-                       rounded-lg text-sm font-semibold transition">
-          👁 Vista previa
+        {# Zona de drop #}
+        <div id="drop-zone"
+             class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center
+                    cursor-pointer hover:border-[var(--color-primary)] transition mb-4"
+             onclick="document.getElementById('input-archivos').click()">
+          <div class="text-4xl mb-2">📂</div>
+          <p class="text-sm font-semibold text-gray-600">
+            Hacé clic o arrastrá los archivos Excel acá
+          </p>
+          <p class="text-xs text-gray-400 mt-1">
+            Podés seleccionar varios archivos a la vez (.xlsx)
+          </p>
+          <input type="file" id="input-archivos" name="archivos_excel"
+                 accept=".xlsx,.xls" multiple class="hidden">
+        </div>
+
+        {# Lista de archivos seleccionados #}
+        <div id="lista-archivos" class="hidden mb-4">
+          <h3 class="text-sm font-semibold text-gray-600 mb-2">Archivos seleccionados:</h3>
+          <ul id="archivos-ul" class="space-y-1"></ul>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4 text-sm text-amber-800">
+          <strong>⚠ Atención:</strong> Esta operación <strong>reemplaza completamente</strong>
+          los horarios actuales de cada docente procesado.
+          Los docentes que no estén en los archivos no se modifican.
+        </div>
+
+        <button type="submit" id="btn-subir-excel" disabled
+                class="px-5 py-2 bg-gray-300 text-gray-500 rounded-lg text-sm font-semibold
+                       cursor-not-allowed transition" >
+          ⬆ Importar archivos
         </button>
-        <button type="submit"
-                class="px-5 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]
-                       text-white rounded-lg text-sm font-semibold transition">
-          ⬆ Importar horarios
-        </button>
-      </div>
-    </form>
+      </form>
+    </div>
+
+    {# ── Panel Google Sheets ── #}
+    <div id="panel-sheets" class="p-6 hidden">
+      <p class="text-sm text-gray-600 mb-4">
+        Usá la planilla unificada <strong>HORARIOS_IMPORTAR_2026</strong> en Google Sheets.
+        La pestaña debe llamarse <strong>IMPORTAR</strong> y tener las columnas:
+        <code class="bg-gray-100 px-1 rounded">apellido_nombre · dia · modulo · materia · curso</code>
+      </p>
+
+      <form method="POST" id="form-sheets">
+        <input type="hidden" name="metodo" value="sheets">
+
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-gray-600 mb-1">
+            URL de Google Sheets
+          </label>
+          <input type="url" name="url_sheet" id="url_sheet" required
+                 value="{{ url_sheet or '' }}"
+                 placeholder="https://docs.google.com/spreadsheets/d/..."
+                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                        focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
+          <p class="text-xs text-gray-400 mt-1">
+            La cuenta de servicio debe tener acceso de lectura a esta planilla.
+          </p>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-gray-600 mb-1">
+            Nombre de la pestaña
+          </label>
+          <input type="text" name="nombre_hoja" id="nombre_hoja"
+                 value="{{ nombre_hoja or 'IMPORTAR' }}"
+                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                        focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
+        </div>
+
+        <div class="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-6 text-sm text-amber-800">
+          <strong>⚠ Atención:</strong> Esta operación <strong>reemplaza completamente</strong>
+          los horarios actuales de cada docente que aparezca en la planilla.
+        </div>
+
+        <div class="flex gap-3">
+          <button type="button" id="btn-preview"
+                  class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700
+                         rounded-lg text-sm font-semibold transition">
+            👁 Vista previa
+          </button>
+          <button type="submit"
+                  class="px-5 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]
+                         text-white rounded-lg text-sm font-semibold transition">
+            ⬆ Importar horarios
+          </button>
+        </div>
+      </form>
+    </div>
+
   </div>
 
-  {# ── Vista previa AJAX ── #}
+  {# ── Vista previa AJAX (solo Sheets) ── #}
   <div id="panel-preview" class="hidden bg-white rounded-xl shadow border border-gray-200 p-6 mb-6">
     <h2 class="text-base font-bold text-gray-700 uppercase mb-3">👁 Vista previa</h2>
     <div id="preview-contenido"></div>
@@ -101,7 +166,6 @@
   <div class="bg-white rounded-xl shadow border border-gray-200 p-6">
     <h2 class="text-base font-bold text-gray-700 uppercase mb-4">📊 Resultado de la importación</h2>
 
-    {# Resumen numérico #}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
       <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
         <div class="text-2xl font-bold text-green-700">{{ resultados.actualizados }}</div>
@@ -121,60 +185,46 @@
       </div>
     </div>
 
-    {# Docentes actualizados OK #}
     {% if resultados.docentes_ok %}
     <div class="mb-4">
       <h3 class="text-sm font-bold text-green-700 mb-2">✅ Docentes importados correctamente</h3>
       <ul class="text-sm text-gray-700 space-y-1">
         {% for d in resultados.docentes_ok %}
-          <li class="flex items-center gap-2">
-            <span class="text-green-500">●</span> {{ d }}
-          </li>
+          <li class="flex items-center gap-2"><span class="text-green-500">●</span> {{ d }}</li>
         {% endfor %}
       </ul>
     </div>
     {% endif %}
 
-    {# Docentes no encontrados #}
     {% if resultados.docentes_no_encontrados %}
     <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-      <h3 class="text-sm font-bold text-red-700 mb-2">
-        ❌ Docentes no encontrados en SIGA-Tec
-      </h3>
+      <h3 class="text-sm font-bold text-red-700 mb-2">❌ Docentes no encontrados en SIGA-Tec</h3>
       <p class="text-xs text-red-600 mb-2">
-        Verificá que el nombre en la planilla coincida exactamente con el cargado en SIGA-Tec
-        (Apellido + espacio + Nombre, todo en mayúsculas).
+        El nombre del archivo debe coincidir con el apellido y nombre cargados en SIGA-Tec.
+        Formato: <strong>APELLIDO_NOMBRE_HORARIO_2026.xlsx</strong>
       </p>
       <ul class="text-sm text-red-700 space-y-1">
         {% for d in resultados.docentes_no_encontrados %}
-          <li class="flex items-center gap-2">
-            <span>⚠</span> {{ d }}
-          </li>
+          <li>⚠ {{ d }}</li>
         {% endfor %}
       </ul>
     </div>
     {% endif %}
 
-    {# Advertencias #}
     {% if resultados.advertencias %}
     <div class="mb-4">
       <h3 class="text-sm font-bold text-amber-700 mb-2">⚠ Advertencias</h3>
       <ul class="text-xs text-amber-700 space-y-1 max-h-40 overflow-y-auto">
-        {% for a in resultados.advertencias %}
-          <li>{{ a }}</li>
-        {% endfor %}
+        {% for a in resultados.advertencias %}<li>{{ a }}</li>{% endfor %}
       </ul>
     </div>
     {% endif %}
 
-    {# Errores técnicos #}
     {% if resultados.errores %}
     <div>
       <h3 class="text-sm font-bold text-red-700 mb-2">🔴 Errores</h3>
       <ul class="text-xs text-red-700 space-y-1 max-h-40 overflow-y-auto">
-        {% for e in resultados.errores %}
-          <li>{{ e }}</li>
-        {% endfor %}
+        {% for e in resultados.errores %}<li>{{ e }}</li>{% endfor %}
       </ul>
     </div>
     {% endif %}
@@ -185,22 +235,96 @@
 </div>
 
 <script>
+// ── Solapas ──
+function cambiarTab(tab) {
+  const esExcel = tab === 'excel';
+
+  document.getElementById('panel-excel').classList.toggle('hidden', !esExcel);
+  document.getElementById('panel-sheets').classList.toggle('hidden', esExcel);
+  document.getElementById('panel-preview').classList.add('hidden');
+
+  const btnExcel  = document.getElementById('tab-excel');
+  const btnSheets = document.getElementById('tab-sheets');
+
+  if (esExcel) {
+    btnExcel.classList.add('border-[var(--color-primary)]', 'text-[var(--color-primary)]');
+    btnExcel.classList.remove('border-transparent', 'text-gray-500');
+    btnSheets.classList.add('border-transparent', 'text-gray-500');
+    btnSheets.classList.remove('border-[var(--color-primary)]', 'text-[var(--color-primary)]');
+  } else {
+    btnSheets.classList.add('border-[var(--color-primary)]', 'text-[var(--color-primary)]');
+    btnSheets.classList.remove('border-transparent', 'text-gray-500');
+    btnExcel.classList.add('border-transparent', 'text-gray-500');
+    btnExcel.classList.remove('border-[var(--color-primary)]', 'text-[var(--color-primary)]');
+  }
+}
+
+// Abrir en la pestaña correcta según resultado
+{% if metodo == 'sheets' %}
+cambiarTab('sheets');
+{% endif %}
+
+// ── Selección de archivos ──
+const inputArchivos  = document.getElementById('input-archivos');
+const listaArchivos  = document.getElementById('lista-archivos');
+const archivosUl     = document.getElementById('archivos-ul');
+const btnSubirExcel  = document.getElementById('btn-subir-excel');
+const dropZone       = document.getElementById('drop-zone');
+
+function mostrarArchivos(files) {
+  if (!files || files.length === 0) return;
+
+  archivosUl.innerHTML = '';
+  for (const f of files) {
+    const li = document.createElement('li');
+    li.className = 'flex items-center gap-2 text-sm text-gray-700';
+    li.innerHTML = `<span class="text-green-500">📄</span> ${f.name}
+                    <span class="text-xs text-gray-400">(${(f.size/1024).toFixed(1)} KB)</span>`;
+    archivosUl.appendChild(li);
+  }
+
+  listaArchivos.classList.remove('hidden');
+  btnSubirExcel.disabled = false;
+  btnSubirExcel.className = 'px-5 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white rounded-lg text-sm font-semibold transition cursor-pointer';
+}
+
+inputArchivos.addEventListener('change', function() {
+  mostrarArchivos(this.files);
+});
+
+// Drag & drop
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('border-[var(--color-primary)]', 'bg-blue-50');
+});
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('border-[var(--color-primary)]', 'bg-blue-50');
+});
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('border-[var(--color-primary)]', 'bg-blue-50');
+  const files = e.dataTransfer.files;
+  // Asignar al input
+  const dt = new DataTransfer();
+  for (const f of files) dt.items.add(f);
+  inputArchivos.files = dt.files;
+  mostrarArchivos(files);
+});
+
+// ── Vista previa Google Sheets ──
 document.getElementById('btn-preview').addEventListener('click', async function () {
   const url        = document.getElementById('url_sheet').value.trim();
   const nombreHoja = document.getElementById('nombre_hoja').value.trim() || 'IMPORTAR';
   const panel      = document.getElementById('panel-preview');
   const contenido  = document.getElementById('preview-contenido');
 
-  if (!url) {
-    alert('Ingresá la URL de la planilla primero.');
-    return;
-  }
+  if (!url) { alert('Ingresá la URL de la planilla primero.'); return; }
 
   contenido.innerHTML = '<p class="text-sm text-gray-500">Cargando...</p>';
   panel.classList.remove('hidden');
 
   const fd = new FormData();
-  fd.append('url_sheet',   url);
+  fd.append('url_sheet', url);
   fd.append('nombre_hoja', nombreHoja);
 
   try {
@@ -213,39 +337,32 @@ document.getElementById('btn-preview').addEventListener('click', async function 
       return;
     }
 
-    // Tabla con las primeras filas
     let html = `
       <div class="flex gap-6 mb-3 text-sm">
-        <span class="text-gray-600">Total de filas de datos: <strong>${data.total_filas}</strong></span>
-        <span class="text-gray-600">Docentes en la muestra: <strong>${data.docentes_aprox}+</strong></span>
+        <span class="text-gray-600">Total filas: <strong>${data.total_filas}</strong></span>
+        <span class="text-gray-600">Docentes en muestra: <strong>${data.docentes_aprox}+</strong></span>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
-          <thead class="bg-[var(--color-primary)] text-white">
-            <tr>`;
+          <thead class="bg-[var(--color-primary)] text-white"><tr>`;
 
-    for (const h of data.encabezados) {
+    for (const h of data.encabezados)
       html += `<th class="px-3 py-2 text-left font-semibold">${h}</th>`;
-    }
     html += `</tr></thead><tbody>`;
 
     data.muestra.forEach((fila, i) => {
       html += `<tr class="${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">`;
-      for (const celda of fila) {
+      for (const celda of fila)
         html += `<td class="px-3 py-1.5 border-t border-gray-100">${celda ?? ''}</td>`;
-      }
       html += `</tr>`;
     });
 
     html += `</tbody></table></div>
-      <p class="text-xs text-gray-400 mt-2">
-        Mostrando las primeras ${data.muestra.length} filas de datos.
-      </p>`;
+      <p class="text-xs text-gray-400 mt-2">Mostrando las primeras ${data.muestra.length} filas.</p>`;
 
     contenido.innerHTML = html;
-
   } catch (e) {
-    contenido.innerHTML = `<p class="text-sm text-red-600">Error de conexión: ${e}</p>`;
+    contenido.innerHTML = `<p class="text-sm text-red-600">Error: ${e}</p>`;
   }
 });
 </script>
