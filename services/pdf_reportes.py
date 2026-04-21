@@ -1568,10 +1568,10 @@ def pdf_movimientos_activos(como_buffer=False):
 
 def pdf_horario_docente(docente):
     """
-    PDF landscape — horario del docente con carro asignado por curso.
-    - Fila de títulos única arriba de todo
-    - Cada día tiene franja azul como separador
-    - Normaliza formato GxNy / NxGy y múltiples cursos con /
+    PDF landscape A4 — horario del docente con carro asignado por curso.
+    - Todo en una sola hoja
+    - Sin distinción de color para EXTRA CLASES
+    - Fila de títulos única arriba, franjas azules por día
     - Sin firmas al pie
     """
     import re
@@ -1584,8 +1584,8 @@ def pdf_horario_docente(docente):
     doc = SimpleDocTemplate(
         buffer,
         pagesize=landscape(A4),
-        rightMargin=1.5*cm, leftMargin=1.5*cm,
-        topMargin=1.5*cm, bottomMargin=1.5*cm
+        rightMargin=1.2*cm, leftMargin=1.2*cm,
+        topMargin=1.2*cm, bottomMargin=1.2*cm
     )
     story = []
 
@@ -1594,7 +1594,7 @@ def pdf_horario_docente(docente):
         titulo=f'HORARIO — {docente.apellido.upper()} {docente.nombre.upper()}',
         subtitulo=f'Materia/s: {docente.materia or "—"}  |  Turno: {docente.turno or "—"}'
     )
-    story.append(Spacer(1, 0.4*cm))
+    story.append(Spacer(1, 0.3*cm))
 
     horarios = HorarioDocente.query.filter_by(docente_id=docente.id)\
         .order_by(HorarioDocente.dia, HorarioDocente.modulo).all()
@@ -1612,7 +1612,7 @@ def pdf_horario_docente(docente):
             return f'N{m.group(2)}G{m.group(1)}'
         return s
 
-    # ── Índice carro: todas las variantes de curso → carro ──
+    # ── Índice carro ──
     todos_los_carros = Carro.query.filter(Carro.estado != 'baja').all()
     carros_por_curso = {}
     for c in todos_los_carros:
@@ -1628,17 +1628,18 @@ def pdf_horario_docente(docente):
     DIAS_ORDEN = {d: i for i, d in enumerate(DIAS_SEMANA)}
     horarios_ord = sorted(horarios, key=lambda x: (DIAS_ORDEN.get(x.dia, 99), x.modulo))
 
-    # ── Estilos ──
+    # ── Estilos compactos ──
+    STYLE_MINI = ParagraphStyle('Mini', parent=styles['Normal'],
+        fontSize=7, fontName='Helvetica', leading=9)
     STYLE_DIA_HDR = ParagraphStyle('DiaHdr', parent=styles['Normal'],
-        fontSize=9, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_CENTER)
+        fontSize=8, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_CENTER)
     STYLE_TITULO_COL = ParagraphStyle('TituloCol', parent=styles['Normal'],
-        fontSize=9, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_CENTER)
-    STYLE_GRIS = ParagraphStyle('Gris', parent=styles['Normal'],
-        fontSize=8, fontName='Helvetica-Oblique', textColor=colors.HexColor('#9ca3af'))
+        fontSize=8, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_CENTER)
 
-    col_widths = [1.8*cm, 3.2*cm, 7.5*cm, 2.5*cm, 9.5*cm]
+    # landscape A4 útil ≈ 27.3cm con márgenes 1.2cm
+    col_widths = [1.6*cm, 3.0*cm, 7.2*cm, 2.2*cm, 13.3*cm]
 
-    # ── Fila de títulos única arriba de todo ──
+    # ── Fila de títulos ──
     fila_titulos = Table([[
         Paragraph('MÓD.',    STYLE_TITULO_COL),
         Paragraph('HORARIO', STYLE_TITULO_COL),
@@ -1647,11 +1648,11 @@ def pdf_horario_docente(docente):
         Paragraph('CARRO',   STYLE_TITULO_COL),
     ]], colWidths=col_widths)
     fila_titulos.setStyle(TableStyle([
-        ('BACKGROUND',   (0, 0), (-1, 0), AZUL_ESCUELA),
-        ('TOPPADDING',   (0, 0), (-1, 0), 5),
-        ('BOTTOMPADDING',(0, 0), (-1, 0), 5),
-        ('LEFTPADDING',  (0, 0), (-1, 0), 6),
-        ('RIGHTPADDING', (0, 0), (-1, 0), 6),
+        ('BACKGROUND',    (0, 0), (-1, 0), AZUL_ESCUELA),
+        ('TOPPADDING',    (0, 0), (-1, 0), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+        ('LEFTPADDING',   (0, 0), (-1, 0), 4),
+        ('RIGHTPADDING',  (0, 0), (-1, 0), 4),
     ]))
     story.append(fila_titulos)
 
@@ -1663,14 +1664,14 @@ def pdf_horario_docente(docente):
         franja_dia = Table([[Paragraph(dia.upper(), STYLE_DIA_HDR), '', '', '', '']],
                             colWidths=col_widths)
         franja_dia.setStyle(TableStyle([
-            ('BACKGROUND',   (0, 0), (-1, 0), colors.HexColor('#1e3a6e')),
-            ('SPAN',         (0, 0), (-1, 0)),
-            ('TOPPADDING',   (0, 0), (-1, 0), 4),
-            ('BOTTOMPADDING',(0, 0), (-1, 0), 4),
+            ('BACKGROUND',    (0, 0), (-1, 0), colors.HexColor('#1e3a6e')),
+            ('SPAN',          (0, 0), (-1, 0)),
+            ('TOPPADDING',    (0, 0), (-1, 0), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 3),
         ]))
         story.append(franja_dia)
 
-        # Filas de módulos del día
+        # Filas de módulos
         filas_dia = []
         for h in items:
             modulo_info = MODULOS.get(h.modulo, ('—', '—', '—', '—'))
@@ -1691,33 +1692,28 @@ def pdf_horario_docente(docente):
             else:
                 carro_str = '—'
 
-            mat = (h.materia or '').upper()
-            es_extra = mat in ('EXTRA CLASES', 'EXTRA', 'TAREAS DOCENTES')
-            st = STYLE_GRIS if es_extra else STYLE_NORMAL
-
             filas_dia.append([
-                Paragraph(codigo_mod,       st),
-                Paragraph(horario_str,      st),
-                Paragraph(h.materia or '—', st),
-                Paragraph(h.aula or '—',    st),
-                Paragraph(carro_str,        st),
+                Paragraph(codigo_mod,       STYLE_MINI),
+                Paragraph(horario_str,      STYLE_MINI),
+                Paragraph(h.materia or '—', STYLE_MINI),
+                Paragraph(h.aula or '—',    STYLE_MINI),
+                Paragraph(carro_str,        STYLE_MINI),
             ])
 
         tabla_dia = Table(filas_dia, colWidths=col_widths)
         tabla_dia.setStyle(TableStyle([
             ('FONTNAME',      (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE',      (0, 0), (-1, -1), 8),
+            ('FONTSIZE',      (0, 0), (-1, -1), 7),
             ('ROWBACKGROUNDS',(0, 0), (-1, -1), [colors.white, GRIS_CLARO]),
-            ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+            ('GRID',          (0, 0), (-1, -1), 0.4, colors.HexColor('#e5e7eb')),
             ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING',    (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ('LEFTPADDING',   (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
         ]))
         story.append(tabla_dia)
 
-    story.append(Spacer(1, 0.3*cm))
     doc.build(story)
     nombre_archivo = f'horario_{docente.apellido.lower()}_{docente.nombre.lower()}.pdf'
     return _generar_response(buffer, nombre_archivo)
