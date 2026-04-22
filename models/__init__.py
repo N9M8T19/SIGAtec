@@ -336,8 +336,10 @@ class TicketBANetbook(db.Model):
     id         = db.Column(db.Integer, primary_key=True)
     ticket_id  = db.Column(db.Integer, db.ForeignKey('tickets_ba.id'), nullable=False)
     netbook_id = db.Column(db.Integer, db.ForeignKey('netbooks.id'), nullable=True)
+    carro_id   = db.Column(db.Integer, db.ForeignKey('carros.id'),   nullable=True)
 
     netbook = db.relationship('Netbook', foreign_keys=[netbook_id])
+    carro   = db.relationship('Carro',   foreign_keys=[carro_id])
 
 
 # ─────────────────────────────────────────────────────────────────────────────

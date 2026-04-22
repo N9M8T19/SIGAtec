@@ -61,10 +61,15 @@
 
         {% if ticket.netbooks %}
         <div class="border-t pt-3">
-            <div class="text-xs text-gray-400 mb-2">Netbooks incluidas ({{ ticket.netbooks|length }})</div>
+            <div class="text-xs text-gray-400 mb-2">Equipos incluidos ({{ ticket.netbooks|length }})</div>
             <div class="flex flex-wrap gap-2">
                 {% for item in ticket.netbooks %}
-                {% if item.netbook %}
+                {% if item.carro and not item.netbook %}
+                <span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-semibold">
+                    <i class="fas fa-dolly mr-1"></i>Carro {{ item.carro.display }}
+                    {% if item.carro.motivo_servicio %} — {{ item.carro.motivo_servicio }}{% endif %}
+                </span>
+                {% elif item.netbook %}
                 <span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-semibold">
                     Carro {{ item.netbook.carro.display if item.netbook.carro else '?' }}
                     — N° {{ item.netbook.numero_interno or '—' }}
@@ -137,28 +142,36 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-dolly mr-1 text-orange-500"></i>Carros en servicio técnico
-                        <span class="text-xs text-gray-400 font-normal ml-1">(seleccioná las netbooks que necesitás incluir)</span>
                     </label>
                     {% for carro in carros_en_servicio %}
                     <div class="border border-orange-200 rounded-lg mb-2 overflow-hidden">
                         <div class="bg-orange-50 px-3 py-2 flex items-center gap-2">
                             <i class="fas fa-exclamation-triangle text-orange-500 text-xs"></i>
-                            <span class="text-sm font-semibold text-orange-800">
-                                Carro {{ carro.display }}
-                            </span>
-                            {% if carro.motivo_servicio %}
-                            <span class="text-xs text-orange-600 ml-1">— {{ carro.motivo_servicio }}</span>
-                            {% endif %}
+                            <!-- Checkbox para seleccionar el carro completo (sin netbooks) -->
+                            <label class="flex items-center gap-2 cursor-pointer flex-1">
+                                <input type="checkbox" name="carro_ids" value="{{ carro.id }}"
+                                       class="rounded border-gray-300 text-orange-600">
+                                <span class="text-sm font-semibold text-orange-800">
+                                    Carro {{ carro.display }}
+                                    {% if carro.division %}<span class="font-normal text-orange-600">— {{ carro.division }}</span>{% endif %}
+                                    {% if carro.motivo_servicio %}<span class="font-normal text-orange-600 text-xs">({{ carro.motivo_servicio }})</span>{% endif %}
+                                </span>
+                            </label>
+                            <span class="text-xs text-orange-500 italic">carro completo</span>
+                        </div>
+                        {% set nb_list = carro.netbooks | selectattr('estado', 'in', ['operativa', 'servicio_tecnico']) | list %}
+                        {% if nb_list %}
+                        <div class="px-3 py-1 bg-gray-50 border-t border-orange-100 flex items-center justify-between">
+                            <span class="text-xs text-gray-400">O seleccioná netbooks individuales:</span>
                             <button type="button"
                                     onclick="seleccionarTodasCarro({{ carro.id }})"
-                                    class="ml-auto text-xs text-orange-700 hover:text-orange-900 underline">
+                                    class="text-xs text-orange-700 hover:text-orange-900 underline">
                                 Seleccionar todas
                             </button>
                         </div>
                         <div class="divide-y max-h-36 overflow-y-auto">
-                            {% for nb in carro.netbooks %}
-                            {% if nb.estado == 'operativa' or nb.estado == 'servicio_tecnico' %}
-                            <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer carro-nb-{{ carro.id }}">
+                            {% for nb in nb_list %}
+                            <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
                                 <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
                                        class="rounded border-gray-300 text-blue-600 cb-carro-{{ carro.id }}">
                                 <span class="text-sm">
@@ -169,9 +182,9 @@
                                     <span class="text-gray-400 text-xs ml-1">{{ nb.numero_serie or '' }}</span>
                                 </span>
                             </label>
-                            {% endif %}
                             {% endfor %}
                         </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>

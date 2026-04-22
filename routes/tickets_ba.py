@@ -34,9 +34,14 @@ def nuevo():
     nro_reclamo   = request.form.get('nro_reclamo', '').strip()
     observaciones = request.form.get('observaciones', '').strip()
     netbook_ids   = request.form.getlist('netbook_ids', type=int)
+    carro_ids     = request.form.getlist('carro_ids',   type=int)
 
     if not nro_reclamo:
         flash('El N° de reclamo es obligatorio.', 'danger')
+        return redirect(url_for('tickets_ba.index'))
+
+    if not netbook_ids and not carro_ids:
+        flash('Seleccioná al menos una netbook o un carro.', 'danger')
         return redirect(url_for('tickets_ba.index'))
 
     ticket = TicketBA(
@@ -50,6 +55,10 @@ def nuevo():
 
     for nb_id in netbook_ids:
         item = TicketBANetbook(ticket_id=ticket.id, netbook_id=nb_id)
+        db.session.add(item)
+
+    for c_id in carro_ids:
+        item = TicketBANetbook(ticket_id=ticket.id, carro_id=c_id)
         db.session.add(item)
 
     db.session.commit()
