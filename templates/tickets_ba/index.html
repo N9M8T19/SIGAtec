@@ -133,6 +133,50 @@
                     {% endif %}
                 </div>
 
+                {% if carros_en_servicio %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-dolly mr-1 text-orange-500"></i>Carros en servicio técnico
+                        <span class="text-xs text-gray-400 font-normal ml-1">(seleccioná las netbooks que necesitás incluir)</span>
+                    </label>
+                    {% for carro in carros_en_servicio %}
+                    <div class="border border-orange-200 rounded-lg mb-2 overflow-hidden">
+                        <div class="bg-orange-50 px-3 py-2 flex items-center gap-2">
+                            <i class="fas fa-exclamation-triangle text-orange-500 text-xs"></i>
+                            <span class="text-sm font-semibold text-orange-800">
+                                Carro {{ carro.display }}
+                            </span>
+                            {% if carro.motivo_servicio %}
+                            <span class="text-xs text-orange-600 ml-1">— {{ carro.motivo_servicio }}</span>
+                            {% endif %}
+                            <button type="button"
+                                    onclick="seleccionarTodasCarro({{ carro.id }})"
+                                    class="ml-auto text-xs text-orange-700 hover:text-orange-900 underline">
+                                Seleccionar todas
+                            </button>
+                        </div>
+                        <div class="divide-y max-h-36 overflow-y-auto">
+                            {% for nb in carro.netbooks %}
+                            {% if nb.estado == 'operativa' or nb.estado == 'servicio_tecnico' %}
+                            <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer carro-nb-{{ carro.id }}">
+                                <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
+                                       class="rounded border-gray-300 text-blue-600 cb-carro-{{ carro.id }}">
+                                <span class="text-sm">
+                                    N° {{ nb.numero_interno or '—' }}
+                                    {% if nb.estado == 'servicio_tecnico' %}
+                                    <span class="ml-1 text-xs bg-yellow-100 text-yellow-800 px-1 rounded">en serv.</span>
+                                    {% endif %}
+                                    <span class="text-gray-400 text-xs ml-1">{{ nb.numero_serie or '' }}</span>
+                                </span>
+                            </label>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
             </div>
             <div class="flex justify-end gap-2 px-6 py-4 border-t">
                 <button type="button" onclick="cerrarModal()"
@@ -158,5 +202,10 @@ function cerrarModal() {
 document.getElementById('modalNuevo').addEventListener('click', function(e) {
     if (e.target === this) cerrarModal();
 });
+function seleccionarTodasCarro(carroId) {
+    document.querySelectorAll('.cb-carro-' + carroId).forEach(function(cb) {
+        cb.checked = true;
+    });
+}
 </script>
 {% endblock %}

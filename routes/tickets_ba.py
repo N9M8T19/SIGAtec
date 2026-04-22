@@ -4,7 +4,7 @@ Módulo de Tickets BA Colaborativa.
 """
 from flask import Blueprint, render_template, redirect, url_for, request, flash, send_file
 from flask_login import login_required, current_user
-from models import db, Netbook
+from models import db, Netbook, Carro
 from datetime import datetime
 
 tickets_ba_bp = Blueprint('tickets_ba', __name__, url_prefix='/tickets-ba')
@@ -20,9 +20,11 @@ def index():
     from models import TicketBA
     tickets = TicketBA.query.order_by(TicketBA.fecha_creacion.desc()).all()
     netbooks_en_servicio = Netbook.query.filter_by(estado='servicio_tecnico').all()
+    carros_en_servicio = Carro.query.filter_by(estado='en_servicio').order_by(Carro.numero_fisico).all()
     return render_template('tickets_ba/index.html',
                            tickets=tickets,
-                           netbooks_en_servicio=netbooks_en_servicio)
+                           netbooks_en_servicio=netbooks_en_servicio,
+                           carros_en_servicio=carros_en_servicio)
 
 
 @tickets_ba_bp.route('/nuevo', methods=['POST'])

@@ -146,6 +146,44 @@ def novedades():
     except Exception:
         pass
 
+    # Netbooks enviadas a servicio técnico hoy
+    try:
+        netbooks_hoy = Netbook.query.filter(
+            Netbook.estado == 'servicio_tecnico',
+            Netbook.fecha_servicio != None,
+            Netbook.fecha_servicio >= hoy_utc
+        ).order_by(Netbook.fecha_servicio.desc()).limit(10).all()
+        for nb in netbooks_hoy:
+            carro_txt = f'Carro {nb.carro.numero_fisico}' if nb.carro and nb.carro.numero_fisico else 'sin carro'
+            eventos.append({
+                'tipo':  'servicio',
+                'label': 'Serv. Técnico',
+                'texto': f'Netbook N°{nb.numero_interno or "—"} ({carro_txt}) enviada a servicio',
+                'hora':  hora_ar(nb.fecha_servicio),
+                '_dt':   nb.fecha_servicio
+            })
+    except Exception:
+        pass
+
+    # Carros físicos enviados a servicio técnico hoy
+    try:
+        carros_hoy = Carro.query.filter(
+            Carro.estado == 'en_servicio',
+            Carro.fecha_servicio != None,
+            Carro.fecha_servicio >= hoy_utc
+        ).order_by(Carro.fecha_servicio.desc()).limit(5).all()
+        for c in carros_hoy:
+            motivo_txt = c.motivo_servicio or 'sin motivo'
+            eventos.append({
+                'tipo':  'servicio',
+                'label': 'Serv. Técnico',
+                'texto': f'Carro {c.display} enviado a servicio — {motivo_txt}',
+                'hora':  hora_ar(c.fecha_servicio),
+                '_dt':   c.fecha_servicio
+            })
+    except Exception:
+        pass
+
     # Ordenar por fecha descendente, los que no tienen fecha van al final
     eventos.sort(key=lambda e: e['_dt'] or datetime.min, reverse=True)
 
