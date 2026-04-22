@@ -58,6 +58,51 @@ def _docente_puede_pedir(docente):
     return True, ''
 
 
+def _umbral_alerta_netbooks(prestamo):
+    """
+    Determina si un préstamo de netbooks del Espacio Digital está en demora,
+    según el turno del docente y los horarios reales de la escuela.
+
+    Reglas:
+      - Turno Mañana     → alerta si ya pasaron las 12:40 (fin de M7)
+      - Turno Tarde      → alerta si ya pasaron las 18:20 (fin de T8)
+      - Turno Mañana y Tarde / doble turno → usar umbral Tarde (18:20)
+      - Sin turno / indeterminado          → fallback: MINUTOS_ALERTA_PRESTAMO (260 min)
+
+    Devuelve True si el préstamo está en demora.
+    """
+    from flask import current_app
+    ARG_OFFSET = timedelta(hours=-3)
+    ahora_arg  = datetime.utcnow() + ARG_OFFSET
+    retiro_arg = prestamo.hora_retiro + ARG_OFFSET
+
+    docente = prestamo.docente
+    turno   = (docente.turno or '').strip().lower() if docente else ''
+
+    # Detectar turno
+    es_manana = any(p in turno for p in ['mañana', 'manana', 'morning'])
+    es_tarde  = any(p in turno for p in ['tarde', 'afternoon'])
+    es_ambos  = ('y' in turno) or ('ambos' in turno) or ('varios' in turno) \
+                or (es_manana and es_tarde)
+
+    # Hora de corte según turno — en hora Argentina del día del retiro
+    if es_ambos or (es_manana and es_tarde):
+        # Turno doble → usar corte de tarde
+        corte = retiro_arg.replace(hour=18, minute=20, second=0, microsecond=0)
+        return ahora_arg >= corte
+    elif es_tarde:
+        corte = retiro_arg.replace(hour=18, minute=20, second=0, microsecond=0)
+        return ahora_arg >= corte
+    elif es_manana:
+        corte = retiro_arg.replace(hour=12, minute=40, second=0, microsecond=0)
+        return ahora_arg >= corte
+    else:
+        # Sin turno definido → fallback por minutos
+        mins_alerta = current_app.config.get('MINUTOS_ALERTA_PRESTAMO', 260)
+        delta_mins  = int((datetime.utcnow() - prestamo.hora_retiro).total_seconds() / 60)
+        return delta_mins >= mins_alerta
+
+
 def _gen_codigo(prefijo='P'):
     while True:
         codigo = prefijo + ''.join(random.choices(string.digits, k=4))
@@ -172,8 +217,11 @@ def espacio_digital():
     carro_2   = config.carro_2 if config else None
     prestamos = PrestamoNetbook.query.filter_by(estado='activo').all()
     now       = datetime.utcnow()
+    # IDs de prestamos que superaron el umbral de alerta segun el turno del docente
+    alerta_ids = {p.id for p in prestamos if _umbral_alerta_netbooks(p)}
     return render_template('prestamos/espacio_digital.html',
-                           prestamos=prestamos, carro=carro, carro_2=carro_2, config=config, now=now)
+                           prestamos=prestamos, carro=carro, carro_2=carro_2,
+                           config=config, now=now, alerta_ids=alerta_ids)
 
 
 @prestamos_bp.route('/espacio-digital/retiro', methods=['GET', 'POST'])

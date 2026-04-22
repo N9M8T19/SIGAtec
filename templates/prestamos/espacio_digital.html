@@ -40,7 +40,8 @@
         <tbody class="divide-y divide-gray-100">
             {% for p in prestamos %}
             {% set mins = ((now - p.hora_retiro).total_seconds() / 60)|int %}
-            <tr class="hover:bg-gray-50 {% if mins >= 260 %}bg-red-50{% endif %} cursor-pointer"
+            {% set en_alerta = p.id in alerta_ids %}
+            <tr class="hover:bg-gray-50 {% if en_alerta %}bg-red-50{% endif %} cursor-pointer"
                 onclick="toggleNetbooks({{ p.id }})">
                 <td class="px-4 py-3 font-mono text-xs">{{ p.codigo }}</td>
                 <td class="px-4 py-3 font-semibold">
@@ -55,19 +56,28 @@
                     </span>
                 </td>
                 <td class="px-4 py-3">{{ p.hora_retiro|arg_datetime }}</td>
-                <td class="px-4 py-3 {% if mins >= 260 %}text-red-600 font-bold{% endif %}">
+                <td class="px-4 py-3 {% if en_alerta %}text-red-600 font-bold{% endif %}">
                     {{ p.tiempo_transcurrido }}
-                    {% if mins >= 260 %}<i class="fas fa-exclamation-triangle ml-1"></i>{% endif %}
+                    {% if en_alerta %}<i class="fas fa-exclamation-triangle ml-1"></i>{% endif %}
                 </td>
                 <td class="px-4 py-3 text-gray-500 text-xs">{{ p.encargado_retiro }}</td>
                 <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
-                    <form method="POST" action="{{ url_for('prestamos.devolucion_netbooks', id=p.id) }}"
-                          onsubmit="return confirm('Registrar devolucion de todas las netbooks de {{ p.docente.nombre_completo }}?')">
-                        <button type="submit"
-                                class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs font-semibold">
-                            <i class="fas fa-undo mr-1"></i>Devolver todas
-                        </button>
-                    </form>
+                    <div class="flex items-center justify-center gap-1">
+                        {% if en_alerta %}
+                        <a href="{{ url_for('prestamos.alerta_pdf_netbooks', id=p.id) }}"
+                           class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold flex items-center gap-1"
+                           title="Generar Parte de Alerta">
+                            <i class="fas fa-print"></i> Parte
+                        </a>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('prestamos.devolucion_netbooks', id=p.id) }}"
+                              onsubmit="return confirm('Registrar devolucion de todas las netbooks de {{ p.docente.nombre_completo }}?')">
+                            <button type="submit"
+                                    class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs font-semibold">
+                                <i class="fas fa-undo mr-1"></i>Devolver todas
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             <tr id="detalle-{{ p.id }}" class="hidden">
