@@ -1,0 +1,331 @@
+{% extends 'base.html' %}
+{% block title %}Control Masivo de Stock — SIGA-Tec{% endblock %}
+{% block header %}Control Masivo de Stock{% endblock %}
+
+{% block content %}
+
+<!-- Descripción -->
+<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
+    <i class="fas fa-search mr-2"></i>
+    Subí un listado con <strong>todos los números de serie</strong> de tus computadoras (desde Excel, Google Sheets
+    o ingreso manual) y el sistema los busca en <strong>todos los carros</strong> registrados.
+    Obtenés dos reportes: los números que <strong>encontró</strong> en el sistema y los que <strong>no encontró</strong>.
+</div>
+
+<!-- Botón volver -->
+<div class="mb-4">
+    <a href="{{ url_for('stock.index') }}"
+       class="text-sm text-blue-700 hover:underline">
+        <i class="fas fa-arrow-left mr-1"></i>Volver al Control de Stock
+    </a>
+</div>
+
+<!-- ── FORMULARIO ─────────────────────────────────────────────────────── -->
+{% if not resultado %}
+<div class="bg-white rounded-xl shadow-sm p-6 max-w-2xl">
+    <h2 class="text-base font-bold text-blue-900 mb-4">
+        <i class="fas fa-upload mr-2 text-blue-700"></i>Cargar listado de números de serie
+    </h2>
+
+    <!-- Solapas de método -->
+    <div class="flex border-b border-gray-200 mb-5 gap-1" id="tabs">
+        <button onclick="cambiarTab('excel')" id="tab-excel"
+                class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-blue-700 text-blue-700 bg-blue-50">
+            <i class="fas fa-file-excel mr-1"></i>Excel
+        </button>
+        <button onclick="cambiarTab('sheets')" id="tab-sheets"
+                class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-blue-700">
+            <i class="fab fa-google-drive mr-1 text-green-600"></i>Google Sheets
+        </button>
+        <button onclick="cambiarTab('manual')" id="tab-manual"
+                class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-blue-700">
+            <i class="fas fa-keyboard mr-1"></i>Manual
+        </button>
+    </div>
+
+    <!-- Solapa Excel -->
+    <form method="POST" enctype="multipart/form-data" id="form-excel" class="tab-content">
+        <input type="hidden" name="metodo" value="excel">
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Archivo Excel (.xlsx)
+            </label>
+            <div class="border-2 border-dashed border-blue-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors bg-blue-50"
+                 onclick="document.getElementById('archivo_excel').click()">
+                <i class="fas fa-file-excel text-3xl text-green-500 mb-2 block"></i>
+                <p class="text-sm text-gray-600">
+                    Arrastrá el archivo acá o <span class="text-blue-700 font-semibold">hacé clic para elegir</span>
+                </p>
+                <p class="text-xs text-gray-400 mt-1" id="nombre-archivo-excel">
+                    El sistema lee <strong>todos los números de serie</strong> de la primera hoja.
+                    Una serie por celda, columna o fila — el formato no importa.
+                </p>
+            </div>
+            <input type="file" id="archivo_excel" name="archivo_excel"
+                   accept=".xlsx,.xls" class="hidden"
+                   onchange="mostrarNombreArchivo(this)">
+        </div>
+        <button type="submit"
+                class="bg-blue-900 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold text-sm">
+            <i class="fas fa-search mr-2"></i>Buscar en el sistema
+        </button>
+    </form>
+
+    <!-- Solapa Google Sheets -->
+    <form method="POST" id="form-sheets" class="tab-content hidden">
+        <input type="hidden" name="metodo" value="sheets">
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">
+                URL de la planilla
+            </label>
+            <input type="url" name="url_sheet" placeholder="https://docs.google.com/spreadsheets/d/..."
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">
+                Nombre de la hoja / pestaña
+            </label>
+            <input type="text" name="nombre_hoja" value="Hoja1" placeholder="Hoja1"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+            <p class="text-xs text-gray-400 mt-1">
+                La planilla debe tener los números de serie en cualquier columna. El sistema ignora encabezados comunes.
+            </p>
+        </div>
+        <button type="submit"
+                class="bg-blue-900 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold text-sm">
+            <i class="fas fa-search mr-2"></i>Buscar en el sistema
+        </button>
+    </form>
+
+    <!-- Solapa Manual -->
+    <form method="POST" id="form-manual" class="tab-content hidden">
+        <input type="hidden" name="metodo" value="manual">
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Pegá o escribí los números de serie (uno por línea)
+            </label>
+            <textarea name="series_manuales" rows="12"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                      placeholder="ABC123456&#10;DEF789012&#10;GHI345678&#10;..."></textarea>
+        </div>
+        <button type="submit"
+                class="bg-blue-900 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold text-sm">
+            <i class="fas fa-search mr-2"></i>Buscar en el sistema
+        </button>
+    </form>
+</div>
+
+<!-- ── RESULTADO ──────────────────────────────────────────────────────── -->
+{% else %}
+
+<!-- Resumen -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-blue-900">{{ resultado.total_listado }}</div>
+        <div class="text-xs text-blue-600 mt-1">Series en el listado</div>
+    </div>
+    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-gray-700">{{ resultado.total_sistema }}</div>
+        <div class="text-xs text-gray-500 mt-1">Netbooks en el sistema</div>
+    </div>
+    <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-green-700">{{ resultado.encontradas|length }}</div>
+        <div class="text-xs text-green-600 mt-1">✅ Encontradas</div>
+    </div>
+    <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-red-700">{{ resultado.no_encontradas|length }}</div>
+        <div class="text-xs text-red-600 mt-1">❌ No encontradas en sistema</div>
+    </div>
+    <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
+        <div class="text-2xl font-bold text-orange-600">{{ resultado.no_en_listado|length }}</div>
+        <div class="text-xs text-orange-600 mt-1">⚠️ En sistema, no en listado</div>
+    </div>
+</div>
+
+<!-- Botones -->
+<div class="flex gap-3 mb-6 flex-wrap">
+    <a href="{{ url_for('stock.control_masivo_pdf') }}"
+       class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        <i class="fas fa-file-pdf mr-2"></i>Descargar PDF completo
+    </a>
+    <a href="{{ url_for('stock.control_masivo') }}"
+       class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+        <i class="fas fa-redo mr-2"></i>Nuevo control
+    </a>
+    <a href="{{ url_for('stock.index') }}"
+       class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
+        Volver
+    </a>
+</div>
+
+<!-- ❌ No encontradas en el sistema -->
+{% if resultado.no_encontradas %}
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+    <div class="bg-red-600 text-white px-4 py-3 font-bold text-sm flex items-center justify-between">
+        <span>❌ NO encontradas en el sistema ({{ resultado.no_encontradas|length }})
+            — Están en el listado pero no están registradas</span>
+    </div>
+    <div class="p-4">
+        <p class="text-xs text-gray-500 mb-3">
+            Estos números de serie no coinciden con ninguna netbook registrada en el sistema.
+            Verificá si hay errores de tipeo o si hay que registrarlas.
+        </p>
+        <div class="flex flex-wrap gap-2">
+            {% for serie in resultado.no_encontradas %}
+            <span class="bg-red-100 text-red-800 font-mono text-xs px-3 py-1 rounded-full border border-red-200">
+                {{ serie }}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-green-800 font-semibold text-sm">
+    ✅ Todas las series del listado fueron encontradas en el sistema.
+</div>
+{% endif %}
+
+<!-- ⚠️ En el sistema pero no en el listado -->
+{% if resultado.no_en_listado %}
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+    <div class="bg-orange-500 text-white px-4 py-3 font-bold text-sm flex items-center justify-between">
+        <span>⚠️ En el sistema pero ausentes del listado ({{ resultado.no_en_listado|length }})
+            — Verificar si faltan en el relevamiento</span>
+        <button onclick="toggleSeccion('tabla-no-listado', this)"
+                class="text-xs bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded-lg">
+            Mostrar/Ocultar
+        </button>
+    </div>
+    <div id="tabla-no-listado">
+        <table class="w-full text-sm">
+            <thead class="bg-orange-50 text-orange-700 text-xs uppercase">
+                <tr>
+                    <th class="px-4 py-2 text-left">Carro</th>
+                    <th class="px-4 py-2 text-left">Aula</th>
+                    <th class="px-4 py-2 text-left">N° Interno</th>
+                    <th class="px-4 py-2 text-left">N° Serie</th>
+                    <th class="px-4 py-2 text-left">Alumno</th>
+                    <th class="px-4 py-2 text-left">Estado</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-orange-100">
+                {% for nb in resultado.no_en_listado %}
+                <tr class="bg-orange-50 hover:bg-orange-100">
+                    <td class="px-4 py-2 font-semibold">{{ nb.carro }}</td>
+                    <td class="px-4 py-2">{{ nb.aula }}</td>
+                    <td class="px-4 py-2">{{ nb.numero_interno }}</td>
+                    <td class="px-4 py-2 font-mono text-xs">{{ nb.numero_serie }}</td>
+                    <td class="px-4 py-2">{{ nb.alumno }}</td>
+                    <td class="px-4 py-2">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold
+                            {% if nb.estado == 'operativa' %}bg-green-100 text-green-700
+                            {% else %}bg-orange-100 text-orange-700{% endif %}">
+                            {{ 'Operativa' if nb.estado == 'operativa' else 'Serv. Técnico' }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ✅ Encontradas en el sistema -->
+{% if resultado.encontradas %}
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+    <div class="bg-green-600 text-white px-4 py-3 font-bold text-sm flex items-center justify-between">
+        <span>✅ Encontradas en el sistema ({{ resultado.encontradas|length }})</span>
+        <button onclick="toggleSeccion('tabla-encontradas', this)"
+                class="text-xs bg-green-700 hover:bg-green-800 px-3 py-1 rounded-lg">
+            Mostrar/Ocultar
+        </button>
+    </div>
+    <div id="tabla-encontradas">
+        <table class="w-full text-sm">
+            <thead class="bg-green-50 text-green-700 text-xs uppercase">
+                <tr>
+                    <th class="px-4 py-2 text-left">Carro</th>
+                    <th class="px-4 py-2 text-left">Aula</th>
+                    <th class="px-4 py-2 text-left">N° Interno</th>
+                    <th class="px-4 py-2 text-left">N° Serie</th>
+                    <th class="px-4 py-2 text-left">Alumno</th>
+                    <th class="px-4 py-2 text-left">Estado</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-green-100">
+                {% for nb in resultado.encontradas %}
+                <tr class="hover:bg-green-50">
+                    <td class="px-4 py-2 font-semibold">{{ nb.carro }}</td>
+                    <td class="px-4 py-2">{{ nb.aula }}</td>
+                    <td class="px-4 py-2">{{ nb.numero_interno }}</td>
+                    <td class="px-4 py-2 font-mono text-xs">{{ nb.numero_serie }}</td>
+                    <td class="px-4 py-2">{{ nb.alumno }}</td>
+                    <td class="px-4 py-2">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold
+                            {% if nb.estado == 'operativa' %}bg-green-100 text-green-700
+                            {% else %}bg-orange-100 text-orange-700{% endif %}">
+                            {{ 'Operativa' if nb.estado == 'operativa' else 'Serv. Técnico' }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-2 text-xs text-gray-400">
+    Control realizado el {{ fecha }} por {{ usuario }}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Solapas de método ────────────────────────────────────────────────────────
+function cambiarTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(f => f.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('border-blue-700', 'text-blue-700', 'bg-blue-50');
+        b.classList.add('border-transparent', 'text-gray-500');
+    });
+    document.getElementById('form-' + tab).classList.remove('hidden');
+    const btn = document.getElementById('tab-' + tab);
+    btn.classList.add('border-blue-700', 'text-blue-700', 'bg-blue-50');
+    btn.classList.remove('border-transparent', 'text-gray-500');
+}
+
+// ── Mostrar nombre de archivo Excel elegido ──────────────────────────────────
+function mostrarNombreArchivo(input) {
+    const p = document.getElementById('nombre-archivo-excel');
+    if (input.files && input.files[0]) {
+        p.innerHTML = '<strong class="text-blue-700">' + input.files[0].name + '</strong>';
+    }
+}
+
+// Drag & drop sobre la zona de Excel
+(function() {
+    const zona = document.querySelector('[onclick="document.getElementById(\'archivo_excel\').click()"]');
+    if (!zona) return;
+    zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('border-blue-500'); });
+    zona.addEventListener('dragleave', () => zona.classList.remove('border-blue-500'));
+    zona.addEventListener('drop', e => {
+        e.preventDefault();
+        zona.classList.remove('border-blue-500');
+        const input = document.getElementById('archivo_excel');
+        if (e.dataTransfer.files.length) {
+            input.files = e.dataTransfer.files;
+            mostrarNombreArchivo(input);
+        }
+    });
+})();
+
+// ── Mostrar/Ocultar tablas de resultado ──────────────────────────────────────
+function toggleSeccion(id, btn) {
+    document.getElementById(id).classList.toggle('hidden');
+}
+</script>
+{% endblock %}

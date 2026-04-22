@@ -1717,3 +1717,214 @@ def pdf_horario_docente(docente):
     doc.build(story)
     nombre_archivo = f'horario_{docente.apellido.lower()}_{docente.nombre.lower()}.pdf'
     return _generar_response(buffer, nombre_archivo)
+# ─────────────────────────────────────────────────────────────────────────────
+#  PDF CONTROL MASIVO DE STOCK
+# ─────────────────────────────────────────────────────────────────────────────
+
+def pdf_control_masivo_stock(resultado):
+    """
+    PDF con el resultado del control masivo de stock.
+    Contiene tres secciones:
+      1. Resumen general
+      2. Series NO encontradas en el sistema  (lista de números)
+      3. Netbooks en el sistema ausentes del listado  (tabla con datos)
+      4. Netbooks encontradas (tabla completa)
+    Orientación landscape para que entren bien las tablas.
+    """
+    from reportlab.lib.pagesizes import landscape
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=1.5*cm, leftMargin=1.5*cm,
+        topMargin=1.5*cm,  bottomMargin=1.5*cm,
+    )
+    story = []
+
+    _encabezado(
+        story,
+        titulo='CONTROL MASIVO DE STOCK — NETBOOKS',
+        subtitulo=f'Realizado el {resultado["fecha"]} por {resultado["usuario"]}',
+    )
+    story.append(Spacer(1, 0.3*cm))
+
+    # ── Resumen ───────────────────────────────────────────────────────────────
+    ANCHO = 27.7*cm   # landscape A4 con márgenes 1.5cm ≈ 24.7cm útil
+    ANCHO_UTIL = 24.7*cm
+
+    resumen_data = [
+        ['Series en el listado', 'Netbooks en el sistema',
+         'Encontradas ✅', 'No encontradas ❌', 'Ausentes del listado ⚠️'],
+        [
+            str(resultado['total_listado']),
+            str(resultado['total_sistema']),
+            str(len(resultado['encontradas'])),
+            str(len(resultado['no_encontradas'])),
+            str(len(resultado['no_en_listado'])),
+        ]
+    ]
+    col_res = [ANCHO_UTIL / 5] * 5
+    t_res = Table(resumen_data, colWidths=col_res)
+    t_res.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, 0),  AZUL_CLARO),
+        ('TEXTCOLOR',     (0, 0), (-1, 0),  AZUL_ESCUELA),
+        ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',      (0, 0), (-1, 0),  8),
+        ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME',      (0, 1), (-1, 1),  'Helvetica-Bold'),
+        ('FONTSIZE',      (0, 1), (-1, 1),  18),
+        ('TEXTCOLOR',     (2, 1), (2, 1),   VERDE),
+        ('TEXTCOLOR',     (3, 1), (3, 1),   ROJO),
+        ('TEXTCOLOR',     (4, 1), (4, 1),   NARANJA),
+        ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#93c5fd')),
+        ('TOPPADDING',    (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(t_res)
+    story.append(Spacer(1, 0.5*cm))
+
+    STYLE_SEC = ParagraphStyle('SecMasivo', parent=styles['Normal'],
+        fontSize=10, fontName='Helvetica-Bold', textColor=colors.white,
+        alignment=TA_LEFT, spaceBefore=0, spaceAfter=0,
+        leftPadding=8, rightPadding=8, topPadding=4, bottomPadding=4)
+
+    # ── SECCIÓN 1: No encontradas en el sistema ───────────────────────────────
+    no_enc = resultado.get('no_encontradas', [])
+    banner1 = Table([[Paragraph(
+        f'❌  NO ENCONTRADAS EN EL SISTEMA — {len(no_enc)} serie(s)',
+        STYLE_SEC
+    )]], colWidths=[ANCHO_UTIL])
+    banner1.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), ROJO),
+        ('TOPPADDING',    (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(banner1)
+
+    if no_enc:
+        STYLE_MONO = ParagraphStyle('Mono', parent=styles['Normal'],
+            fontSize=8, fontName='Helvetica', leading=11)
+        aclaracion = Paragraph(
+            'Estos números de serie están en el listado pero no coinciden con ninguna '
+            'netbook registrada en el sistema. Verificar errores de tipeo o si deben registrarse.',
+            ParagraphStyle('Acl', parent=styles['Normal'],
+                fontSize=7, fontName='Helvetica', textColor=colors.grey)
+        )
+        story.append(aclaracion)
+        story.append(Spacer(1, 0.15*cm))
+
+        # Mostrar en filas de 6 columnas
+        COL_SERIE = 6
+        filas_series = []
+        fila_actual  = []
+        for i, serie in enumerate(no_enc):
+            fila_actual.append(serie)
+            if len(fila_actual) == COL_SERIE:
+                filas_series.append(fila_actual)
+                fila_actual = []
+        if fila_actual:
+            while len(fila_actual) < COL_SERIE:
+                fila_actual.append('')
+            filas_series.append(fila_actual)
+
+        col_w = [ANCHO_UTIL / COL_SERIE] * COL_SERIE
+        t_series = Table(filas_series, colWidths=col_w)
+        t_series.setStyle(TableStyle([
+            ('FONTNAME',      (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE',      (0, 0), (-1, -1), 8),
+            ('ROWBACKGROUNDS',(0, 0), (-1, -1), [colors.HexColor('#fff5f5'), colors.white]),
+            ('GRID',          (0, 0), (-1, -1), 0.3, colors.HexColor('#fca5a5')),
+            ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        story.append(t_series)
+    else:
+        story.append(Paragraph(
+            'Todas las series del listado fueron encontradas en el sistema. ✅',
+            ParagraphStyle('Ok', parent=styles['Normal'],
+                fontSize=9, fontName='Helvetica', textColor=VERDE)
+        ))
+
+    story.append(Spacer(1, 0.5*cm))
+
+    # ── SECCIÓN 2: En el sistema pero ausentes del listado ────────────────────
+    no_list = resultado.get('no_en_listado', [])
+    banner2 = Table([[Paragraph(
+        f'⚠️  EN EL SISTEMA PERO AUSENTES DEL LISTADO — {len(no_list)} netbook(s)',
+        STYLE_SEC
+    )]], colWidths=[ANCHO_UTIL])
+    banner2.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), NARANJA),
+        ('TOPPADDING',    (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(banner2)
+
+    if no_list:
+        HDR_NL = ['Carro', 'Aula', 'N° Interno', 'N° Serie', 'Alumno', 'Estado']
+        data_nl = [HDR_NL]
+        for nb in no_list:
+            estado = 'Operativa' if nb['estado'] == 'operativa' else 'Serv. Técnico'
+            data_nl.append([
+                nb['carro'], nb['aula'], nb['numero_interno'],
+                nb['numero_serie'], nb['alumno'], estado
+            ])
+        col_nl = [3*cm, 2.5*cm, 2.5*cm, 5.5*cm, 7*cm, 3.7*cm]
+        t_nl = Table(data_nl, colWidths=col_nl)
+        estilo_nl = _tabla_estilo(NARANJA)
+        t_nl.setStyle(estilo_nl)
+        story.append(t_nl)
+    else:
+        story.append(Paragraph(
+            'No hay netbooks del sistema ausentes del listado.',
+            ParagraphStyle('Ok2', parent=styles['Normal'],
+                fontSize=9, fontName='Helvetica', textColor=colors.grey)
+        ))
+
+    story.append(Spacer(1, 0.5*cm))
+
+    # ── SECCIÓN 3: Encontradas ─────────────────────────────────────────────────
+    enc = resultado.get('encontradas', [])
+    banner3 = Table([[Paragraph(
+        f'✅  ENCONTRADAS EN EL SISTEMA — {len(enc)} netbook(s)',
+        STYLE_SEC
+    )]], colWidths=[ANCHO_UTIL])
+    banner3.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), VERDE),
+        ('TOPPADDING',    (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(banner3)
+
+    if enc:
+        HDR_E = ['Carro', 'Aula', 'N° Interno', 'N° Serie', 'Alumno', 'Estado']
+        data_e = [HDR_E]
+        for nb in enc:
+            estado = 'Operativa' if nb['estado'] == 'operativa' else 'Serv. Técnico'
+            data_e.append([
+                nb['carro'], nb['aula'], nb['numero_interno'],
+                nb['numero_serie'], nb['alumno'], estado
+            ])
+        col_e = [3*cm, 2.5*cm, 2.5*cm, 5.5*cm, 7*cm, 3.7*cm]
+        t_e = Table(data_e, colWidths=col_e)
+        t_e.setStyle(_tabla_estilo(VERDE))
+        story.append(t_e)
+    else:
+        story.append(Paragraph(
+            'No se encontraron coincidencias.',
+            ParagraphStyle('Ok3', parent=styles['Normal'],
+                fontSize=9, fontName='Helvetica', textColor=colors.grey)
+        ))
+
+    story.append(Spacer(1, 0.4*cm))
+    story.append(Paragraph(
+        f'SIGA-Tec — E.T. N°7 D.E. 5  ·  Control generado el '
+        f'{resultado["fecha"]} por {resultado["usuario"]}',
+        STYLE_FECHA
+    ))
+
+    doc.build(story)
+    nombre = f'control_masivo_stock_{datetime.utcnow().strftime("%Y%m%d_%H%M")}.pdf'
+    return _generar_response(buffer, nombre)
