@@ -92,77 +92,12 @@ def pdf(carro_id):
 #  CONTROL MASIVO DE STOCK
 # ─────────────────────────────────────────────────────────────────────────────
 
-@stock_bp.route('/control-masivo', methods=['GET', 'POST'])
-@login_required
-def control_masivo():
+def _procesar_control_masivo(series_input):
     """
-    Control masivo: el usuario sube un listado de números de serie
-    (Excel directo, Google Sheets o texto manual) y el sistema compara
-    contra TODAS las netbooks registradas en todos los carros.
-    Genera dos listados: encontradas y no encontradas en el sistema.
+    Recibe una lista de strings (números de serie en mayúscula)
+    y devuelve un dict con el resultado completo del control masivo.
     """
-    if request.method == 'GET':
-        return render_template('stock/control_masivo.html', resultado=None)
-
-    metodo = request.form.get('metodo', 'excel')
-    series_input = []
-
-    # ── 1. Obtener las series según el método ──────────────────────────────
-    if metodo == 'excel':
-        archivo = request.files.get('archivo_excel')
-        if not archivo or archivo.filename == '':
-            flash('Seleccioná un archivo Excel.', 'danger')
-            return redirect(url_for('stock.control_masivo'))
-        try:
-            import openpyxl
-            from io import BytesIO as _BytesIO
-            wb = openpyxl.load_workbook(_BytesIO(archivo.read()), data_only=True)
-            ws = wb.active
-            for row in ws.iter_rows(values_only=True):
-                for cell in row:
-                    val = str(cell).strip().upper() if cell is not None else ''
-                    # Ignorar celdas vacías, "None" y cabeceras típicas
-                    if val and val not in ('NONE', 'NÚMERO DE SERIE', 'N° SERIE',
-                                           'NUMERO DE SERIE', 'SERIE', 'N°SERIE'):
-                        series_input.append(val)
-        except Exception as e:
-            flash(f'Error al leer el archivo Excel: {e}', 'danger')
-            return redirect(url_for('stock.control_masivo'))
-
-    elif metodo == 'sheets':
-        url_sheet   = request.form.get('url_sheet', '').strip()
-        nombre_hoja = request.form.get('nombre_hoja', '').strip() or 'Hoja1'
-        if not url_sheet:
-            flash('Ingresá la URL de la planilla de Google Sheets.', 'danger')
-            return redirect(url_for('stock.control_masivo'))
-        try:
-            from services.importar_drive import _get_service, _extraer_sheet_id, _leer_hoja
-            sheet_id = _extraer_sheet_id(url_sheet)
-            filas    = _leer_hoja(_get_service(), sheet_id, nombre_hoja)
-            CABECERAS = {'NONE', 'NÚMERO DE SERIE', 'N° SERIE',
-                         'NUMERO DE SERIE', 'SERIE', 'N°SERIE'}
-            for fila in filas:
-                for celda in fila:
-                    val = str(celda).strip().upper() if celda else ''
-                    if val and val not in CABECERAS:
-                        series_input.append(val)
-        except Exception as e:
-            flash(f'Error al leer Google Sheets: {e}', 'danger')
-            return redirect(url_for('stock.control_masivo'))
-
-    elif metodo == 'manual':
-        texto        = request.form.get('series_manuales', '')
-        series_input = [s.strip().upper() for s in texto.splitlines() if s.strip()]
-
-    else:
-        flash('Método no válido.', 'danger')
-        return redirect(url_for('stock.control_masivo'))
-
-    if not series_input:
-        flash('No se encontraron números de serie en el listado.', 'danger')
-        return redirect(url_for('stock.control_masivo'))
-
-    # Eliminar duplicados del listado conservando el orden original
+    # Eliminar duplicados conservando orden
     seen = set()
     series_unicas = []
     for s in series_input:
@@ -170,7 +105,7 @@ def control_masivo():
             seen.add(s)
             series_unicas.append(s)
 
-    # ── 2. Índice de TODAS las netbooks del sistema ────────────────────────
+    # Índice de TODAS las netbooks del sistema
     todas_netbooks = Netbook.query.filter(
         Netbook.numero_serie != None,
         Netbook.numero_serie != ''
@@ -180,14 +115,10 @@ def control_masivo():
     series_sistema_set = set(indice_sistema.keys())
     series_listado_set = set(series_unicas)
 
-    # Encontradas: en el listado Y en el sistema
     encontradas_series    = series_listado_set & series_sistema_set
-    # No encontradas: en el listado pero NO en el sistema
     no_encontradas_series = series_listado_set - series_sistema_set
-    # En el sistema pero ausentes del listado (faltantes del relevamiento)
     no_en_listado_series  = series_sistema_set - series_listado_set
 
-    # ── 3. Armar listas con datos completos ───────────────────────────────
     def _nb_dict(nb):
         return {
             'numero_serie':   nb.numero_serie,
@@ -202,19 +133,14 @@ def control_masivo():
         [_nb_dict(indice_sistema[s]) for s in encontradas_series],
         key=lambda x: (x['carro'], x['numero_interno'])
     )
-
     no_encontradas = sorted(list(no_encontradas_series))
-
-    no_en_listado = sorted(
+    no_en_listado  = sorted(
         [_nb_dict(indice_sistema[s]) for s in no_en_listado_series],
         key=lambda x: (x['carro'], x['numero_interno'])
     )
 
-    fecha_str = datetime.now().strftime('%d/%m/%Y %H:%M')
-
-    # Guardar en session para PDF
-    session['stock_masivo_resultado'] = {
-        'fecha':          fecha_str,
+    return {
+        'fecha':          datetime.now().strftime('%d/%m/%Y %H:%M'),
         'usuario':        current_user.nombre_completo,
         'total_listado':  len(series_unicas),
         'total_sistema':  len(indice_sistema),
@@ -223,20 +149,112 @@ def control_masivo():
         'no_en_listado':  no_en_listado,
     }
 
+
+def _leer_series_desde_request():
+    """
+    Lee las series del formulario según el método elegido.
+    Devuelve (lista_de_series_en_mayuscula, mensaje_de_error_o_None).
+    """
+    metodo = request.form.get('metodo', 'excel')
+    CABECERAS = {'NONE', 'NÚMERO DE SERIE', 'N° SERIE',
+                 'NUMERO DE SERIE', 'SERIE', 'N°SERIE'}
+    series_input = []
+
+    if metodo == 'excel':
+        archivo = request.files.get('archivo_excel')
+        if not archivo or archivo.filename == '':
+            return [], 'Seleccioná un archivo Excel.'
+        try:
+            import openpyxl
+            from io import BytesIO as _BytesIO
+            wb = openpyxl.load_workbook(_BytesIO(archivo.read()), data_only=True)
+            ws = wb.active
+            for row in ws.iter_rows(values_only=True):
+                for cell in row:
+                    val = str(cell).strip().upper() if cell is not None else ''
+                    if val and val not in CABECERAS:
+                        series_input.append(val)
+        except Exception as e:
+            return [], f'Error al leer el archivo Excel: {e}'
+
+    elif metodo == 'sheets':
+        url_sheet   = request.form.get('url_sheet', '').strip()
+        nombre_hoja = request.form.get('nombre_hoja', '').strip() or 'Hoja1'
+        if not url_sheet:
+            return [], 'Ingresá la URL de la planilla de Google Sheets.'
+        try:
+            from services.importar_drive import _get_service, _extraer_sheet_id, _leer_hoja
+            sheet_id = _extraer_sheet_id(url_sheet)
+            filas    = _leer_hoja(_get_service(), sheet_id, nombre_hoja)
+            for fila in filas:
+                for celda in fila:
+                    val = str(celda).strip().upper() if celda else ''
+                    if val and val not in CABECERAS:
+                        series_input.append(val)
+        except Exception as e:
+            return [], f'Error al leer Google Sheets: {e}'
+
+    elif metodo == 'manual':
+        texto        = request.form.get('series_manuales', '')
+        series_input = [s.strip().upper() for s in texto.splitlines() if s.strip()]
+
+    else:
+        return [], 'Método no válido.'
+
+    if not series_input:
+        return [], 'No se encontraron números de serie en el listado.'
+
+    return series_input, None
+
+
+@stock_bp.route('/control-masivo', methods=['GET', 'POST'])
+@login_required
+def control_masivo():
+    """
+    Pantalla de control masivo.
+    En POST procesa el listado, guarda SOLO las series en session
+    (strings livianos) y renderiza el resultado completo en el template.
+    El PDF se genera reprocesando las series desde session, sin depender
+    de datos pesados — esto evita el límite de ~4 KB de la session de Flask.
+    """
+    if request.method == 'GET':
+        return render_template('stock/control_masivo.html', resultado=None)
+
+    series_input, error = _leer_series_desde_request()
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('stock.control_masivo'))
+
+    resultado = _procesar_control_masivo(series_input)
+
+    # Guardar SOLO las series en session (liviano: solo strings)
+    # El PDF las reprocesa haciendo las mismas queries a la BD.
+    session['stock_masivo_series'] = series_input
+
     return render_template('stock/control_masivo.html',
-                           resultado=session['stock_masivo_resultado'],
-                           fecha=fecha_str,
-                           usuario=current_user.nombre_completo)
+                           resultado=resultado,
+                           fecha=resultado['fecha'],
+                           usuario=resultado['usuario'])
 
 
 @stock_bp.route('/control-masivo/pdf')
 @login_required
 def control_masivo_pdf():
-    """Genera el PDF del control masivo de stock."""
-    resultado = session.get('stock_masivo_resultado')
-    if not resultado:
-        flash('No hay resultado disponible. Ejecutá el control masivo primero.', 'warning')
+    """
+    Genera el PDF del control masivo reprocesando las series guardadas
+    en session. Si la session no tiene datos, redirige con aviso claro.
+    """
+    series_input = session.get('stock_masivo_series')
+    if not series_input:
+        flash(
+            'No se encontraron datos del control. '
+            'Esto puede pasar si cerraste la pestaña o la sesión expiró. '
+            'Ejecutá el control masivo nuevamente y descargá el PDF desde esa misma pantalla.',
+            'warning'
+        )
         return redirect(url_for('stock.control_masivo'))
+
+    resultado = _procesar_control_masivo(series_input)
 
     from services.pdf_reportes import pdf_control_masivo_stock
     return pdf_control_masivo_stock(resultado)
