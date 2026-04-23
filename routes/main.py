@@ -18,8 +18,10 @@ def dashboard():
     prestamos_activos = PrestamoCarro.query.filter_by(estado='activo').count()
     nb_prestadas = PrestamoNetbook.query.filter_by(estado='activo').count()
 
-    # Asignaciones internas — se muestra en el conteo para todos los roles
+    # Asignaciones internas — se suman a operativas y al total de netbooks
     asignaciones_activas = AsignacionInterna.query.filter_by(activa=True).count()
+    total_netbooks += asignaciones_activas
+    operativas     += asignaciones_activas
 
     from config import Config
     limite  = Config.MINUTOS_ALERTA_PRESTAMO
