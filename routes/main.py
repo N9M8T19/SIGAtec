@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, TicketBA, Usuario, ConfigEspacioDigital, Alumno
+from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, TicketBA, Usuario, ConfigEspacioDigital, Alumno, AsignacionInterna
 from datetime import datetime
 
 main_bp = Blueprint('main', __name__)
@@ -17,6 +17,9 @@ def dashboard():
     total_docentes = Docente.query.filter_by(activo=True).count()
     prestamos_activos = PrestamoCarro.query.filter_by(estado='activo').count()
     nb_prestadas = PrestamoNetbook.query.filter_by(estado='activo').count()
+
+    # Asignaciones internas — se muestra en el conteo para todos los roles
+    asignaciones_activas = AsignacionInterna.query.filter_by(activa=True).count()
 
     from config import Config
     limite  = Config.MINUTOS_ALERTA_PRESTAMO
@@ -44,13 +47,14 @@ def dashboard():
             })
 
     stats = {
-        'total_carros':      total_carros,
-        'total_netbooks':    total_netbooks,
-        'operativas':        operativas,
-        'en_servicio':       en_servicio,
-        'total_docentes':    total_docentes,
-        'prestamos_activos': prestamos_activos,
-        'nb_prestadas':      nb_prestadas,
+        'total_carros':        total_carros,
+        'total_netbooks':      total_netbooks,
+        'operativas':          operativas,
+        'en_servicio':         en_servicio,
+        'total_docentes':      total_docentes,
+        'prestamos_activos':   prestamos_activos,
+        'nb_prestadas':        nb_prestadas,
+        'asignaciones_activas': asignaciones_activas,   # ⚠️ Nuevo 22/04/2026
     }
 
     return render_template('main/dashboard.html',
@@ -128,7 +132,6 @@ def novedades():
                 'hora': hora_ar(p.hora_retiro),
                 '_dt': p.hora_retiro
             })
-
 
     # Tickets BA (últimos 5)
     try:
@@ -233,7 +236,6 @@ def buscar():
     ).limit(5).all()
 
     def alumno_nb(n):
-        # Intentar alumno mañana o tarde, fallback al campo legacy
         if n.alumno_manana:
             return f'{n.alumno_manana.apellido}, {n.alumno_manana.nombre}'
         if n.alumno_tarde:

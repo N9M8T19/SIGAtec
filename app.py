@@ -70,26 +70,27 @@ def create_app():
     def load_user(user_id):
         return Usuario.query.get(int(user_id))
 
-    from routes.auth           import auth_bp
-    from routes.carros         import carros_bp
-    from routes.netbooks       import netbooks_bp
-    from routes.prestamos      import prestamos_bp
-    from routes.docentes       import docentes_bp
-    from routes.usuarios       import usuarios_bp
-    from routes.reportes       import reportes_bp
-    from routes.main           import main_bp
-    from routes.horarios       import horarios_bp
-    from routes.notificaciones import notificaciones_bp
-    from routes.pantallas      import pantallas_bp
-    from routes.importar       import importar_bp
-    from routes.transferencias import transferencias_bp
-    from routes.stock          import stock_bp
-    from routes.tickets_ba     import tickets_ba_bp
-    from routes.alumnos        import alumnos_bp
-    from routes.etiquetas      import etiquetas_bp
-    from routes.impresoras3d   import impresoras3d_bp
-    from routes.sesiones       import sesiones_bp
-    from routes.mantenimiento  import mantenimiento_bp
+    from routes.auth            import auth_bp
+    from routes.carros          import carros_bp
+    from routes.netbooks        import netbooks_bp
+    from routes.prestamos       import prestamos_bp
+    from routes.docentes        import docentes_bp
+    from routes.usuarios        import usuarios_bp
+    from routes.reportes        import reportes_bp
+    from routes.main            import main_bp
+    from routes.horarios        import horarios_bp
+    from routes.notificaciones  import notificaciones_bp
+    from routes.pantallas       import pantallas_bp
+    from routes.importar        import importar_bp
+    from routes.transferencias  import transferencias_bp
+    from routes.stock           import stock_bp
+    from routes.tickets_ba      import tickets_ba_bp
+    from routes.alumnos         import alumnos_bp
+    from routes.etiquetas       import etiquetas_bp
+    from routes.impresoras3d    import impresoras3d_bp
+    from routes.sesiones        import sesiones_bp
+    from routes.mantenimiento   import mantenimiento_bp
+    from routes.asignaciones    import asignaciones_bp   # ⚠️ Nuevo 22/04/2026
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(carros_bp)
@@ -111,6 +112,7 @@ def create_app():
     app.register_blueprint(impresoras3d_bp)
     app.register_blueprint(sesiones_bp)
     app.register_blueprint(mantenimiento_bp)
+    app.register_blueprint(asignaciones_bp)              # ⚠️ Nuevo 22/04/2026
 
     with app.app_context():
         import models_extra.horarios_notificaciones  # noqa

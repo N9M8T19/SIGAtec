@@ -169,6 +169,7 @@ class Netbook(db.Model):
     estado            = db.Column(db.String(30), default='operativa')
     problema          = db.Column(db.Text)
     nro_reclamo       = db.Column(db.String(50))   # N° reclamo Mi BA Colaborativa
+    fecha_servicio    = db.Column(db.DateTime)      # para novedades del día
 
     alumno_manana = db.relationship('Alumno', foreign_keys=[alumno_manana_id],
                                     overlaps='alumno_manana_obj,netbook_manana_rel')
@@ -361,3 +362,35 @@ class Impresora3D(db.Model):
 
     def __repr__(self):
         return f'<Impresora3D #{self.numero_interno} — {self.modelo}>'
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ASIGNACIÓN INTERNA
+#  Netbooks asignadas permanentemente a un docente o área (no son préstamos).
+#  Solo visible para Directivo y Administrador.
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AsignacionInterna(db.Model):
+    __tablename__ = 'asignaciones_internas'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    netbook_id     = db.Column(db.Integer, db.ForeignKey('netbooks.id'), nullable=False)
+    # Destinatario: puede ser un docente del sistema o un área libre (texto)
+    docente_id     = db.Column(db.Integer, db.ForeignKey('docentes.id'), nullable=True)
+    area           = db.Column(db.String(200))          # ej: "Dirección", "Preceptoría"
+    fecha_asignacion = db.Column(db.DateTime, default=datetime.utcnow)
+    motivo         = db.Column(db.Text)                 # descripción / motivo de la asignación
+    activa         = db.Column(db.Boolean, default=True)
+    fecha_baja     = db.Column(db.DateTime)
+    motivo_baja    = db.Column(db.Text)
+    registrado_por = db.Column(db.String(200))          # username del Admin/Directivo
+
+    netbook = db.relationship('Netbook', backref='asignaciones', lazy=True)
+    docente = db.relationship('Docente', backref='asignaciones_internas', lazy=True)
+
+    @property
+    def destinatario(self):
+        """Devuelve el nombre del destinatario (docente o área)."""
+        if self.docente:
+            return self.docente.nombre_completo
+        return self.area or '—'
