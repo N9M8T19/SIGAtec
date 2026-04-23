@@ -367,30 +367,33 @@ class Impresora3D(db.Model):
 # ─────────────────────────────────────────────────────────────────────────────
 #  ASIGNACIÓN INTERNA
 #  Netbooks asignadas permanentemente a un docente o área (no son préstamos).
+#  Los datos de la netbook se ingresan manualmente (sin FK a netbooks).
 #  Solo visible para Directivo y Administrador.
 # ─────────────────────────────────────────────────────────────────────────────
 
 class AsignacionInterna(db.Model):
     __tablename__ = 'asignaciones_internas'
 
-    id             = db.Column(db.Integer, primary_key=True)
-    netbook_id     = db.Column(db.Integer, db.ForeignKey('netbooks.id'), nullable=False)
-    # Destinatario: puede ser un docente del sistema o un área libre (texto)
-    docente_id     = db.Column(db.Integer, db.ForeignKey('docentes.id'), nullable=True)
-    area           = db.Column(db.String(200))          # ej: "Dirección", "Preceptoría"
+    id               = db.Column(db.Integer, primary_key=True)
+    # Datos de la netbook — ingreso libre, no FK
+    numero_serie     = db.Column(db.String(200))
+    numero_interno   = db.Column(db.String(50))
+    modelo           = db.Column(db.String(200))
+    # Destinatario: docente del sistema O área libre (texto)
+    docente_id       = db.Column(db.Integer, db.ForeignKey('docentes.id'), nullable=True)
+    area             = db.Column(db.String(200))        # ej: "Dirección", "Preceptoría"
+    # Metadatos
     fecha_asignacion = db.Column(db.DateTime, default=datetime.utcnow)
-    motivo         = db.Column(db.Text)                 # descripción / motivo de la asignación
-    activa         = db.Column(db.Boolean, default=True)
-    fecha_baja     = db.Column(db.DateTime)
-    motivo_baja    = db.Column(db.Text)
-    registrado_por = db.Column(db.String(200))          # username del Admin/Directivo
+    motivo           = db.Column(db.Text)
+    activa           = db.Column(db.Boolean, default=True)
+    fecha_baja       = db.Column(db.DateTime)
+    motivo_baja      = db.Column(db.Text)
+    registrado_por   = db.Column(db.String(200))
 
-    netbook = db.relationship('Netbook', backref='asignaciones', lazy=True)
     docente = db.relationship('Docente', backref='asignaciones_internas', lazy=True)
 
     @property
     def destinatario(self):
-        """Devuelve el nombre del destinatario (docente o área)."""
         if self.docente:
             return self.docente.nombre_completo
         return self.area or '—'

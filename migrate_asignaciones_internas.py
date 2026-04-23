@@ -1,27 +1,30 @@
 """
-migrate_asignaciones_internas.py — versión directa con psycopg2
+migrate_asignaciones_internas.py — tabla sin FK a netbooks (campo libre)
 """
-import os
+import os, psycopg2
 from dotenv import load_dotenv
 load_dotenv()
 
-import psycopg2
-
-DATABASE_URL = os.environ.get('DATABASE_URL', '')
-
 def migrar():
+    DATABASE_URL = os.environ.get('DATABASE_URL', '')
     if not DATABASE_URL:
-        print("❌ No se encontró DATABASE_URL en las variables de entorno.")
+        print("❌ No se encontró DATABASE_URL.")
         return
 
     conn = psycopg2.connect(DATABASE_URL)
     conn.autocommit = True
     cur = conn.cursor()
 
-    sql = """
-    CREATE TABLE IF NOT EXISTS asignaciones_internas (
+    # Eliminar tabla vieja si existe (puede tener FK incorrecta)
+    cur.execute("DROP TABLE IF EXISTS asignaciones_internas;")
+    print("🗑  Tabla anterior eliminada (si existía).")
+
+    cur.execute("""
+    CREATE TABLE asignaciones_internas (
         id               SERIAL PRIMARY KEY,
-        netbook_id       INTEGER NOT NULL REFERENCES netbooks(id),
+        numero_serie     VARCHAR(200),
+        numero_interno   VARCHAR(50),
+        modelo           VARCHAR(200),
         docente_id       INTEGER REFERENCES docentes(id),
         area             VARCHAR(200),
         fecha_asignacion TIMESTAMP DEFAULT NOW(),
@@ -31,16 +34,10 @@ def migrar():
         motivo_baja      TEXT,
         registrado_por   VARCHAR(200)
     );
-    """
-
-    try:
-        cur.execute(sql)
-        print("✅ Tabla 'asignaciones_internas' creada correctamente.")
-    except Exception as e:
-        print(f"⚠️  {e}")
-    finally:
-        cur.close()
-        conn.close()
+    """)
+    print("✅ Tabla 'asignaciones_internas' creada correctamente.")
+    cur.close()
+    conn.close()
 
 if __name__ == '__main__':
     migrar()

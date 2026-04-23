@@ -5,14 +5,13 @@
 {% block content %}
 <div class="max-w-2xl mx-auto">
 
-    {# Aviso informativo #}
     <div class="rounded-lg px-4 py-3 mb-6 text-sm flex items-start gap-3"
          style="background-color:#fff8f0; border:1px solid var(--naranja); color:#7a4400;">
         <i class="fas fa-info-circle mt-0.5" style="color:var(--naranja);"></i>
         <span>
             Las <strong>asignaciones internas</strong> registran netbooks entregadas de forma
-            permanente a un docente o área (dirección, preceptoría, biblioteca, etc.).
-            No son préstamos — la netbook queda fuera del carro de forma indefinida.
+            permanente a un docente o área. No son préstamos — el equipo queda fuera del sistema
+            de carros de forma indefinida.
         </span>
     </div>
 
@@ -20,52 +19,60 @@
         <div class="px-6 py-4" style="background-color:var(--azul-oscuro);">
             <h2 class="text-white font-bold text-base uppercase tracking-wide">
                 <i class="fas fa-laptop mr-2"></i>
-                {% if asignacion %}Modificar datos de la asignación{% else %}Registrar nueva asignación{% endif %}
+                {% if asignacion %}Modificar asignación{% else %}Registrar nueva asignación{% endif %}
             </h2>
         </div>
 
         <form method="POST" class="px-6 py-6 space-y-5">
 
-            {# Netbook — solo editable en alta #}
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">
-                    Netbook <span class="text-red-500">*</span>
-                </label>
-                {% if asignacion %}
-                {# En edición la netbook no cambia #}
-                <div class="px-3 py-2 rounded-lg bg-gray-100 text-sm text-gray-600 flex items-center gap-2">
-                    <i class="fas fa-laptop text-gray-400"></i>
-                    N° {{ asignacion.netbook.numero_interno or '—' }}
-                    {% if asignacion.netbook.numero_serie %}
-                    — Serie: {{ asignacion.netbook.numero_serie }}
-                    {% endif %}
-                    {% if asignacion.netbook.carro %}
-                    — Carro {{ asignacion.netbook.carro.display }}
-                    {% endif %}
+            {# Datos de la netbook #}
+            <div class="border border-gray-200 rounded-lg p-4 space-y-4">
+                <p class="text-xs font-bold uppercase tracking-wide text-gray-500">
+                    Datos de la netbook
+                </p>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">
+                            N° Interno
+                        </label>
+                        <input type="text" name="numero_interno"
+                               value="{{ asignacion.numero_interno if asignacion else '' }}"
+                               placeholder="Ej: 15"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                      focus:outline-none focus:border-orange-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">
+                            N° Serie <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="numero_serie"
+                               value="{{ asignacion.numero_serie if asignacion else '' }}"
+                               placeholder="Ej: PF4BG12345"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                      focus:outline-none focus:border-orange-400 font-mono">
+                    </div>
                 </div>
-                {% else %}
-                <select name="netbook_id" required
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-                               focus:outline-none focus:border-orange-400">
-                    <option value="" disabled selected>Seleccioná la netbook…</option>
-                    {% for nb in netbooks %}
-                    <option value="{{ nb.id }}">
-                        N° {{ nb.numero_interno or '—' }}
-                        {% if nb.numero_serie %} — {{ nb.numero_serie }}{% endif %}
-                        {% if nb.carro %} — Carro {{ nb.carro.display }}{% endif %}
-                        ({{ nb.estado }})
-                    </option>
-                    {% endfor %}
-                </select>
-                {% endif %}
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        Modelo / Descripción
+                    </label>
+                    <input type="text" name="modelo"
+                           value="{{ asignacion.modelo if asignacion else '' }}"
+                           placeholder="Ej: Lenovo N23, HP 240 G8, Exo Smart X3..."
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                  focus:outline-none focus:border-orange-400">
+                </div>
             </div>
 
-            {# Tipo de destinatario #}
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                    Tipo de destinatario <span class="text-red-500">*</span>
-                </label>
-                <div class="flex gap-4 mb-3">
+            {# Destinatario #}
+            <div class="border border-gray-200 rounded-lg p-4 space-y-3">
+                <p class="text-xs font-bold uppercase tracking-wide text-gray-500">
+                    Destinatario <span class="text-red-500">*</span>
+                </p>
+
+                <div class="flex gap-4">
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
                         <input type="radio" name="tipo_dest" value="docente" id="radio-docente"
                                {% if asignacion and asignacion.docente_id %}checked
@@ -81,7 +88,6 @@
                     </label>
                 </div>
 
-                {# Selector docente #}
                 <div id="campo-docente">
                     <select name="docente_id"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
@@ -96,17 +102,16 @@
                     </select>
                 </div>
 
-                {# Campo área libre #}
                 <div id="campo-area" style="display:none">
                     <input type="text" name="area"
                            value="{{ asignacion.area if asignacion and asignacion.area else '' }}"
-                           placeholder="Ej: Dirección, Preceptoría, Biblioteca…"
+                           placeholder="Ej: Dirección, Preceptoría, Biblioteca, Gabinete..."
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
                                   focus:outline-none focus:border-orange-400">
                 </div>
             </div>
 
-            {# Motivo / observaciones #}
+            {# Motivo #}
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">
                     Motivo / Observaciones
@@ -114,10 +119,9 @@
                 <textarea name="motivo" rows="3"
                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
                                  focus:outline-none focus:border-orange-400"
-                          placeholder="Ej: Asignada para uso del gabinete de matemática, equipo de reemplazo por reparación…">{{ asignacion.motivo if asignacion and asignacion.motivo else '' }}</textarea>
+                          placeholder="Ej: Equipo asignado para uso exclusivo del gabinete de matemática...">{{ asignacion.motivo if asignacion and asignacion.motivo else '' }}</textarea>
             </div>
 
-            {# Botones #}
             <div class="flex justify-end gap-3 pt-2">
                 <a href="{{ url_for('asignaciones.index') }}"
                    class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm hover:bg-gray-50">
@@ -140,7 +144,6 @@ function toggleDest() {
     document.getElementById('campo-docente').style.display = esDocente ? '' : 'none';
     document.getElementById('campo-area').style.display    = esDocente ? 'none' : '';
 }
-// Estado inicial
 document.addEventListener('DOMContentLoaded', toggleDest);
 </script>
 {% endblock %}

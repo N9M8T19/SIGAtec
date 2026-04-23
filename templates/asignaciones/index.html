@@ -4,10 +4,7 @@
 
 {% block content %}
 
-{# ── Barra superior ── #}
 <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
-
-    {# Filtros #}
     <div class="flex gap-2">
         <a href="{{ url_for('asignaciones.index', filtro='activas') }}"
            class="px-3 py-2 rounded-lg text-sm font-semibold border transition
@@ -28,7 +25,6 @@
             Todas
         </a>
     </div>
-
     <a href="{{ url_for('asignaciones.nueva') }}"
        class="text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"
        style="background-color:var(--azul-oscuro);">
@@ -36,18 +32,17 @@
     </a>
 </div>
 
-{# ── Tabla ── #}
 <div class="bg-white rounded-xl shadow-sm overflow-hidden">
     <table class="w-full text-sm">
         <thead class="text-white" style="background-color:var(--azul-oscuro);">
             <tr>
-                <th class="px-4 py-3 text-left">Netbook</th>
+                <th class="px-4 py-3 text-left">N° Interno</th>
                 <th class="px-4 py-3 text-left">N° Serie</th>
+                <th class="px-4 py-3 text-left">Modelo</th>
                 <th class="px-4 py-3 text-left">Destinatario</th>
                 <th class="px-4 py-3 text-left">Motivo</th>
                 <th class="px-4 py-3 text-center">Fecha</th>
                 <th class="px-4 py-3 text-center">Estado</th>
-                <th class="px-4 py-3 text-center">Registró</th>
                 <th class="px-4 py-3 text-center">Acciones</th>
             </tr>
         </thead>
@@ -55,15 +50,13 @@
             {% for a in asignaciones %}
             <tr class="hover:bg-gray-50 {% if not a.activa %}opacity-60{% endif %}">
                 <td class="px-4 py-3 font-semibold" style="color:var(--azul-oscuro);">
-                    N° {{ a.netbook.numero_interno or '—' }}
-                    {% if a.netbook.carro %}
-                    <span class="text-xs text-gray-400 font-normal block">
-                        Carro {{ a.netbook.carro.display }}
-                    </span>
-                    {% endif %}
+                    {{ a.numero_interno or '—' }}
                 </td>
                 <td class="px-4 py-3 text-gray-500 font-mono text-xs">
-                    {{ a.netbook.numero_serie or '—' }}
+                    {{ a.numero_serie or '—' }}
+                </td>
+                <td class="px-4 py-3 text-gray-600">
+                    {{ a.modelo or '—' }}
                 </td>
                 <td class="px-4 py-3">
                     {% if a.docente %}
@@ -74,7 +67,7 @@
                     {% else %}
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold text-white"
                           style="background-color:var(--naranja);">
-                        <i class="fas fa-building"></i> {{ a.area }}
+                        <i class="fas fa-building"></i> {{ a.area or '—' }}
                     </span>
                     {% endif %}
                 </td>
@@ -102,9 +95,6 @@
                         <i class="fas fa-times-circle mr-1"></i>Baja
                     </span>
                     {% endif %}
-                </td>
-                <td class="px-4 py-3 text-center text-xs text-gray-400">
-                    {{ a.registrado_por or '—' }}
                 </td>
                 <td class="px-4 py-3 text-center">
                     {% if a.activa %}
@@ -137,19 +127,17 @@
     </table>
 </div>
 
-{# ── Resumen ── #}
 <p class="text-xs text-gray-400 mt-3">
     {{ asignaciones | length }} asignación{% if asignaciones | length != 1 %}es{% endif %}
     {% if filtro == 'activas' %}activas{% elif filtro == 'bajas' %}dadas de baja{% else %}en total{% endif %}.
 </p>
 
-{# ── Modal baja ── #}
+{# Modal baja #}
 <div id="modal-baja"
      class="fixed inset-0 z-50 items-center justify-center bg-black bg-opacity-50"
      style="display:none">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
-        <div class="px-6 py-4 flex items-center gap-3"
-             style="background-color:var(--naranja);">
+        <div class="px-6 py-4 flex items-center gap-3" style="background-color:var(--naranja);">
             <i class="fas fa-times-circle text-white text-xl"></i>
             <h3 class="text-white font-bold text-lg">Dar de baja asignación</h3>
         </div>
@@ -163,7 +151,7 @@
                 <textarea name="motivo_baja" rows="3"
                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-5
                                  focus:outline-none focus:border-orange-400"
-                          placeholder="Ej: El docente devolvió el equipo, se reintegra al carro..."></textarea>
+                          placeholder="Ej: El docente devolvió el equipo..."></textarea>
                 <div class="flex justify-end gap-3">
                     <button type="button" onclick="cerrarModalBaja()"
                             class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm hover:bg-gray-50">
