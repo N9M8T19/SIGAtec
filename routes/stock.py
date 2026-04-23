@@ -7,7 +7,7 @@ Incluye control masivo: subir Excel o Google Sheets con todos los números de se
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import login_required, current_user
-from models import db, Carro, Netbook
+from models import db, Carro, Netbook, AsignacionInterna
 from datetime import datetime
 
 stock_bp = Blueprint('stock', __name__, url_prefix='/stock')
@@ -105,37 +105,61 @@ def _procesar_control_masivo(series_input):
             seen.add(s)
             series_unicas.append(s)
 
-    # Índice de TODAS las netbooks del sistema
+    # Índice de TODAS las netbooks del sistema (en carros)
     todas_netbooks = Netbook.query.filter(
         Netbook.numero_serie != None,
         Netbook.numero_serie != ''
     ).all()
     indice_sistema = {nb.numero_serie.strip().upper(): nb for nb in todas_netbooks}
 
-    series_sistema_set = set(indice_sistema.keys())
+    # Índice de asignaciones internas activas (netbooks fuera de carros)
+    todas_asignaciones = AsignacionInterna.query.filter(
+        AsignacionInterna.activa == True,
+        AsignacionInterna.numero_serie != None,
+        AsignacionInterna.numero_serie != ''
+    ).all()
+    indice_asignaciones = {a.numero_serie.strip().upper(): a for a in todas_asignaciones}
+
+    # Índice unificado: carros + asignaciones internas
+    indice_total = {}
+    indice_total.update(indice_sistema)       # primero carros
+    indice_total.update(indice_asignaciones)  # asignaciones sobreescriben si hay colisión de serie
+
+    series_total_set   = set(indice_total.keys())
     series_listado_set = set(series_unicas)
 
-    encontradas_series    = series_listado_set & series_sistema_set
-    no_encontradas_series = series_listado_set - series_sistema_set
-    no_en_listado_series  = series_sistema_set - series_listado_set
+    encontradas_series    = series_listado_set & series_total_set
+    no_encontradas_series = series_listado_set - series_total_set
+    no_en_listado_series  = series_total_set   - series_listado_set
 
-    def _nb_dict(nb):
-        return {
-            'numero_serie':   nb.numero_serie,
-            'numero_interno': nb.numero_interno or '—',
-            'carro':          nb.carro.display if nb.carro else '—',
-            'aula':           nb.carro.aula if nb.carro else '—',
-            'alumno':         nb.alumno or '—',
-            'estado':         nb.estado,
-        }
+    def _nb_dict(obj):
+        """Convierte una Netbook o AsignacionInterna a dict uniforme."""
+        if isinstance(obj, Netbook):
+            return {
+                'numero_serie':   obj.numero_serie,
+                'numero_interno': obj.numero_interno or '—',
+                'carro':          obj.carro.display if obj.carro else '—',
+                'aula':           obj.carro.aula if obj.carro else '—',
+                'alumno':         obj.alumno or '—',
+                'estado':         obj.estado,
+            }
+        else:  # AsignacionInterna
+            return {
+                'numero_serie':   obj.numero_serie,
+                'numero_interno': obj.numero_interno or '—',
+                'carro':          'Asignación interna',
+                'aula':           obj.destinatario,
+                'alumno':         obj.modelo or '—',
+                'estado':         'asignada',
+            }
 
     encontradas = sorted(
-        [_nb_dict(indice_sistema[s]) for s in encontradas_series],
+        [_nb_dict(indice_total[s]) for s in encontradas_series],
         key=lambda x: (x['carro'], x['numero_interno'])
     )
     no_encontradas = sorted(list(no_encontradas_series))
     no_en_listado  = sorted(
-        [_nb_dict(indice_sistema[s]) for s in no_en_listado_series],
+        [_nb_dict(indice_total[s]) for s in no_en_listado_series],
         key=lambda x: (x['carro'], x['numero_interno'])
     )
 
@@ -143,7 +167,7 @@ def _procesar_control_masivo(series_input):
         'fecha':          datetime.now().strftime('%d/%m/%Y %H:%M'),
         'usuario':        current_user.nombre_completo,
         'total_listado':  len(series_unicas),
-        'total_sistema':  len(indice_sistema),
+        'total_sistema':  len(indice_total),
         'encontradas':    encontradas,
         'no_encontradas': no_encontradas,
         'no_en_listado':  no_en_listado,
