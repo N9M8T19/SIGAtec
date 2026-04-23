@@ -3,60 +3,115 @@
 {% block header %}Control Masivo de Stock{% endblock %}
 
 {% block content %}
+<style>
+    /* ── Variables del sistema reutilizadas en este template ── */
+    .tab-activa {
+        background-color: var(--azul-oscuro);
+        color: #fff;
+        border-bottom: 3px solid var(--naranja);
+    }
+    .tab-inactiva {
+        color: #6b7280;
+        border-bottom: 3px solid transparent;
+    }
+    .tab-inactiva:hover {
+        background-color: #f0f4f8;
+        color: var(--azul-oscuro);
+    }
+    .zona-drop {
+        border: 2px dashed #93c5fd;
+        transition: border-color .2s, background-color .2s;
+    }
+    .zona-drop:hover, .zona-drop.drag-over {
+        border-color: var(--naranja);
+        background-color: #fff7ed;
+    }
+    .btn-primario {
+        background-color: var(--azul-oscuro);
+        color: #fff;
+        transition: background-color .15s;
+    }
+    .btn-primario:hover { background-color: var(--azul-hover); }
 
-<!-- Descripción -->
-<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
-    <i class="fas fa-search mr-2"></i>
-    Subí un listado con <strong>todos los números de serie</strong> de tus computadoras (desde Excel, Google Sheets
-    o ingreso manual) y el sistema los busca en <strong>todos los carros</strong> registrados.
-    Obtenés dos reportes: los números que <strong>encontró</strong> en el sistema y los que <strong>no encontró</strong>.
+    .banner-seccion {
+        background-color: var(--azul-oscuro);
+        border-left: 4px solid var(--naranja);
+    }
+    .resumen-card { border-left: 4px solid var(--azul-oscuro); }
+    .resumen-card.verde  { border-left-color: #16a34a; }
+    .resumen-card.rojo   { border-left-color: #dc2626; }
+    .resumen-card.naranja{ border-left-color: var(--naranja); }
+</style>
+
+<!-- Info -->
+<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 text-sm text-blue-900">
+    <i class="fas fa-layer-group mr-2 text-blue-600"></i>
+    Subí un listado con <strong>todos los números de serie</strong> de tus computadoras y el sistema
+    los busca en <strong>todos los carros</strong> registrados. Obtenés tres reportes:
+    los que <strong>encontró</strong>, los que <strong>no encontró</strong> y los que están en el
+    sistema pero no vinieron en el listado.
 </div>
 
-<!-- Botón volver -->
-<div class="mb-4">
+<!-- Volver -->
+<div class="mb-5">
     <a href="{{ url_for('stock.index') }}"
-       class="text-sm text-blue-700 hover:underline">
-        <i class="fas fa-arrow-left mr-1"></i>Volver al Control de Stock
+       class="inline-flex items-center gap-1 text-sm font-semibold"
+       style="color: var(--azul-oscuro);">
+        <i class="fas fa-arrow-left"></i> Volver al Control de Stock
     </a>
 </div>
 
-<!-- ── FORMULARIO ─────────────────────────────────────────────────────── -->
+{# ══════════════════════════════════════════════════════════════════════════
+   FORMULARIO
+══════════════════════════════════════════════════════════════════════════ #}
 {% if not resultado %}
-<div class="bg-white rounded-xl shadow-sm p-6 max-w-2xl">
-    <h2 class="text-base font-bold text-blue-900 mb-4">
-        <i class="fas fa-upload mr-2 text-blue-700"></i>Cargar listado de números de serie
-    </h2>
 
-    <!-- Solapas de método -->
-    <div class="flex border-b border-gray-200 mb-5 gap-1" id="tabs">
-        <button onclick="cambiarTab('excel')" id="tab-excel"
-                class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-blue-700 text-blue-700 bg-blue-50">
-            <i class="fas fa-file-excel mr-1"></i>Excel
-        </button>
-        <button onclick="cambiarTab('sheets')" id="tab-sheets"
-                class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-blue-700">
-            <i class="fab fa-google-drive mr-1 text-green-600"></i>Google Sheets
-        </button>
-        <button onclick="cambiarTab('manual')" id="tab-manual"
-                class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-blue-700">
-            <i class="fas fa-keyboard mr-1"></i>Manual
-        </button>
+<div class="bg-white rounded-xl shadow-sm overflow-hidden max-w-2xl">
+
+    <!-- Header del card con color del sistema -->
+    <div class="banner-seccion px-5 py-4 flex items-center gap-3">
+        <i class="fas fa-upload text-white text-lg"></i>
+        <span class="text-white font-bold text-sm uppercase tracking-wide">
+            Cargar listado de números de serie
+        </span>
     </div>
 
-    <!-- Solapa Excel -->
-    <form method="POST" enctype="multipart/form-data" id="form-excel" class="tab-content">
-        <input type="hidden" name="metodo" value="excel">
-        <div class="mb-4">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
+    <div class="p-5">
+
+        <!-- Solapas -->
+        <div class="flex border-b border-gray-200 mb-5">
+            <button onclick="cambiarTab('excel')" id="tab-excel"
+                    class="tab-btn tab-activa px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-all">
+                <i class="fas fa-file-excel mr-1.5"></i>Excel
+            </button>
+            <button onclick="cambiarTab('sheets')" id="tab-sheets"
+                    class="tab-btn tab-inactiva px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-all">
+                <i class="fab fa-google-drive mr-1.5" style="color:#16a34a"></i>Google Sheets
+            </button>
+            <button onclick="cambiarTab('manual')" id="tab-manual"
+                    class="tab-btn tab-inactiva px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-all">
+                <i class="fas fa-keyboard mr-1.5"></i>Manual
+            </button>
+        </div>
+
+        {# ── Solapa Excel ── #}
+        <form method="POST" enctype="multipart/form-data" id="form-excel" class="tab-content">
+            <input type="hidden" name="metodo" value="excel">
+
+            <label class="block text-xs font-bold uppercase tracking-wide mb-2"
+                   style="color: var(--azul-oscuro);">
                 Archivo Excel (.xlsx)
             </label>
-            <div class="border-2 border-dashed border-blue-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors bg-blue-50"
+
+            <div id="zona-drop"
+                 class="zona-drop rounded-xl p-8 text-center cursor-pointer bg-blue-50 mb-4"
                  onclick="document.getElementById('archivo_excel').click()">
-                <i class="fas fa-file-excel text-3xl text-green-500 mb-2 block"></i>
-                <p class="text-sm text-gray-600">
-                    Arrastrá el archivo acá o <span class="text-blue-700 font-semibold">hacé clic para elegir</span>
+                <i class="fas fa-file-excel text-4xl mb-3 block text-green-500"></i>
+                <p class="text-sm font-semibold text-gray-700">
+                    Arrastrá el archivo acá o
+                    <span style="color: var(--naranja);" class="font-bold">hacé clic para elegir</span>
                 </p>
-                <p class="text-xs text-gray-400 mt-1" id="nombre-archivo-excel">
+                <p class="text-xs text-gray-400 mt-2" id="nombre-archivo-excel">
                     El sistema lee <strong>todos los números de serie</strong> de la primera hoja.
                     Una serie por celda, columna o fila — el formato no importa.
                 </p>
@@ -64,115 +119,132 @@
             <input type="file" id="archivo_excel" name="archivo_excel"
                    accept=".xlsx,.xls" class="hidden"
                    onchange="mostrarNombreArchivo(this)">
-        </div>
-        <button type="submit"
-                class="bg-blue-900 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold text-sm">
-            <i class="fas fa-search mr-2"></i>Buscar en el sistema
-        </button>
-    </form>
 
-    <!-- Solapa Google Sheets -->
-    <form method="POST" id="form-sheets" class="tab-content hidden">
-        <input type="hidden" name="metodo" value="sheets">
-        <div class="mb-4">
-            <label class="block text-sm font-semibold text-gray-700 mb-1">
-                URL de la planilla
-            </label>
-            <input type="url" name="url_sheet" placeholder="https://docs.google.com/spreadsheets/d/..."
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-        </div>
-        <div class="mb-4">
-            <label class="block text-sm font-semibold text-gray-700 mb-1">
-                Nombre de la hoja / pestaña
-            </label>
-            <input type="text" name="nombre_hoja" value="Hoja1" placeholder="Hoja1"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-            <p class="text-xs text-gray-400 mt-1">
-                La planilla debe tener los números de serie en cualquier columna. El sistema ignora encabezados comunes.
-            </p>
-        </div>
-        <button type="submit"
-                class="bg-blue-900 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold text-sm">
-            <i class="fas fa-search mr-2"></i>Buscar en el sistema
-        </button>
-    </form>
+            <button type="submit" class="btn-primario px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2">
+                <i class="fas fa-search"></i>Buscar en el sistema
+            </button>
+        </form>
 
-    <!-- Solapa Manual -->
-    <form method="POST" id="form-manual" class="tab-content hidden">
-        <input type="hidden" name="metodo" value="manual">
-        <div class="mb-4">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-                Pegá o escribí los números de serie (uno por línea)
+        {# ── Solapa Google Sheets ── #}
+        <form method="POST" id="form-sheets" class="tab-content hidden">
+            <input type="hidden" name="metodo" value="sheets">
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold uppercase tracking-wide mb-1.5"
+                       style="color: var(--azul-oscuro);">
+                    URL de la planilla
+                </label>
+                <input type="url" name="url_sheet"
+                       placeholder="https://docs.google.com/spreadsheets/d/..."
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                       style="focus:border-color: var(--azul-oscuro);">
+            </div>
+            <div class="mb-4">
+                <label class="block text-xs font-bold uppercase tracking-wide mb-1.5"
+                       style="color: var(--azul-oscuro);">
+                    Nombre de la hoja / pestaña
+                </label>
+                <input type="text" name="nombre_hoja" value="Hoja1"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none">
+                <p class="text-xs text-gray-400 mt-1.5">
+                    Los encabezados comunes (N° Serie, Número de Serie, etc.) se ignoran automáticamente.
+                </p>
+            </div>
+
+            <button type="submit" class="btn-primario px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2">
+                <i class="fas fa-search"></i>Buscar en el sistema
+            </button>
+        </form>
+
+        {# ── Solapa Manual ── #}
+        <form method="POST" id="form-manual" class="tab-content hidden">
+            <input type="hidden" name="metodo" value="manual">
+
+            <label class="block text-xs font-bold uppercase tracking-wide mb-2"
+                   style="color: var(--azul-oscuro);">
+                Números de serie — uno por línea
             </label>
-            <textarea name="series_manuales" rows="12"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+            <textarea name="series_manuales" rows="10"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm outline-none mb-4"
                       placeholder="ABC123456&#10;DEF789012&#10;GHI345678&#10;..."></textarea>
-        </div>
-        <button type="submit"
-                class="bg-blue-900 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold text-sm">
-            <i class="fas fa-search mr-2"></i>Buscar en el sistema
-        </button>
-    </form>
-</div>
 
-<!-- ── RESULTADO ──────────────────────────────────────────────────────── -->
+            <button type="submit" class="btn-primario px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2">
+                <i class="fas fa-search"></i>Buscar en el sistema
+            </button>
+        </form>
+
+    </div><!-- /p-5 -->
+</div><!-- /card -->
+
+{# ══════════════════════════════════════════════════════════════════════════
+   RESULTADO
+══════════════════════════════════════════════════════════════════════════ #}
 {% else %}
 
-<!-- Resumen -->
+<!-- ── Tarjetas de resumen ─────────────────────────────────────────────── -->
 <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-bold text-blue-900">{{ resultado.total_listado }}</div>
-        <div class="text-xs text-blue-600 mt-1">Series en el listado</div>
+
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center resumen-card">
+        <div class="text-3xl font-black" style="color: var(--azul-oscuro);">{{ resultado.total_listado }}</div>
+        <div class="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide">En el listado</div>
     </div>
-    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-bold text-gray-700">{{ resultado.total_sistema }}</div>
-        <div class="text-xs text-gray-500 mt-1">Netbooks en el sistema</div>
+
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center resumen-card">
+        <div class="text-3xl font-black text-gray-600">{{ resultado.total_sistema }}</div>
+        <div class="text-xs font-semibold text-gray-400 mt-1 uppercase tracking-wide">En el sistema</div>
     </div>
-    <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-bold text-green-700">{{ resultado.encontradas|length }}</div>
-        <div class="text-xs text-green-600 mt-1">✅ Encontradas</div>
+
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center resumen-card verde">
+        <div class="text-3xl font-black text-green-700">{{ resultado.encontradas|length }}</div>
+        <div class="text-xs font-semibold text-green-600 mt-1 uppercase tracking-wide">✅ Encontradas</div>
     </div>
-    <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-bold text-red-700">{{ resultado.no_encontradas|length }}</div>
-        <div class="text-xs text-red-600 mt-1">❌ No encontradas en sistema</div>
+
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center resumen-card rojo">
+        <div class="text-3xl font-black text-red-700">{{ resultado.no_encontradas|length }}</div>
+        <div class="text-xs font-semibold text-red-600 mt-1 uppercase tracking-wide">❌ No en sistema</div>
     </div>
-    <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
-        <div class="text-2xl font-bold text-orange-600">{{ resultado.no_en_listado|length }}</div>
-        <div class="text-xs text-orange-600 mt-1">⚠️ En sistema, no en listado</div>
+
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center resumen-card naranja">
+        <div class="text-3xl font-black" style="color: var(--naranja);">{{ resultado.no_en_listado|length }}</div>
+        <div class="text-xs font-semibold mt-1 uppercase tracking-wide" style="color: var(--naranja);">⚠️ No en listado</div>
     </div>
+
 </div>
 
-<!-- Botones -->
-<div class="flex gap-3 mb-6 flex-wrap">
+<!-- ── Botones de acción ───────────────────────────────────────────────── -->
+<div class="flex flex-wrap gap-3 mb-6">
     <a href="{{ url_for('stock.control_masivo_pdf') }}"
-       class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-        <i class="fas fa-file-pdf mr-2"></i>Descargar PDF completo
+       class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-colors">
+        <i class="fas fa-file-pdf"></i>Descargar PDF completo
     </a>
     <a href="{{ url_for('stock.control_masivo') }}"
-       class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-        <i class="fas fa-redo mr-2"></i>Nuevo control
+       class="btn-primario inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm">
+        <i class="fas fa-redo"></i>Nuevo control
     </a>
     <a href="{{ url_for('stock.index') }}"
-       class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
-        Volver
+       class="inline-flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-bold text-sm transition-colors">
+        <i class="fas fa-arrow-left"></i>Volver
     </a>
 </div>
 
-<!-- ❌ No encontradas en el sistema -->
+
+<!-- ── ❌ NO encontradas en el sistema ────────────────────────────────── -->
 {% if resultado.no_encontradas %}
-<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-    <div class="bg-red-600 text-white px-4 py-3 font-bold text-sm flex items-center justify-between">
-        <span>❌ NO encontradas en el sistema ({{ resultado.no_encontradas|length }})
-            — Están en el listado pero no están registradas</span>
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-5">
+    <div class="flex items-center justify-between px-5 py-3 bg-red-600 text-white">
+        <span class="font-bold text-sm uppercase tracking-wide">
+            <i class="fas fa-times-circle mr-2"></i>
+            No encontradas en el sistema — {{ resultado.no_encontradas|length }} serie(s)
+        </span>
     </div>
     <div class="p-4">
         <p class="text-xs text-gray-500 mb-3">
-            Estos números de serie no coinciden con ninguna netbook registrada en el sistema.
-            Verificá si hay errores de tipeo o si hay que registrarlas.
+            Están en el listado pero no coinciden con ninguna netbook registrada.
+            Verificá errores de tipeo o si hay que registrarlas.
         </p>
         <div class="flex flex-wrap gap-2">
             {% for serie in resultado.no_encontradas %}
-            <span class="bg-red-100 text-red-800 font-mono text-xs px-3 py-1 rounded-full border border-red-200">
+            <span class="bg-red-50 text-red-800 font-mono text-xs px-3 py-1 rounded-full border border-red-200 font-semibold">
                 {{ serie }}
             </span>
             {% endfor %}
@@ -180,25 +252,30 @@
     </div>
 </div>
 {% else %}
-<div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-green-800 font-semibold text-sm">
-    ✅ Todas las series del listado fueron encontradas en el sistema.
+<div class="rounded-xl p-4 mb-5 text-sm font-semibold text-green-800 border border-green-200 bg-green-50">
+    <i class="fas fa-check-circle mr-2 text-green-600"></i>
+    Todas las series del listado fueron encontradas en el sistema.
 </div>
 {% endif %}
 
-<!-- ⚠️ En el sistema pero no en el listado -->
+
+<!-- ── ⚠️ En el sistema pero ausentes del listado ─────────────────────── -->
 {% if resultado.no_en_listado %}
-<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-    <div class="bg-orange-500 text-white px-4 py-3 font-bold text-sm flex items-center justify-between">
-        <span>⚠️ En el sistema pero ausentes del listado ({{ resultado.no_en_listado|length }})
-            — Verificar si faltan en el relevamiento</span>
-        <button onclick="toggleSeccion('tabla-no-listado', this)"
-                class="text-xs bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded-lg">
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-5">
+    <div class="flex items-center justify-between px-5 py-3 text-white"
+         style="background-color: var(--naranja);">
+        <span class="font-bold text-sm uppercase tracking-wide">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            En el sistema pero ausentes del listado — {{ resultado.no_en_listado|length }} netbook(s)
+        </span>
+        <button onclick="toggleSeccion('tabla-no-listado')"
+                class="text-xs font-bold px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
             Mostrar/Ocultar
         </button>
     </div>
     <div id="tabla-no-listado">
         <table class="w-full text-sm">
-            <thead class="bg-orange-50 text-orange-700 text-xs uppercase">
+            <thead class="text-xs uppercase font-bold text-white" style="background-color: var(--azul-oscuro);">
                 <tr>
                     <th class="px-4 py-2 text-left">Carro</th>
                     <th class="px-4 py-2 text-left">Aula</th>
@@ -208,20 +285,20 @@
                     <th class="px-4 py-2 text-left">Estado</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-orange-100">
+            <tbody class="divide-y divide-gray-100">
                 {% for nb in resultado.no_en_listado %}
-                <tr class="bg-orange-50 hover:bg-orange-100">
-                    <td class="px-4 py-2 font-semibold">{{ nb.carro }}</td>
-                    <td class="px-4 py-2">{{ nb.aula }}</td>
-                    <td class="px-4 py-2">{{ nb.numero_interno }}</td>
-                    <td class="px-4 py-2 font-mono text-xs">{{ nb.numero_serie }}</td>
-                    <td class="px-4 py-2">{{ nb.alumno }}</td>
+                <tr class="hover:bg-orange-50">
+                    <td class="px-4 py-2 font-bold" style="color: var(--azul-oscuro);">{{ nb.carro }}</td>
+                    <td class="px-4 py-2 text-gray-600">{{ nb.aula }}</td>
+                    <td class="px-4 py-2 text-gray-700">{{ nb.numero_interno }}</td>
+                    <td class="px-4 py-2 font-mono text-xs text-gray-700">{{ nb.numero_serie }}</td>
+                    <td class="px-4 py-2 text-gray-600">{{ nb.alumno }}</td>
                     <td class="px-4 py-2">
-                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold
-                            {% if nb.estado == 'operativa' %}bg-green-100 text-green-700
-                            {% else %}bg-orange-100 text-orange-700{% endif %}">
-                            {{ 'Operativa' if nb.estado == 'operativa' else 'Serv. Técnico' }}
-                        </span>
+                        {% if nb.estado == 'operativa' %}
+                        <span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">Operativa</span>
+                        {% else %}
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full text-white" style="background-color: var(--naranja);">Serv. Técnico</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -231,19 +308,23 @@
 </div>
 {% endif %}
 
-<!-- ✅ Encontradas en el sistema -->
+
+<!-- ── ✅ Encontradas en el sistema ───────────────────────────────────── -->
 {% if resultado.encontradas %}
-<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-    <div class="bg-green-600 text-white px-4 py-3 font-bold text-sm flex items-center justify-between">
-        <span>✅ Encontradas en el sistema ({{ resultado.encontradas|length }})</span>
-        <button onclick="toggleSeccion('tabla-encontradas', this)"
-                class="text-xs bg-green-700 hover:bg-green-800 px-3 py-1 rounded-lg">
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-5">
+    <div class="flex items-center justify-between px-5 py-3 bg-green-600 text-white">
+        <span class="font-bold text-sm uppercase tracking-wide">
+            <i class="fas fa-check-circle mr-2"></i>
+            Encontradas en el sistema — {{ resultado.encontradas|length }} netbook(s)
+        </span>
+        <button onclick="toggleSeccion('tabla-encontradas')"
+                class="text-xs font-bold px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
             Mostrar/Ocultar
         </button>
     </div>
-    <div id="tabla-encontradas">
+    <div id="tabla-encontradas" class="hidden">
         <table class="w-full text-sm">
-            <thead class="bg-green-50 text-green-700 text-xs uppercase">
+            <thead class="text-xs uppercase font-bold text-white" style="background-color: var(--azul-oscuro);">
                 <tr>
                     <th class="px-4 py-2 text-left">Carro</th>
                     <th class="px-4 py-2 text-left">Aula</th>
@@ -253,79 +334,107 @@
                     <th class="px-4 py-2 text-left">Estado</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-green-100">
+            <tbody class="divide-y divide-gray-100">
                 {% for nb in resultado.encontradas %}
                 <tr class="hover:bg-green-50">
-                    <td class="px-4 py-2 font-semibold">{{ nb.carro }}</td>
-                    <td class="px-4 py-2">{{ nb.aula }}</td>
-                    <td class="px-4 py-2">{{ nb.numero_interno }}</td>
-                    <td class="px-4 py-2 font-mono text-xs">{{ nb.numero_serie }}</td>
-                    <td class="px-4 py-2">{{ nb.alumno }}</td>
+                    <td class="px-4 py-2 font-bold" style="color: var(--azul-oscuro);">{{ nb.carro }}</td>
+                    <td class="px-4 py-2 text-gray-600">{{ nb.aula }}</td>
+                    <td class="px-4 py-2 text-gray-700">{{ nb.numero_interno }}</td>
+                    <td class="px-4 py-2 font-mono text-xs text-gray-700">{{ nb.numero_serie }}</td>
+                    <td class="px-4 py-2 text-gray-600">{{ nb.alumno }}</td>
                     <td class="px-4 py-2">
-                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold
-                            {% if nb.estado == 'operativa' %}bg-green-100 text-green-700
-                            {% else %}bg-orange-100 text-orange-700{% endif %}">
-                            {{ 'Operativa' if nb.estado == 'operativa' else 'Serv. Técnico' }}
-                        </span>
+                        {% if nb.estado == 'operativa' %}
+                        <span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">Operativa</span>
+                        {% else %}
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full text-white" style="background-color: var(--naranja);">Serv. Técnico</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        <div class="px-4 py-2 bg-gray-50 text-xs text-gray-400 border-t">
+            La tabla de encontradas está oculta por defecto para evitar scroll largo. Hacé clic en "Mostrar/Ocultar" para verla.
+        </div>
     </div>
 </div>
 {% endif %}
 
+<!-- Pie -->
 <div class="mt-2 text-xs text-gray-400">
-    Control realizado el {{ fecha }} por {{ usuario }}
+    <i class="fas fa-clock mr-1"></i>Control realizado el {{ fecha }} por {{ usuario }}
 </div>
-{% endif %}
+
+{% endif %}{# /resultado #}
 
 {% endblock %}
 
+
 {% block scripts %}
 <script>
-// ── Solapas de método ────────────────────────────────────────────────────────
+// ── Cambiar solapa activa ─────────────────────────────────────────────────────
 function cambiarTab(tab) {
+    // Ocultar todos los formularios
     document.querySelectorAll('.tab-content').forEach(f => f.classList.add('hidden'));
+    // Resetear todas las solapas
     document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.remove('border-blue-700', 'text-blue-700', 'bg-blue-50');
-        b.classList.add('border-transparent', 'text-gray-500');
+        b.classList.remove('tab-activa');
+        b.classList.add('tab-inactiva');
+        // Restaurar color del icono Google Drive
+        const ico = b.querySelector('.fa-google-drive');
+        if (ico) ico.style.color = '#16a34a';
     });
+    // Mostrar el formulario elegido
     document.getElementById('form-' + tab).classList.remove('hidden');
+    // Activar la solapa
     const btn = document.getElementById('tab-' + tab);
-    btn.classList.add('border-blue-700', 'text-blue-700', 'bg-blue-50');
-    btn.classList.remove('border-transparent', 'text-gray-500');
+    btn.classList.remove('tab-inactiva');
+    btn.classList.add('tab-activa');
+    // El ícono de Drive en solapa activa queda blanco
+    const ico = btn.querySelector('.fa-google-drive');
+    if (ico) ico.style.color = '#fff';
 }
 
-// ── Mostrar nombre de archivo Excel elegido ──────────────────────────────────
+// ── Nombre del archivo elegido ────────────────────────────────────────────────
 function mostrarNombreArchivo(input) {
     const p = document.getElementById('nombre-archivo-excel');
     if (input.files && input.files[0]) {
-        p.innerHTML = '<strong class="text-blue-700">' + input.files[0].name + '</strong>';
+        p.innerHTML = '<i class="fas fa-check-circle text-green-500 mr-1"></i>'
+                    + '<strong>' + input.files[0].name + '</strong>';
     }
 }
 
-// Drag & drop sobre la zona de Excel
-(function() {
-    const zona = document.querySelector('[onclick="document.getElementById(\'archivo_excel\').click()"]');
-    if (!zona) return;
-    zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('border-blue-500'); });
-    zona.addEventListener('dragleave', () => zona.classList.remove('border-blue-500'));
+// ── Drag & drop ───────────────────────────────────────────────────────────────
+(function () {
+    const zona  = document.getElementById('zona-drop');
+    const input = document.getElementById('archivo_excel');
+    if (!zona || !input) return;
+
+    zona.addEventListener('dragover', e => {
+        e.preventDefault();
+        zona.classList.add('drag-over');
+    });
+    zona.addEventListener('dragleave', () => zona.classList.remove('drag-over'));
     zona.addEventListener('drop', e => {
         e.preventDefault();
-        zona.classList.remove('border-blue-500');
-        const input = document.getElementById('archivo_excel');
+        zona.classList.remove('drag-over');
         if (e.dataTransfer.files.length) {
-            input.files = e.dataTransfer.files;
-            mostrarNombreArchivo(input);
+            // No se puede asignar FileList directamente en todos los browsers,
+            // así que mostramos el nombre y usamos DataTransfer trick
+            try {
+                const dt = new DataTransfer();
+                dt.items.add(e.dataTransfer.files[0]);
+                input.files = dt.files;
+            } catch (err) { /* Safari: no soporta DataTransfer constructor */ }
+            mostrarNombreArchivo({ files: e.dataTransfer.files });
         }
     });
 })();
 
-// ── Mostrar/Ocultar tablas de resultado ──────────────────────────────────────
-function toggleSeccion(id, btn) {
-    document.getElementById(id).classList.toggle('hidden');
+// ── Mostrar / ocultar tablas de resultado ────────────────────────────────────
+function toggleSeccion(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden');
 }
 </script>
 {% endblock %}
