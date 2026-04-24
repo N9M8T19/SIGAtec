@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 
 from models import db, TV, PrestamoTV, Docente
-from services.pdf_reportes import pdf_etiquetas_tvs, pdf_historial_tvs
+from services.pdf_reportes import pdf_historial_tvs
 
 ARG_OFFSET = timedelta(hours=-3)
 
@@ -256,12 +256,10 @@ def historial_pdf():
                      download_name='historial_tvs.pdf', as_attachment=True)
 
 
-# ── Etiquetas PDF ──────────────────────────────────────────────────────────────
+# ── Etiquetas ─────────────────────────────────────────────────────────────────
+# Redirige a la página de etiquetas HTML (igual que netbooks)
 
 @tvs_bp.route('/etiquetas')
 @login_required
 def etiquetas():
-    tvs = TV.query.filter(TV.estado != 'de_baja').order_by(TV.numero_interno).all()
-    buf = pdf_etiquetas_tvs(tvs)
-    return send_file(BytesIO(buf), mimetype='application/pdf',
-                     download_name='etiquetas_tvs.pdf', as_attachment=True)
+    return redirect(url_for('etiquetas.tvs'))

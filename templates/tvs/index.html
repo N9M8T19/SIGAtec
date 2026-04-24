@@ -22,9 +22,9 @@
       </a>
       <a href="{{ url_for('tvs.historial') }}"
          class="btn btn-sm btn-outline-secondary">📋 Historial</a>
-      <a href="{{ url_for('tvs.etiquetas') }}"
+      <a href="{{ url_for('etiquetas.tvs') }}"
          class="btn btn-sm"
-         style="background:var(--naranja);color:#fff;">🏷️ Etiquetas PDF</a>
+         style="background:var(--naranja);color:#fff;">🏷️ Etiquetas</a>
       {% if current_user.rol in ['Administrador','Directivo'] %}
       <a href="{{ url_for('tvs.nueva') }}"
          class="btn btn-sm btn-success">＋ Nueva TV</a>
