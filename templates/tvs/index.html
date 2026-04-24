@@ -1,185 +1,231 @@
 {% extends 'base.html' %}
-{% block title %}TELEVISORES{% endblock %}
+{% block title %}Televisores — SIGA-Tec{% endblock %}
+{% block header %}Televisores{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-3">
-
-  {# ── Encabezado ── #}
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <div>
-      <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
-        📺 Televisores
-      </h2>
-      <small class="text-muted">Inventario · Préstamos · Historial</small>
+<div class="flex justify-between items-center mb-6">
+    <p class="text-gray-500">Total: {{ tvs|length }} televisor(es)
+        {% if n_activos %}
+        · <span class="text-orange-500 font-semibold">{{ n_activos }} prestada(s)</span>
+        {% endif %}
+    </p>
+    <div class="flex gap-2">
+        <a href="{{ url_for('tvs.prestamos_activos') }}"
+           class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+            <i class="fas fa-key"></i> Préstamos activos
+            {% if n_activos %}
+            <span class="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">{{ n_activos }}</span>
+            {% endif %}
+        </a>
+        <a href="{{ url_for('tvs.historial') }}"
+           class="border border-gray-300 hover:border-blue-900 text-gray-600 hover:text-blue-900 px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-history mr-1"></i> Historial
+        </a>
+        <a href="{{ url_for('etiquetas.tvs') }}"
+           class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-tag mr-1"></i> Etiquetas
+        </a>
+        {% if current_user.rol in ('Administrador', 'Directivo') %}
+        <a href="{{ url_for('tvs.nueva') }}"
+           class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+            <i class="fas fa-plus mr-1"></i> Nueva TV
+        </a>
+        {% endif %}
     </div>
-    <div class="d-flex gap-2 flex-wrap justify-content-end">
-      <a href="{{ url_for('tvs.prestamos_activos') }}"
-         class="btn btn-sm"
-         style="background:var(--azul-oscuro);color:#fff;">
-        🔑 Préstamos activos
-        {% if n_activos %}<span class="badge rounded-pill ms-1"
-              style="background:var(--naranja);">{{ n_activos }}</span>{% endif %}
-      </a>
-      <a href="{{ url_for('tvs.historial') }}"
-         class="btn btn-sm btn-outline-secondary">📋 Historial</a>
-      <a href="{{ url_for('etiquetas.tvs') }}"
-         class="btn btn-sm"
-         style="background:var(--naranja);color:#fff;">🏷️ Etiquetas</a>
-      {% if current_user.rol in ['Administrador','Directivo'] %}
-      <a href="{{ url_for('tvs.nueva') }}"
-         class="btn btn-sm btn-success">＋ Nueva TV</a>
-      {% endif %}
-    </div>
-  </div>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in messages %}
-      <div class="alert alert-{{ cat }} alert-dismissible fade show py-2">
-        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      </div>
-    {% endfor %}
-  {% endwith %}
-
-  <div class="card shadow-sm border-0">
-    <div class="card-header py-2 text-white fw-bold text-uppercase"
-         style="background:var(--azul-oscuro);font-size:.85rem;">
-      Televisores registrados
-    </div>
-    <div class="table-responsive">
-      <table class="table table-hover table-sm mb-0 align-middle">
-        <thead style="background:var(--azul-oscuro);color:#fff;">
-          <tr>
-            <th class="ps-3">Código</th>
-            <th>Marca / Modelo</th>
-            <th class="text-center">Pulg.</th>
-            <th>Aula</th>
-            <th>N° de serie</th>
-            <th>Componentes</th>
-            <th class="text-center">Estado</th>
-            <th class="text-center">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for tv in tvs %}
-          <tr {% if tv.estado == 'en_servicio' %}class="table-warning"
-              {% elif tv.estado == 'de_baja' %}class="table-secondary text-muted"
-              {% elif tv.estado == 'prestada' %}class="table-danger"{% endif %}>
-
-            <td class="ps-3 fw-bold" style="color:var(--azul-oscuro);">{{ tv.codigo }}</td>
-            <td><b>{{ tv.marca }}</b> <span class="text-muted">{{ tv.modelo }}</span></td>
-            <td class="text-center">
-              {% if tv.pulgadas %}
-                <span class="badge bg-secondary">{{ tv.pulgadas }}"</span>
-              {% else %}—{% endif %}
-            </td>
-            <td>{{ tv.aula or '—' }}</td>
-            <td><small class="font-monospace text-muted">{{ tv.numero_serie or '—' }}</small></td>
-            <td>
-              {% for comp in tv.componentes_lista %}
-                <span class="badge me-1"
-                      style="background:var(--naranja);font-size:.6rem;">{{ comp }}</span>
-              {% else %}<span class="text-muted small">—</span>{% endfor %}
-            </td>
-            <td class="text-center">
-              {% if tv.estado == 'disponible' %}
-                <span class="badge bg-success">Disponible</span>
-              {% elif tv.estado == 'prestada' %}
-                <span class="badge bg-danger">Prestada</span>
-              {% elif tv.estado == 'en_servicio' %}
-                <span class="badge" style="background:var(--naranja);">En servicio</span>
-              {% else %}
-                <span class="badge bg-secondary">De baja</span>
-              {% endif %}
-            </td>
-            <td class="text-center">
-              <div class="btn-group btn-group-sm">
-
-                {# Prestar #}
-                {% if tv.estado == 'disponible' %}
-                <a href="{{ url_for('tvs.prestar', tv_id=tv.id) }}"
-                   class="btn btn-outline-primary" title="Prestar">🔑</a>
-                {% endif %}
-
-                {% if current_user.rol in ['Administrador','Directivo'] %}
-                {# Editar #}
-                <a href="{{ url_for('tvs.editar', tv_id=tv.id) }}"
-                   class="btn btn-outline-secondary" title="Editar">✏️</a>
-
-                {# Servicio / Recuperar #}
-                {% if tv.estado == 'disponible' %}
-                  <button type="button" class="btn btn-outline-warning"
-                          title="Enviar a servicio técnico"
-                          data-bs-toggle="modal"
-                          data-bs-target="#modalServicio{{ tv.id }}">🔧</button>
-                {% elif tv.estado == 'en_servicio' %}
-                  <form method="POST"
-                        action="{{ url_for('tvs.recuperar', tv_id=tv.id) }}"
-                        class="d-inline">
-                    <button class="btn btn-outline-success"
-                            title="Recuperar del servicio">✅</button>
-                  </form>
-                {% endif %}
-                {% endif %}{# fin admin #}
-
-              </div>
-            </td>
-          </tr>
-
-          {# Modal servicio técnico #}
-          <div class="modal fade" id="modalServicio{{ tv.id }}" tabindex="-1">
-            <div class="modal-dialog modal-sm">
-              <div class="modal-content">
-                <div class="modal-header py-2"
-                     style="background:var(--azul-oscuro);">
-                  <h6 class="modal-title text-white fw-bold mb-0">
-                    🔧 Servicio técnico — {{ tv.codigo }}
-                  </h6>
-                  <button type="button" class="btn-close btn-close-white"
-                          data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST"
-                      action="{{ url_for('tvs.enviar_servicio', tv_id=tv.id) }}">
-                  <div class="modal-body">
-                    <label class="form-label fw-bold small text-uppercase">
-                      Motivo del servicio *
-                    </label>
-                    <select name="motivo_servicio" class="form-select form-select-sm" required>
-                      <option value="">— Seleccioná —</option>
-                      <option>Pantalla rota</option>
-                      <option>No enciende</option>
-                      <option>Sin imagen</option>
-                      <option>Sin sonido</option>
-                      <option>Puerto HDMI roto</option>
-                      <option>Control remoto roto</option>
-                      <option>Soporte roto</option>
-                      <option>Problema eléctrico</option>
-                      <option>Otro</option>
-                    </select>
-                  </div>
-                  <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-sm btn-secondary"
-                            data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit"
-                            class="btn btn-sm btn-warning fw-bold">Confirmar</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-
-          {% else %}
-          <tr>
-            <td colspan="8" class="text-center text-muted py-4">
-              No hay televisores registrados.
-              {% if current_user.rol in ['Administrador','Directivo'] %}
-              <a href="{{ url_for('tvs.nueva') }}">Agregá el primero</a>.
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
 </div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="mb-4 px-4 py-3 rounded-lg text-sm font-medium
+      {% if cat == 'success' %}bg-green-100 text-green-800
+      {% elif cat == 'danger' %}bg-red-100 text-red-800
+      {% elif cat == 'warning' %}bg-orange-100 text-orange-800
+      {% else %}bg-blue-100 text-blue-800{% endif %}">
+      {{ msg }}
+  </div>
+  {% endfor %}
+{% endwith %}
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-blue-900 text-white">
+            <tr>
+                <th class="px-4 py-3 text-left">Código</th>
+                <th class="px-4 py-3 text-left">Marca / Modelo</th>
+                <th class="px-4 py-3 text-center">Pulg.</th>
+                <th class="px-4 py-3 text-left">Aula</th>
+                <th class="px-4 py-3 text-left">N° de serie</th>
+                <th class="px-4 py-3 text-left">Componentes</th>
+                <th class="px-4 py-3 text-center">Estado</th>
+                <th class="px-4 py-3 text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for tv in tvs %}
+            <tr class="hover:bg-gray-50
+                {% if tv.estado == 'en_servicio' %}bg-orange-50
+                {% elif tv.estado == 'de_baja' %}bg-gray-100 opacity-60
+                {% elif tv.estado == 'prestada' %}bg-red-50{% endif %}">
+
+                <td class="px-4 py-3 font-bold text-blue-900">{{ tv.codigo }}</td>
+                <td class="px-4 py-3">
+                    <span class="font-semibold">{{ tv.marca }}</span>
+                    <span class="text-gray-500">{{ tv.modelo }}</span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    {% if tv.pulgadas %}
+                    <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 font-semibold">
+                        {{ tv.pulgadas }}"
+                    </span>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ tv.aula or '—' }}</td>
+                <td class="px-4 py-3 font-mono text-xs text-gray-500">
+                    {{ tv.numero_serie or '—' }}
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex flex-wrap gap-1">
+                    {% for comp in tv.componentes_lista %}
+                        <span class="px-1.5 py-0.5 rounded text-xs bg-orange-100 text-orange-700 font-medium">
+                            {{ comp }}
+                        </span>
+                    {% else %}
+                        <span class="text-gray-400 text-xs">—</span>
+                    {% endfor %}
+                    </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    {% if tv.estado == 'disponible' %}
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                        <i class="fas fa-check-circle mr-1"></i>Disponible
+                    </span>
+                    {% elif tv.estado == 'prestada' %}
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                        <i class="fas fa-key mr-1"></i>Prestada
+                    </span>
+                    {% elif tv.estado == 'en_servicio' %}
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700"
+                          title="{{ tv.motivo_servicio }}">
+                        <i class="fas fa-tools mr-1"></i>En servicio
+                    </span>
+                    {% else %}
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+                        De baja
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <div class="flex justify-center gap-2 items-center">
+                        {% if tv.estado == 'disponible' %}
+                        <a href="{{ url_for('tvs.prestar', tv_id=tv.id) }}"
+                           class="text-blue-600 hover:text-blue-800" title="Prestar">
+                            <i class="fas fa-key"></i>
+                        </a>
+                        {% endif %}
+
+                        {% if current_user.rol in ('Administrador', 'Directivo') %}
+                        <a href="{{ url_for('tvs.editar', tv_id=tv.id) }}"
+                           class="text-gray-500 hover:text-gray-700" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </a>
+
+                        {% if tv.estado == 'disponible' %}
+                        <button type="button"
+                                onclick="abrirModalServicio({{ tv.id }}, '{{ tv.codigo }}')"
+                                class="text-orange-500 hover:text-orange-700"
+                                title="Enviar a servicio técnico">
+                            <i class="fas fa-tools"></i>
+                        </button>
+                        {% elif tv.estado == 'en_servicio' %}
+                        <form method="POST"
+                              action="{{ url_for('tvs.recuperar', tv_id=tv.id) }}"
+                              onsubmit="return confirm('¿Confirmar que la TV volvió del servicio?')">
+                            <button type="submit"
+                                    class="text-green-500 hover:text-green-700"
+                                    title="Recuperar del servicio">
+                                <i class="fas fa-check-circle"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                    No hay televisores registrados.
+                    {% if current_user.rol in ('Administrador', 'Directivo') %}
+                    <a href="{{ url_for('tvs.nueva') }}"
+                       class="text-blue-600 hover:underline ml-1">Agregá el primero</a>.
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{# ── MODAL SERVICIO TÉCNICO ── #}
+<div id="modal-servicio"
+     class="fixed inset-0 z-50 items-center justify-center bg-black bg-opacity-50"
+     style="display:none">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="bg-orange-500 px-6 py-4 flex items-center gap-3">
+            <i class="fas fa-tools text-white text-xl"></i>
+            <h3 class="text-white font-bold text-lg">Enviar a servicio técnico</h3>
+        </div>
+        <div class="px-6 py-5">
+            <p class="text-gray-600 mb-1 text-sm">Televisor:</p>
+            <p class="font-bold text-blue-900 text-base mb-4" id="modal-nombre-tv">—</p>
+
+            <form id="form-servicio" method="POST" action="">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">
+                    Motivo del problema <span class="text-red-500">*</span>
+                </label>
+                <select name="motivo_servicio" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-5
+                               focus:outline-none focus:border-orange-400">
+                    <option value="" disabled selected>Seleccioná el motivo…</option>
+                    <option>Pantalla rota</option>
+                    <option>No enciende</option>
+                    <option>Sin imagen</option>
+                    <option>Sin sonido</option>
+                    <option>Puerto HDMI roto</option>
+                    <option>Control remoto roto</option>
+                    <option>Soporte roto</option>
+                    <option>Problema eléctrico</option>
+                    <option>Otro</option>
+                </select>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="cerrarModalServicio()"
+                            class="px-4 py-2 rounded-lg border border-gray-300
+                                   text-gray-600 text-sm hover:bg-gray-50">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600
+                                   text-white text-sm font-semibold">
+                        <i class="fas fa-tools mr-1"></i>Confirmar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function abrirModalServicio(tvId, tvNombre) {
+    document.getElementById('modal-nombre-tv').textContent = tvNombre;
+    document.getElementById('form-servicio').action = '/tvs/' + tvId + '/servicio';
+    document.getElementById('modal-servicio').style.display = 'flex';
+}
+function cerrarModalServicio() {
+    document.getElementById('modal-servicio').style.display = 'none';
+}
+document.getElementById('modal-servicio').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalServicio();
+});
+</script>
+
 {% endblock %}
