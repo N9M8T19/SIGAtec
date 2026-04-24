@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'EDITAR TV' if accion == 'editar' else 'NUEVA TV' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3" style="max-width:760px;">
+
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <a href="{{ url_for('tvs.index') }}"
+       class="btn btn-sm btn-outline-secondary">← Volver</a>
+    <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+      {{ '✏️ Editar' if accion == 'editar' else '➕ Nueva' }} TV
+      {% if tv %} — {{ tv.codigo }}{% endif %}
+    </h2>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} py-2">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST">
+
+    {# ── Datos del equipo ── #}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header py-2 text-white fw-bold text-uppercase"
+           style="background:var(--azul-oscuro);font-size:.85rem;">
+        📺 Datos del equipo
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          {% if accion == 'nueva' %}
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-uppercase">N° interno *</label>
+            <input type="number" name="numero_interno" class="form-control"
+                   min="1" required placeholder="1">
+            <div class="form-text">Ej.: 1 → TV-01</div>
+          </div>
+          {% endif %}
+
+          <div class="col-md-{% if accion == 'nueva' %}4{% else %}5{% endif %}">
+            <label class="form-label fw-bold small text-uppercase">Marca *</label>
+            <input type="text" name="marca" class="form-control"
+                   value="{{ tv.marca if tv else '' }}"
+                   required placeholder="Samsung, LG, TCL…">
+          </div>
+
+          <div class="col-md-{% if accion == 'nueva' %}5{% else %}7{% endif %}">
+            <label class="form-label fw-bold small text-uppercase">Modelo *</label>
+            <input type="text" name="modelo" class="form-control"
+                   value="{{ tv.modelo if tv else '' }}"
+                   required placeholder="UN43T5300…">
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-uppercase">Pulgadas</label>
+            <input type="number" name="pulgadas" class="form-control"
+                   value="{{ tv.pulgadas if tv else '' }}"
+                   min="10" max="120" placeholder="43">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-bold small text-uppercase">N° de serie</label>
+            <input type="text" name="numero_serie"
+                   class="form-control font-monospace"
+                   value="{{ tv.numero_serie if tv else '' }}"
+                   placeholder="Z7RT4K1Q…">
+          </div>
+
+          <div class="col-md-5">
+            <label class="form-label fw-bold small text-uppercase">
+              Aula donde está ubicada
+            </label>
+            <input type="text" name="aula" class="form-control"
+                   value="{{ tv.aula if tv else '' }}"
+                   placeholder="Aula 12, Sala de medios…">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-bold small text-uppercase">Observaciones</label>
+            <textarea name="observaciones" class="form-control" rows="2"
+                      placeholder="Estado general, historial de reparaciones…">{{ tv.observaciones if tv else '' }}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Componentes ── #}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header py-2 text-white fw-bold text-uppercase"
+           style="background:var(--naranja);font-size:.85rem;">
+        📦 Componentes incluidos
+      </div>
+      <div class="card-body">
+        <div class="row g-2">
+          {% set componentes = [
+            ('tiene_control_remoto',  'Control remoto'),
+            ('tiene_cable_hdmi',      'Cable HDMI'),
+            ('tiene_cable_vga',       'Cable VGA'),
+            ('tiene_cable_corriente', 'Cable de corriente'),
+            ('tiene_soporte_pared',   'Soporte de pared'),
+            ('tiene_soporte_pie',     'Soporte de pie'),
+            ('tiene_chromecast',      'Chromecast'),
+            ('tiene_adaptador_hdmi',  'Adaptador HDMI / USB-C'),
+          ] %}
+          {% for campo, label in componentes %}
+          <div class="col-md-3 col-6">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox"
+                     name="{{ campo }}" id="{{ campo }}"
+                     {% if tv and tv[campo] %}checked{% endif %}>
+              <label class="form-check-label small" for="{{ campo }}">
+                {{ label }}
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+
+          <div class="col-12 mt-2">
+            <label class="form-label fw-bold small text-uppercase">
+              Otros accesorios
+            </label>
+            <input type="text" name="componentes_extra" class="form-control"
+                   value="{{ tv.componentes_extra if tv else '' }}"
+                   placeholder="Cable RCA, auriculares, control universal…">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn fw-bold text-white"
+              style="background:var(--azul-oscuro);">
+        💾 {{ 'Guardar cambios' if accion == 'editar' else 'Registrar TV' }}
+      </button>
+      <a href="{{ url_for('tvs.index') }}"
+         class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

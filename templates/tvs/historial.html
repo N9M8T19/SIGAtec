@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}HISTORIAL TVS{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+        📋 Historial — Televisores
+      </h2>
+      <small class="text-muted">Todos los préstamos registrados</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('tvs.historial_pdf') }}"
+         class="btn btn-sm"
+         style="background:var(--naranja);color:#fff;">
+        🖨️ PDF Historial
+      </a>
+      <a href="{{ url_for('tvs.index') }}"
+         class="btn btn-sm btn-outline-secondary">← Volver</a>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header py-2 text-white fw-bold text-uppercase"
+         style="background:var(--azul-oscuro);font-size:.85rem;">
+      Historial de préstamos
+      <span class="badge ms-2" style="background:var(--naranja);">
+        Pág. {{ paginacion.page }} / {{ paginacion.pages }}
+      </span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead style="background:var(--azul-oscuro);color:#fff;">
+          <tr>
+            <th class="ps-3">TV</th>
+            <th>Solicitante</th>
+            <th>Aula destino</th>
+            <th>Retiro</th>
+            <th>Devolución real</th>
+            <th>Autorizó retiro</th>
+            <th>Autorizó dev.</th>
+            <th class="text-center">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in paginacion.items %}
+          <tr>
+            <td class="ps-3 fw-bold" style="color:var(--azul-oscuro);">
+              {{ p.tv.codigo if p.tv else '—' }}
+            </td>
+            <td>
+              {% if p.docente %}
+                {{ p.docente.apellido }}, {{ p.docente.nombre }}
+              {% else %}
+                {{ p.nombre_solicitante or '—' }}
+              {% endif %}
+            </td>
+            <td>{{ p.aula_destino or '—' }}</td>
+            <td><small>{{ p.fecha_retiro | arg_datetime }}</small></td>
+            <td><small>{{ p.fecha_devolucion_real | arg_datetime if p.fecha_devolucion_real else '—' }}</small></td>
+            <td><small>{{ p.encargado_retiro.apellido ~ ' ' ~ p.encargado_retiro.nombre if p.encargado_retiro else '—' }}</small></td>
+            <td><small>{{ p.encargado_devolucion.apellido ~ ' ' ~ p.encargado_devolucion.nombre if p.encargado_devolucion else '—' }}</small></td>
+            <td class="text-center">
+              {% if p.estado == 'devuelto' %}
+                <span class="badge bg-success">Devuelta</span>
+              {% else %}
+                <span class="badge" style="background:var(--naranja);">Activo</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">Sin préstamos registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if paginacion.pages > 1 %}
+    <div class="card-footer d-flex justify-content-center gap-2 py-2">
+      {% if paginacion.has_prev %}
+        <a href="{{ url_for('tvs.historial', page=paginacion.prev_num) }}"
+           class="btn btn-sm btn-outline-secondary">← Anterior</a>
+      {% endif %}
+      {% if paginacion.has_next %}
+        <a href="{{ url_for('tvs.historial', page=paginacion.next_num) }}"
+           class="btn btn-sm btn-outline-secondary">Siguiente →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

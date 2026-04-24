@@ -1928,3 +1928,275 @@ def pdf_control_masivo_stock(resultado):
     doc.build(story)
     nombre = f'control_masivo_stock_{datetime.utcnow().strftime("%Y%m%d_%H%M")}.pdf'
     return _generar_response(buffer, nombre)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  MÓDULO TVs — Etiquetas y Historial
+#  Agregado sesión 14 — 24/04/2026
+# ═════════════════════════════════════════════════════════════════════════════
+
+from reportlab.lib.pagesizes import landscape
+from reportlab.lib.units import mm
+
+# Colores institucionales alineados con el resto del archivo
+_AZUL_TV    = colors.HexColor('#1a2a6c')
+_NARANJA_TV = colors.HexColor('#e8821a')
+_VERDE_TV   = colors.HexColor('#198754')
+_GRIS_TV    = colors.HexColor('#f5f5f5')
+
+def _st_tv():
+    """Estilos para templates de TVs."""
+    return {
+        'titulo': ParagraphStyle('tv_titulo', fontName='Helvetica-Bold', fontSize=13,
+                                 textColor=AZUL_ESCUELA, alignment=TA_CENTER, leading=16),
+        'sub':    ParagraphStyle('tv_sub',    fontName='Helvetica', fontSize=8,
+                                 textColor=colors.grey, alignment=TA_CENTER),
+        'th':     ParagraphStyle('tv_th',     fontName='Helvetica-Bold', fontSize=8,
+                                 textColor=colors.white, alignment=TA_CENTER),
+        'td':     ParagraphStyle('tv_td',     fontName='Helvetica', fontSize=8,
+                                 alignment=TA_LEFT, leading=10),
+        'tdc':    ParagraphStyle('tv_tdc',    fontName='Helvetica', fontSize=8,
+                                 alignment=TA_CENTER, leading=10),
+        'et':     ParagraphStyle('tv_et',     fontName='Helvetica-Bold', fontSize=8.5,
+                                 textColor=colors.white, alignment=TA_CENTER),
+        'em':     ParagraphStyle('tv_em',     fontName='Helvetica', fontSize=8,
+                                 alignment=TA_CENTER, leading=11),
+        'es':     ParagraphStyle('tv_es',     fontName='Helvetica', fontSize=6.5,
+                                 textColor=colors.grey, alignment=TA_CENTER),
+    }
+
+
+def _encabezado_tv(story, titulo, st):
+    """Encabezado reutilizando la función _encabezado() ya existente."""
+    _encabezado(story, titulo)
+
+
+def _armar_etiqueta_tv(color, tipo_txt, codigo, linea1, linea2, linea3, detalle, st, W):
+    """Construye el contenido visual de una etiqueta individual."""
+    celda = [
+        Table(
+            [[Paragraph(f'<b>{tipo_txt}</b>  ·  {codigo}', st['et'])]],
+            colWidths=[W - 6],
+            style=[('BACKGROUND',    (0, 0), (-1, -1), color),
+                   ('TOPPADDING',    (0, 0), (-1, -1), 4),
+                   ('BOTTOMPADDING', (0, 0), (-1, -1), 4)],
+        ),
+        Spacer(1, 1.5 * mm),
+    ]
+    if linea1:  celda.append(Paragraph(f'<b>{linea1}</b>', st['em']))
+    if linea2:  celda.append(Paragraph(linea2,              st['em']))
+    if linea3:  celda.append(Paragraph(linea3,              st['es']))
+    if detalle:
+        celda.append(HRFlowable(width=W - 12, thickness=0.5, color=colors.lightgrey))
+        celda.append(Paragraph(f'<i>{detalle}</i>', st['es']))
+    return celda
+
+
+def _grid_etiquetas_tv(celdas, W, H, COLS):
+    """Organiza las celdas en una tabla de COLS columnas."""
+    filas = []
+    fila  = []
+    for celda in celdas:
+        fila.append(celda)
+        if len(fila) == COLS:
+            filas.append(fila)
+            fila = []
+    if fila:
+        while len(fila) < COLS:
+            fila.append('')
+        filas.append(fila)
+
+    t = Table(filas, colWidths=[W] * COLS, rowHeights=[H] * len(filas))
+    t.setStyle(TableStyle([
+        ('BOX',         (0, 0), (-1, -1), 0.8, colors.grey),
+        ('INNERGRID',   (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ('VALIGN',      (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING',  (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING',(0, 0), (-1, -1), 3),
+    ]))
+    return t
+
+
+def pdf_etiquetas_tvs(tvs):
+    """
+    PDF A4 con etiquetas adhesivas para televisores.
+    2 columnas × N filas, 88 × 56 mm por etiqueta.
+    Devuelve bytes (NO usa _generar_response).
+    """
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            topMargin=10 * mm, bottomMargin=10 * mm,
+                            leftMargin=10 * mm, rightMargin=10 * mm)
+    st    = _st_tv()
+    story = []
+    _encabezado_tv(story, 'ETIQUETAS — TELEVISORES', st)
+
+    W    = 88 * mm
+    H    = 56 * mm
+    COLS = 2
+
+    celdas = []
+    for tv in tvs:
+        comp  = ', '.join(tv.componentes_lista) if tv.componentes_lista else 'Sin accesorios'
+        aula  = tv.aula or '—'
+        serie = tv.numero_serie or '—'
+        pulg  = f'  {tv.pulgadas}"' if tv.pulgadas else ''
+        celdas.append(_armar_etiqueta_tv(
+            color    = _AZUL_TV,
+            tipo_txt = 'TELEVISOR',
+            codigo   = tv.codigo,
+            linea1   = f'{tv.marca} {tv.modelo}{pulg}',
+            linea2   = f'Aula: {aula}',
+            linea3   = f'N° serie: {serie}',
+            detalle  = comp,
+            st=st, W=W,
+        ))
+
+    if celdas:
+        story.append(_grid_etiquetas_tv(celdas, W, H, COLS))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
+def pdf_historial_tvs(prestamos):
+    """
+    PDF landscape con historial completo de préstamos de TVs.
+    Devuelve bytes (NO usa _generar_response).
+    """
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
+                            topMargin=10 * mm, bottomMargin=10 * mm,
+                            leftMargin=12 * mm, rightMargin=12 * mm)
+    st    = _st_tv()
+    story = []
+    _encabezado_tv(story, 'HISTORIAL DE PRÉSTAMOS — TELEVISORES', st)
+
+    COLS   = ['TV', 'Solicitante', 'Aula destino', 'Retiro',
+              'Dev. esperada', 'Dev. real', 'Autorizó retiro', 'Autorizó dev.', 'Estado']
+    WIDTHS = [28, 58, 42, 46, 46, 46, 50, 50, 34]  # mm
+
+    def _fmt(dt):
+        return _arg_full(dt)
+
+    def _nom(p):
+        if p.docente:
+            return f'{p.docente.apellido}, {p.docente.nombre}'
+        return p.nombre_solicitante or '—'
+
+    def _enc(u):
+        return f'{u.apellido} {u.nombre}' if u else '—'
+
+    header = [Paragraph(c, st['th']) for c in COLS]
+    data   = [header]
+    for p in prestamos:
+        data.append([
+            Paragraph(p.tv.codigo if p.tv else '—', st['tdc']),
+            Paragraph(_nom(p),                       st['td']),
+            Paragraph(p.aula_destino or '—',         st['tdc']),
+            Paragraph(_fmt(p.fecha_retiro),           st['tdc']),
+            Paragraph(_fmt(p.fecha_devolucion_esperada), st['tdc']),
+            Paragraph(_fmt(p.fecha_devolucion_real),  st['tdc']),
+            Paragraph(_enc(p.encargado_retiro),       st['td']),
+            Paragraph(_enc(p.encargado_devolucion),   st['td']),
+            Paragraph(p.estado.upper(),               st['tdc']),
+        ])
+
+    ts = [
+        ('BACKGROUND',    (0, 0), (-1, 0),  _AZUL_TV),
+        ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, _GRIS_TV]),
+        ('GRID',          (0, 0), (-1, -1), 0.4, colors.lightgrey),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]
+    for i, p in enumerate(prestamos, start=1):
+        c = _VERDE_TV if p.estado == 'devuelto' else _NARANJA_TV
+        ts += [('TEXTCOLOR', (8, i), (8, i), c),
+               ('FONTNAME',  (8, i), (8, i), 'Helvetica-Bold')]
+
+    t = Table(data, colWidths=[w * mm for w in WIDTHS], repeatRows=1)
+    t.setStyle(TableStyle(ts))
+    story.append(t)
+    doc.build(story)
+    return buf.getvalue()
+
+
+def pdf_etiquetas_equipos(tvs_data, pantallas_data, impresoras_data):
+    """
+    PDF A4 con etiquetas para TVs, Pantallas Digitales e Impresoras 3D
+    que tengan una UbicacionEquipo activa registrada.
+    Color de banda: TV=azul, Pantalla=verde, Impresora=naranja.
+    Devuelve bytes.
+
+    tvs_data        → lista de {'equipo': TV,             'ubic': UbicacionEquipo}
+    pantallas_data  → lista de {'equipo': PantallaDigital,'ubic': UbicacionEquipo}
+    impresoras_data → lista de {'equipo': Impresora3D,    'ubic': UbicacionEquipo}
+    """
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            topMargin=10 * mm, bottomMargin=10 * mm,
+                            leftMargin=10 * mm, rightMargin=10 * mm)
+    st    = _st_tv()
+    story = []
+    _encabezado_tv(story, 'ETIQUETAS — EQUIPOS TECNOLÓGICOS', st)
+
+    W    = 88 * mm
+    H    = 56 * mm
+    COLS = 2
+
+    celdas = []
+
+    # ── TVs ──────────────────────────────────────────────────────────────────
+    for item in tvs_data:
+        tv, ubic = item['equipo'], item['ubic']
+        comp = ', '.join(tv.componentes_lista) if tv.componentes_lista else 'Sin accesorios'
+        pulg = f'  {tv.pulgadas}"' if tv.pulgadas else ''
+        aula = ubic.aula + (f' — {ubic.sector}' if ubic.sector else '')
+        celdas.append(_armar_etiqueta_tv(
+            color=_AZUL_TV, tipo_txt='TELEVISOR', codigo=tv.codigo,
+            linea1=f'{tv.marca} {tv.modelo}{pulg}',
+            linea2=f'Aula: {aula}',
+            linea3=f'N° serie: {tv.numero_serie or "—"}',
+            detalle=comp, st=st, W=W,
+        ))
+
+    # ── Pantallas Digitales ───────────────────────────────────────────────────
+    for item in pantallas_data:
+        p, ubic = item['equipo'], item['ubic']
+        # PantallaDigital usa .aula como nombre de display
+        nombre = f'Aula {p.aula}'
+        marca  = p.marca  or ''
+        modelo = p.modelo or ''
+        aula   = ubic.aula + (f' — {ubic.sector}' if ubic.sector else '')
+        celdas.append(_armar_etiqueta_tv(
+            color=_VERDE_TV, tipo_txt='PANTALLA DIGITAL',
+            codigo=f'PD-{p.id:02d}',
+            linea1=nombre,
+            linea2=f'{marca} {modelo}'.strip() or '—',
+            linea3=f'Aula: {aula}',
+            detalle='', st=st, W=W,
+        ))
+
+    # ── Impresoras 3D ─────────────────────────────────────────────────────────
+    for item in impresoras_data:
+        imp, ubic = item['equipo'], item['ubic']
+        aula = ubic.aula + (f' — {ubic.sector}' if ubic.sector else '')
+        celdas.append(_armar_etiqueta_tv(
+            color=_NARANJA_TV, tipo_txt='IMPRESORA 3D',
+            codigo=f'IMP-{imp.numero_interno}',
+            linea1=imp.modelo,
+            linea2=f'Aula: {aula}',
+            linea3=f'N° serie: {imp.numero_serie or "—"}',
+            detalle='', st=st, W=W,
+        ))
+
+    if celdas:
+        story.append(_grid_etiquetas_tv(celdas, W, H, COLS))
+    else:
+        story.append(Paragraph('No hay equipos con ubicación registrada.',
+                               STYLE_NORMAL))
+
+    doc.build(story)
+    return buf.getvalue()

@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% block title %}NUEVA UBICACIÓN{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-3" style="max-width:660px;">
+
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <a href="{{ url_for('ubicaciones.index') }}"
+       class="btn btn-sm btn-outline-secondary">← Volver</a>
+    <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+      📍 Nueva ubicación fija
+    </h2>
+  </div>
+
+  <div class="alert alert-info py-2 small mb-3">
+    Registrá dónde está instalado o guardado el equipo de forma permanente.
+    Si el equipo cambia de lugar, desactivá la ubicación actual y creá una nueva.
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} py-2">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header py-2 text-white fw-bold text-uppercase"
+           style="background:var(--azul-oscuro);font-size:.85rem;">
+        Equipo a ubicar
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-5">
+            <label class="form-label fw-bold small text-uppercase">Tipo de equipo *</label>
+            <select name="tipo_equipo" id="tipo_equipo"
+                    class="form-select" onchange="actualizarEquipos()" required>
+              <option value="">— Seleccioná —</option>
+              <option value="tv">📺 TV</option>
+              <option value="pantalla_digital">🖥️ Pantalla Digital</option>
+              <option value="impresora_3d">🖨️ Impresora 3D</option>
+            </select>
+          </div>
+
+          <div class="col-md-7">
+            <label class="form-label fw-bold small text-uppercase">Equipo *</label>
+            <select name="equipo_id" id="sel_tv" class="form-select d-none">
+              <option value="">— Seleccioná TV —</option>
+              {% for tv in tvs %}
+              <option value="{{ tv.id }}">
+                {{ tv.codigo }} — {{ tv.marca }} {{ tv.modelo }}
+                {% if tv.pulgadas %}({{ tv.pulgadas }}"){% endif %}
+              </option>
+              {% endfor %}
+            </select>
+            <select name="equipo_id" id="sel_pantalla" class="form-select d-none" disabled>
+              <option value="">— Seleccioná pantalla —</option>
+              {% for p in pantallas %}
+              <option value="{{ p.id }}">Aula {{ p.aula }} — {{ p.marca or '' }} {{ p.modelo or '' }}</option>
+              {% endfor %}
+            </select>
+            <select name="equipo_id" id="sel_impresora" class="form-select d-none" disabled>
+              <option value="">— Seleccioná impresora —</option>
+              {% for imp in impresoras %}
+              <option value="{{ imp.id }}">IMP-{{ imp.numero_interno }} — {{ imp.modelo }}</option>
+              {% endfor %}
+            </select>
+            <select id="sel_placeholder" class="form-select" disabled>
+              <option>Primero elegí el tipo de equipo</option>
+            </select>
+          </div>
+
+          <div class="col-md-5">
+            <label class="form-label fw-bold small text-uppercase">Aula *</label>
+            <input type="text" name="aula" class="form-control" required
+                   placeholder="Aula 12, Sala de medios…">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small text-uppercase">Sector</label>
+            <input type="text" name="sector" class="form-control"
+                   placeholder="Biblioteca, Lab. Informática…">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-uppercase">Piso</label>
+            <input type="text" name="piso" class="form-control" placeholder="PB, 1° piso…">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold small text-uppercase">Descripción / notas</label>
+            <input type="text" name="descripcion" class="form-control"
+                   placeholder="Pared del fondo, junto al pizarrón…">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn fw-bold text-white"
+              style="background:var(--azul-oscuro);">📍 Guardar ubicación</button>
+      <a href="{{ url_for('ubicaciones.index') }}"
+         class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+<script>
+function actualizarEquipos() {
+  const tipo = document.getElementById('tipo_equipo').value;
+  const mapa = { 'tv':'sel_tv', 'pantalla_digital':'sel_pantalla', 'impresora_3d':'sel_impresora' };
+  document.getElementById('sel_placeholder').classList.add('d-none');
+  Object.values(mapa).forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.add('d-none'); el.disabled = true; el.required = false;
+  });
+  if (tipo && mapa[tipo]) {
+    const el = document.getElementById(mapa[tipo]);
+    el.classList.remove('d-none'); el.disabled = false; el.required = true;
+  } else {
+    document.getElementById('sel_placeholder').classList.remove('d-none');
+  }
+}
+actualizarEquipos();
+</script>
+{% endblock %}

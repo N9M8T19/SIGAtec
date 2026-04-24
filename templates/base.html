@@ -211,6 +211,16 @@
                 <i class="fas fa-user-tag w-5"></i> Asignaciones Internas
             </a>
             {% endif %}
+            <a href="{{ url_for('tvs.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint and 'tvs' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-tv w-5"></i> Televisores
+            </a>
+            <a href="{{ url_for('ubicaciones.index') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint and 'ubicaciones' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-map-marker-alt w-5"></i> Ubicaciones
+            </a>
             {% if current_user.tiene_permiso('configuracion') or current_user.rol == 'Encargado' %}
             <a href="{{ url_for('transferencias.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
@@ -407,6 +417,8 @@
         {% if current_user.rol in ('Directivo', 'Administrador') %}
         <a href="{{ url_for('asignaciones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'asignaciones' in request.endpoint %}active{% endif %}"><i class="fas fa-user-tag w-5"></i> Asignaciones Internas</a>
         {% endif %}
+        <a href="{{ url_for('tvs.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'tvs' in request.endpoint %}active{% endif %}"><i class="fas fa-tv w-5"></i> Televisores</a>
+        <a href="{{ url_for('ubicaciones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'ubicaciones' in request.endpoint %}active{% endif %}"><i class="fas fa-map-marker-alt w-5"></i> Ubicaciones</a>
         {% if current_user.tiene_permiso('configuracion') or current_user.rol == 'Encargado' %}
         <a href="{{ url_for('transferencias.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'transferencias' in request.endpoint %}active{% endif %}"><i class="fas fa-exchange-alt w-5"></i> Transferir Netbooks</a>
         {% endif %}

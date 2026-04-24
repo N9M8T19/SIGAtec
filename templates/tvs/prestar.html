@@ -1,0 +1,411 @@
+{# ════════════════════════════════════════════════════════════════════════
+   templates/tvs/prestar.html
+   ════════════════════════════════════════════════════════════════════════ #}
+{% extends 'base.html' %}
+{% block title %}PRESTAR TV{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-3" style="max-width:660px;">
+
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <a href="{{ url_for('tvs.index') }}"
+       class="btn btn-sm btn-outline-secondary">← Volver</a>
+    <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+      🔑 Préstamo — {{ tv.codigo }}
+    </h2>
+  </div>
+
+  {# Ficha TV #}
+  <div class="card border-0 shadow-sm mb-3"
+       style="border-left:4px solid var(--naranja)!important;">
+    <div class="card-body py-2">
+      <strong>{{ tv.marca }} {{ tv.modelo }}</strong>
+      {% if tv.pulgadas %}
+        <span class="badge bg-secondary ms-1">{{ tv.pulgadas }}"</span>
+      {% endif %}
+      <br>
+      <small class="text-muted">
+        Aula: <b>{{ tv.aula or '—' }}</b>
+        &nbsp;·&nbsp;
+        Componentes: {{ tv.componentes_lista | join(', ') or 'Sin accesorios' }}
+      </small>
+    </div>
+  </div>
+
+  <form method="POST">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header py-2 text-white fw-bold text-uppercase"
+           style="background:var(--azul-oscuro);font-size:.85rem;">
+        Datos del préstamo
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-12">
+            <label class="form-label fw-bold small text-uppercase">Docente</label>
+            <select name="docente_id" class="form-select form-select-sm">
+              <option value="">— Seleccioná docente (opcional) —</option>
+              {% for d in docentes %}
+              <option value="{{ d.id }}">{{ d.apellido }}, {{ d.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-bold small text-uppercase">
+              O bien, nombre del solicitante
+            </label>
+            <input type="text" name="nombre_solicitante" class="form-control"
+                   placeholder="Si no es docente, escribí el nombre aquí">
+          </div>
+
+          <div class="col-md-5">
+            <label class="form-label fw-bold small text-uppercase">Aula destino</label>
+            <input type="text" name="aula_destino" class="form-control"
+                   placeholder="Aula 5, Sala multimedia…">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-bold small text-uppercase">
+              Tiempo estimado
+            </label>
+            <select name="horas_esperadas" class="form-select form-select-sm">
+              <option value="">Sin límite</option>
+              <option value="1">1 hora</option>
+              <option value="2">2 horas</option>
+              <option value="4">4 horas</option>
+              <option value="8">Todo el día (8 hs)</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-bold small text-uppercase">Motivo / actividad</label>
+            <input type="text" name="motivo" class="form-control"
+                   placeholder="Presentación, exposición de proyecto…">
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn fw-bold text-white"
+              style="background:var(--azul-oscuro);">
+        🔑 Registrar préstamo
+      </button>
+      <a href="{{ url_for('tvs.index') }}"
+         class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+
+{# ════════════════════════════════════════════════════════════════════════
+   GUARDAR COMO: templates/tvs/devolver.html
+   ════════════════════════════════════════════════════════════════════════ #}
+{% extends 'base.html' %}
+{% block title %}DEVOLUCIÓN TV{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-3" style="max-width:660px;">
+
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <a href="{{ url_for('tvs.prestamos_activos') }}"
+       class="btn btn-sm btn-outline-secondary">← Volver</a>
+    <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+      ✅ Devolución — {{ tv.codigo }}
+    </h2>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3"
+       style="border-left:4px solid #198754!important;">
+    <div class="card-body py-2">
+      <strong>{{ tv.marca }} {{ tv.modelo }}</strong><br>
+      <small class="text-muted">
+        Retirado por:
+        {% if prestamo.docente %}
+          {{ prestamo.docente.apellido }}, {{ prestamo.docente.nombre }}
+        {% else %}
+          {{ prestamo.nombre_solicitante or '—' }}
+        {% endif %}
+        &nbsp;·&nbsp;
+        {{ prestamo.fecha_retiro | arg_datetime }}
+      </small>
+    </div>
+  </div>
+
+  <form method="POST">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header py-2 text-white fw-bold text-uppercase"
+           style="background:var(--naranja);font-size:.85rem;">
+        📦 Componentes devueltos
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">
+          Marcá los componentes que se están devolviendo junto con la TV.
+        </p>
+        <div class="row g-2">
+          {% set campos = [
+            ('devuelto_control_remoto',  'Control remoto',      tv.tiene_control_remoto),
+            ('devuelto_cable_hdmi',      'Cable HDMI',          tv.tiene_cable_hdmi),
+            ('devuelto_cable_vga',       'Cable VGA',           tv.tiene_cable_vga),
+            ('devuelto_cable_corriente', 'Cable de corriente',  tv.tiene_cable_corriente),
+            ('devuelto_soporte_pared',   'Soporte de pared',    tv.tiene_soporte_pared),
+            ('devuelto_soporte_pie',     'Soporte de pie',      tv.tiene_soporte_pie),
+            ('devuelto_chromecast',      'Chromecast',          tv.tiene_chromecast),
+            ('devuelto_adaptador_hdmi',  'Adaptador HDMI',      tv.tiene_adaptador_hdmi),
+          ] %}
+          {% for campo, label, tiene in campos %}
+            {% if tiene %}
+            <div class="col-md-3 col-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox"
+                       name="{{ campo }}" id="{{ campo }}" checked>
+                <label class="form-check-label small" for="{{ campo }}">
+                  {{ label }}
+                </label>
+              </div>
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <div class="mt-3">
+          <label class="form-label fw-bold small text-uppercase">Observaciones</label>
+          <textarea name="observaciones" class="form-control" rows="2"
+                    placeholder="Daños, faltantes, estado general…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-success fw-bold">
+        ✅ Confirmar devolución
+      </button>
+      <a href="{{ url_for('tvs.prestamos_activos') }}"
+         class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+
+{# ════════════════════════════════════════════════════════════════════════
+   GUARDAR COMO: templates/tvs/prestamos.html  (préstamos activos)
+   ════════════════════════════════════════════════════════════════════════ #}
+{% extends 'base.html' %}
+{% block title %}PRÉSTAMOS ACTIVOS — TVS{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+        🔑 Préstamos activos — TVs
+      </h2>
+      <small class="text-muted">
+        {{ prestamos|length }} televisor{{ 'es' if prestamos|length != 1 }} fuera del repositorio
+      </small>
+    </div>
+    <a href="{{ url_for('tvs.index') }}"
+       class="btn btn-sm btn-outline-secondary">← Volver</a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} py-2 alert-dismissible">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {% if not prestamos %}
+    <div class="alert alert-success mb-0">
+      No hay préstamos activos en este momento. ✅
+    </div>
+  {% else %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header py-2 text-white fw-bold text-uppercase"
+         style="background:var(--azul-oscuro);font-size:.85rem;">
+      TVs fuera del repositorio
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead style="background:var(--azul-oscuro);color:#fff;">
+          <tr>
+            <th class="ps-3">TV</th>
+            <th>Solicitante</th>
+            <th>Aula destino</th>
+            <th>Retiro</th>
+            <th>Dev. esperada</th>
+            <th class="text-center">Tiempo</th>
+            <th class="text-center">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in prestamos %}
+          {% set mins = ((ahora - p.fecha_retiro).total_seconds() / 60) | int %}
+          <tr {% if mins > 240 %}class="table-danger"
+              {% elif mins > 120 %}class="table-warning"{% endif %}>
+
+            <td class="ps-3 fw-bold" style="color:var(--azul-oscuro);">
+              {{ p.tv.codigo if p.tv else '—' }}
+            </td>
+            <td>
+              {% if p.docente %}
+                {{ p.docente.apellido }}, {{ p.docente.nombre }}
+              {% else %}
+                {{ p.nombre_solicitante or '—' }}
+              {% endif %}
+            </td>
+            <td>{{ p.aula_destino or '—' }}</td>
+            <td><small>{{ p.fecha_retiro | arg_datetime }}</small></td>
+            <td>
+              <small>
+                {% if p.fecha_devolucion_esperada %}
+                  {{ p.fecha_devolucion_esperada | arg_datetime }}
+                {% else %}
+                  <span class="text-muted">Sin límite</span>
+                {% endif %}
+              </small>
+            </td>
+            <td class="text-center">
+              {% if mins >= 60 %}
+                <span class="badge bg-danger">
+                  {{ mins // 60 }}h {{ mins % 60 }}m
+                </span>
+              {% else %}
+                <span class="badge bg-success">{{ mins }}m</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <a href="{{ url_for('tvs.devolver', prestamo_id=p.id) }}"
+                 class="btn btn-sm btn-success fw-bold">✅ Devolver</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+
+{# ════════════════════════════════════════════════════════════════════════
+   GUARDAR COMO: templates/tvs/historial.html
+   ════════════════════════════════════════════════════════════════════════ #}
+{% extends 'base.html' %}
+{% block title %}HISTORIAL TVS{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+        📋 Historial — Televisores
+      </h2>
+      <small class="text-muted">Todos los préstamos registrados</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('tvs.historial_pdf') }}"
+         class="btn btn-sm"
+         style="background:var(--naranja);color:#fff;">
+        🖨️ PDF Historial
+      </a>
+      <a href="{{ url_for('tvs.index') }}"
+         class="btn btn-sm btn-outline-secondary">← Volver</a>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header py-2 text-white fw-bold text-uppercase"
+         style="background:var(--azul-oscuro);font-size:.85rem;">
+      Historial de préstamos
+      <span class="badge ms-2"
+            style="background:var(--naranja);">
+        Pág. {{ paginacion.page }} / {{ paginacion.pages }}
+      </span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead style="background:var(--azul-oscuro);color:#fff;">
+          <tr>
+            <th class="ps-3">TV</th>
+            <th>Solicitante</th>
+            <th>Aula destino</th>
+            <th>Retiro</th>
+            <th>Devolución real</th>
+            <th>Autorizó retiro</th>
+            <th>Autorizó dev.</th>
+            <th class="text-center">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in paginacion.items %}
+          <tr>
+            <td class="ps-3 fw-bold" style="color:var(--azul-oscuro);">
+              {{ p.tv.codigo if p.tv else '—' }}
+            </td>
+            <td>
+              {% if p.docente %}
+                {{ p.docente.apellido }}, {{ p.docente.nombre }}
+              {% else %}
+                {{ p.nombre_solicitante or '—' }}
+              {% endif %}
+            </td>
+            <td>{{ p.aula_destino or '—' }}</td>
+            <td><small>{{ p.fecha_retiro | arg_datetime }}</small></td>
+            <td>
+              <small>
+                {{ p.fecha_devolucion_real | arg_datetime if p.fecha_devolucion_real else '—' }}
+              </small>
+            </td>
+            <td>
+              <small>
+                {{ p.encargado_retiro.apellido ~ ' ' ~ p.encargado_retiro.nombre
+                   if p.encargado_retiro else '—' }}
+              </small>
+            </td>
+            <td>
+              <small>
+                {{ p.encargado_devolucion.apellido ~ ' ' ~ p.encargado_devolucion.nombre
+                   if p.encargado_devolucion else '—' }}
+              </small>
+            </td>
+            <td class="text-center">
+              {% if p.estado == 'devuelto' %}
+                <span class="badge bg-success">Devuelta</span>
+              {% else %}
+                <span class="badge" style="background:var(--naranja);">Activo</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">
+              Sin préstamos registrados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# Paginación #}
+    {% if paginacion.pages > 1 %}
+    <div class="card-footer d-flex justify-content-center gap-2 py-2">
+      {% if paginacion.has_prev %}
+        <a href="{{ url_for('tvs.historial', page=paginacion.prev_num) }}"
+           class="btn btn-sm btn-outline-secondary">← Anterior</a>
+      {% endif %}
+      {% if paginacion.has_next %}
+        <a href="{{ url_for('tvs.historial', page=paginacion.next_num) }}"
+           class="btn btn-sm btn-outline-secondary">Siguiente →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

@@ -397,3 +397,128 @@ class AsignacionInterna(db.Model):
         if self.docente:
             return self.docente.nombre_completo
         return self.area or '—'
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TV
+#  Televisores del establecimiento con préstamos y componentes.
+#  Agregado sesión 14 — 24/04/2026
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TV(db.Model):
+    __tablename__ = 'tvs'
+
+    id                    = db.Column(db.Integer, primary_key=True)
+    numero_interno        = db.Column(db.Integer, nullable=False, unique=True)
+    marca                 = db.Column(db.String(80),  nullable=False)
+    modelo                = db.Column(db.String(120), nullable=False)
+    numero_serie          = db.Column(db.String(120), unique=True, nullable=True)
+    pulgadas              = db.Column(db.Integer, nullable=True)
+    aula                  = db.Column(db.String(60),  nullable=True)
+    estado                = db.Column(db.String(30),  nullable=False, default='disponible')
+    # estados: disponible | prestada | en_servicio | de_baja
+    motivo_servicio       = db.Column(db.String(200), nullable=True)
+    fecha_servicio        = db.Column(db.DateTime,    nullable=True)
+    observaciones         = db.Column(db.Text,        nullable=True)
+    fecha_alta            = db.Column(db.DateTime,    default=datetime.utcnow)
+
+    # Componentes incluidos
+    tiene_control_remoto   = db.Column(db.Boolean, default=False)
+    tiene_cable_hdmi       = db.Column(db.Boolean, default=False)
+    tiene_cable_vga        = db.Column(db.Boolean, default=False)
+    tiene_cable_corriente  = db.Column(db.Boolean, default=False)
+    tiene_soporte_pared    = db.Column(db.Boolean, default=False)
+    tiene_soporte_pie      = db.Column(db.Boolean, default=False)
+    tiene_chromecast       = db.Column(db.Boolean, default=False)
+    tiene_adaptador_hdmi   = db.Column(db.Boolean, default=False)
+    componentes_extra      = db.Column(db.String(300), nullable=True)
+
+    prestamos = db.relationship('PrestamoTV', backref='tv', lazy=True,
+                                order_by='PrestamoTV.fecha_retiro.desc()')
+
+    @property
+    def codigo(self):
+        return f'TV-{self.numero_interno:02d}'
+
+    @property
+    def componentes_lista(self):
+        comp = []
+        if self.tiene_control_remoto:   comp.append('Control remoto')
+        if self.tiene_cable_hdmi:       comp.append('Cable HDMI')
+        if self.tiene_cable_vga:        comp.append('Cable VGA')
+        if self.tiene_cable_corriente:  comp.append('Cable de corriente')
+        if self.tiene_soporte_pared:    comp.append('Soporte de pared')
+        if self.tiene_soporte_pie:      comp.append('Soporte de pie')
+        if self.tiene_chromecast:       comp.append('Chromecast')
+        if self.tiene_adaptador_hdmi:   comp.append('Adaptador HDMI')
+        if self.componentes_extra:      comp.append(self.componentes_extra)
+        return comp
+
+    def __repr__(self):
+        return f'<TV {self.codigo} {self.marca} {self.modelo}>'
+
+
+class PrestamoTV(db.Model):
+    __tablename__ = 'prestamos_tvs'
+
+    id                        = db.Column(db.Integer, primary_key=True)
+    tv_id                     = db.Column(db.Integer, db.ForeignKey('tvs.id'), nullable=False)
+    docente_id                = db.Column(db.Integer, db.ForeignKey('docentes.id'), nullable=True)
+    nombre_solicitante        = db.Column(db.String(120), nullable=True)
+    aula_destino              = db.Column(db.String(60),  nullable=True)
+    motivo                    = db.Column(db.String(200), nullable=True)
+
+    fecha_retiro              = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    fecha_devolucion_esperada = db.Column(db.DateTime, nullable=True)
+    fecha_devolucion_real     = db.Column(db.DateTime, nullable=True)
+
+    encargado_retiro_id       = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+    encargado_devolucion_id   = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+
+    devuelto_control_remoto   = db.Column(db.Boolean, default=False)
+    devuelto_cable_hdmi       = db.Column(db.Boolean, default=False)
+    devuelto_cable_vga        = db.Column(db.Boolean, default=False)
+    devuelto_cable_corriente  = db.Column(db.Boolean, default=False)
+    devuelto_soporte_pared    = db.Column(db.Boolean, default=False)
+    devuelto_soporte_pie      = db.Column(db.Boolean, default=False)
+    devuelto_chromecast       = db.Column(db.Boolean, default=False)
+    devuelto_adaptador_hdmi   = db.Column(db.Boolean, default=False)
+
+    estado                    = db.Column(db.String(20), nullable=False, default='activo')
+    observaciones             = db.Column(db.Text, nullable=True)
+
+    docente              = db.relationship('Docente',  foreign_keys=[docente_id])
+    encargado_retiro     = db.relationship('Usuario',  foreign_keys=[encargado_retiro_id])
+    encargado_devolucion = db.relationship('Usuario',  foreign_keys=[encargado_devolucion_id])
+
+    def __repr__(self):
+        return f'<PrestamoTV {self.id}>'
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  UBICACION EQUIPO
+#  Registro fijo de dónde está cada TV / Pantalla Digital / Impresora 3D.
+#  NO es AsignacionInterna (esa tabla es solo para netbooks fuera de carro).
+#  Agregado sesión 14 — 24/04/2026
+# ─────────────────────────────────────────────────────────────────────────────
+
+class UbicacionEquipo(db.Model):
+    __tablename__ = 'ubicaciones_equipos'
+
+    id                = db.Column(db.Integer, primary_key=True)
+    tipo_equipo       = db.Column(db.String(40), nullable=False)
+    # valores: 'tv' | 'pantalla_digital' | 'impresora_3d'
+    equipo_id         = db.Column(db.Integer, nullable=False)
+
+    aula              = db.Column(db.String(60),  nullable=False)
+    sector            = db.Column(db.String(100), nullable=True)
+    piso              = db.Column(db.String(20),  nullable=True)
+    descripcion       = db.Column(db.String(200), nullable=True)
+    fecha_asignacion  = db.Column(db.DateTime,    default=datetime.utcnow)
+    activa            = db.Column(db.Boolean,     default=True)
+
+    registrado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+    registrado_por    = db.relationship('Usuario', foreign_keys=[registrado_por_id])
+
+    def __repr__(self):
+        return f'<UbicacionEquipo {self.tipo_equipo} #{self.equipo_id} → {self.aula}>'

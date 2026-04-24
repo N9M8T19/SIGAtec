@@ -1,0 +1,298 @@
+{# ════════════════════════════════════════════════════════════════════════
+   templates/ubicaciones/index.html
+   ════════════════════════════════════════════════════════════════════════ #}
+{% extends 'base.html' %}
+{% block title %}UBICACIONES DE EQUIPOS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+        📍 Ubicaciones de equipos
+      </h2>
+      <small class="text-muted">
+        Registro fijo de dónde está cada TV · Pantalla Digital · Impresora 3D
+      </small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap justify-content-end">
+      {# Etiquetas filtradas por tipo #}
+      <a href="{{ url_for('ubicaciones.etiquetas') }}"
+         class="btn btn-sm"
+         style="background:var(--naranja);color:#fff;">
+        🏷️ Etiquetas PDF (todos)
+      </a>
+      <a href="{{ url_for('ubicaciones.etiquetas', tipo='tv') }}"
+         class="btn btn-sm btn-outline-secondary">📺 TVs</a>
+      <a href="{{ url_for('ubicaciones.etiquetas', tipo='pantalla_digital') }}"
+         class="btn btn-sm btn-outline-secondary">🖥️ Pantallas</a>
+      <a href="{{ url_for('ubicaciones.etiquetas', tipo='impresora_3d') }}"
+         class="btn btn-sm btn-outline-secondary">🖨️ Impresoras</a>
+
+      {% if current_user.rol in ['Administrador','Directivo'] %}
+      <a href="{{ url_for('ubicaciones.nueva') }}"
+         class="btn btn-sm btn-success">＋ Nueva ubicación</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} py-2 alert-dismissible">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {# ── Filtro rápido ── #}
+  <div class="d-flex gap-2 mb-3">
+    <a href="{{ url_for('ubicaciones.index') }}"
+       class="btn btn-sm {% if not filtro %}fw-bold{% else %}btn-outline-secondary{% endif %}"
+       {% if not filtro %}style="background:var(--azul-oscuro);color:#fff;"{% endif %}>
+      Todos
+    </a>
+    {% for tipo_key, tipo_label in tipos.items() %}
+    <a href="{{ url_for('ubicaciones.index', tipo=tipo_key) }}"
+       class="btn btn-sm {% if filtro == tipo_key %}fw-bold{% else %}btn-outline-secondary{% endif %}"
+       {% if filtro == tipo_key %}style="background:var(--azul-oscuro);color:#fff;"{% endif %}>
+      {{ tipo_label }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header py-2 text-white fw-bold text-uppercase"
+         style="background:var(--azul-oscuro);font-size:.85rem;">
+      Equipos con ubicación fija activa
+      <span class="badge ms-2" style="background:var(--naranja);">
+        {{ items|length }}
+      </span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead style="background:var(--azul-oscuro);color:#fff;">
+          <tr>
+            <th class="ps-3">Tipo</th>
+            <th>Equipo</th>
+            <th>Aula</th>
+            <th>Sector</th>
+            <th>Piso</th>
+            <th>Descripción</th>
+            <th>Registrado</th>
+            {% if current_user.rol in ['Administrador','Directivo'] %}
+            <th class="text-center">Acción</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          {% set u = item.ubic %}
+          <tr>
+            <td class="ps-3">
+              <span class="badge"
+                style="background:
+                  {% if u.tipo_equipo == 'tv' %}var(--azul-oscuro)
+                  {% elif u.tipo_equipo == 'pantalla_digital' %}#198754
+                  {% else %}var(--naranja){% endif %};">
+                {{ item.tipo_label }}
+              </span>
+            </td>
+            <td class="fw-bold">{{ item.label_equipo }}</td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ u.aula }}</span>
+            </td>
+            <td>{{ u.sector or '—' }}</td>
+            <td>{{ u.piso or '—' }}</td>
+            <td><small class="text-muted">{{ u.descripcion or '—' }}</small></td>
+            <td>
+              <small class="text-muted">
+                {{ u.fecha_asignacion | arg_date if u.fecha_asignacion else '—' }}
+              </small>
+            </td>
+            {% if current_user.rol in ['Administrador','Directivo'] %}
+            <td class="text-center">
+              <form method="POST"
+                    action="{{ url_for('ubicaciones.desactivar', ubic_id=u.id) }}"
+                    onsubmit="return confirm('¿Eliminar esta ubicación?');">
+                <button class="btn btn-sm btn-outline-danger" title="Eliminar">✕</button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">
+              No hay ubicaciones registradas
+              {% if filtro %}para este tipo de equipo{% endif %}.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+{# ════════════════════════════════════════════════════════════════════════
+   GUARDAR COMO: templates/ubicaciones/form.html
+   ════════════════════════════════════════════════════════════════════════ #}
+{% extends 'base.html' %}
+{% block title %}NUEVA UBICACIÓN{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3" style="max-width:660px;">
+
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <a href="{{ url_for('ubicaciones.index') }}"
+       class="btn btn-sm btn-outline-secondary">← Volver</a>
+    <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+      📍 Nueva ubicación fija
+    </h2>
+  </div>
+
+  <div class="alert alert-info py-2 small mb-3">
+    Registrá dónde está instalado o guardado el equipo de forma permanente.
+    Si el equipo cambia de lugar, podés desactivar la ubicación actual y crear una nueva.
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} py-2">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header py-2 text-white fw-bold text-uppercase"
+           style="background:var(--azul-oscuro);font-size:.85rem;">
+        Equipo a ubicar
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-5">
+            <label class="form-label fw-bold small text-uppercase">
+              Tipo de equipo *
+            </label>
+            <select name="tipo_equipo" id="tipo_equipo"
+                    class="form-select" onchange="actualizarEquipos()" required>
+              <option value="">— Seleccioná —</option>
+              <option value="tv">📺 TV</option>
+              <option value="pantalla_digital">🖥️ Pantalla Digital</option>
+              <option value="impresora_3d">🖨️ Impresora 3D</option>
+            </select>
+          </div>
+
+          <div class="col-md-7">
+            <label class="form-label fw-bold small text-uppercase">Equipo *</label>
+
+            <select name="equipo_id" id="sel_tv"
+                    class="form-select d-none">
+              <option value="">— Seleccioná TV —</option>
+              {% for tv in tvs %}
+              <option value="{{ tv.id }}">
+                {{ tv.codigo }} — {{ tv.marca }} {{ tv.modelo }}
+                {% if tv.pulgadas %}({{ tv.pulgadas }}"){% endif %}
+              </option>
+              {% endfor %}
+            </select>
+
+            <select name="equipo_id" id="sel_pantalla"
+                    class="form-select d-none" disabled>
+              <option value="">— Seleccioná pantalla —</option>
+              {% for p in pantallas %}
+              <option value="{{ p.id }}">
+                {{ p.nombre if p.nombre is defined and p.nombre else 'Pantalla #' ~ p.id }}
+              </option>
+              {% endfor %}
+            </select>
+
+            <select name="equipo_id" id="sel_impresora"
+                    class="form-select d-none" disabled>
+              <option value="">— Seleccioná impresora —</option>
+              {% for imp in impresoras %}
+              <option value="{{ imp.id }}">
+                {% if imp.numero_interno is defined %}
+                  IMP-{{ '%02d' % imp.numero_interno }}
+                {% endif %}
+                — {{ imp.marca if imp.marca is defined else '' }}
+                {{ imp.modelo if imp.modelo is defined else '' }}
+              </option>
+              {% endfor %}
+            </select>
+
+            <select id="sel_placeholder" class="form-select" disabled>
+              <option>Primero elegí el tipo de equipo</option>
+            </select>
+          </div>
+
+          <div class="col-md-5">
+            <label class="form-label fw-bold small text-uppercase">Aula *</label>
+            <input type="text" name="aula" class="form-control" required
+                   placeholder="Aula 12, Sala de medios…">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-bold small text-uppercase">Sector</label>
+            <input type="text" name="sector" class="form-control"
+                   placeholder="Biblioteca, Lab. Informática…">
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-uppercase">Piso</label>
+            <input type="text" name="piso" class="form-control"
+                   placeholder="PB, 1° piso…">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-bold small text-uppercase">Descripción / notas</label>
+            <input type="text" name="descripcion" class="form-control"
+                   placeholder="Pared del fondo, junto al pizarrón…">
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn fw-bold text-white"
+              style="background:var(--azul-oscuro);">
+        📍 Guardar ubicación
+      </button>
+      <a href="{{ url_for('ubicaciones.index') }}"
+         class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<script>
+function actualizarEquipos() {
+  const tipo = document.getElementById('tipo_equipo').value;
+  const mapa = { 'tv':'sel_tv', 'pantalla_digital':'sel_pantalla', 'impresora_3d':'sel_impresora' };
+
+  // ocultar placeholder
+  document.getElementById('sel_placeholder').classList.add('d-none');
+
+  // ocultar todos
+  Object.values(mapa).forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.add('d-none');
+    el.disabled = true;
+    el.required = false;
+  });
+
+  if (tipo && mapa[tipo]) {
+    const el = document.getElementById(mapa[tipo]);
+    el.classList.remove('d-none');
+    el.disabled = false;
+    el.required = true;
+  } else {
+    document.getElementById('sel_placeholder').classList.remove('d-none');
+  }
+}
+actualizarEquipos();
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}PRÉSTAMOS ACTIVOS — TVS{% endblock %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0 fw-bold text-uppercase" style="color:var(--azul-oscuro);">
+        🔑 Préstamos activos — TVs
+      </h2>
+      <small class="text-muted">
+        {{ prestamos|length }} televisor{{ 'es' if prestamos|length != 1 }} fuera del repositorio
+      </small>
+    </div>
+    <a href="{{ url_for('tvs.index') }}"
+       class="btn btn-sm btn-outline-secondary">← Volver</a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} py-2 alert-dismissible">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {% if not prestamos %}
+    <div class="alert alert-success mb-0">No hay préstamos activos en este momento. ✅</div>
+  {% else %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header py-2 text-white fw-bold text-uppercase"
+         style="background:var(--azul-oscuro);font-size:.85rem;">
+      TVs fuera del repositorio
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead style="background:var(--azul-oscuro);color:#fff;">
+          <tr>
+            <th class="ps-3">TV</th>
+            <th>Solicitante</th>
+            <th>Aula destino</th>
+            <th>Retiro</th>
+            <th>Dev. esperada</th>
+            <th class="text-center">Tiempo</th>
+            <th class="text-center">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in prestamos %}
+          {% set mins = ((ahora - p.fecha_retiro).total_seconds() / 60) | int %}
+          <tr {% if mins > 240 %}class="table-danger"
+              {% elif mins > 120 %}class="table-warning"{% endif %}>
+            <td class="ps-3 fw-bold" style="color:var(--azul-oscuro);">
+              {{ p.tv.codigo if p.tv else '—' }}
+            </td>
+            <td>
+              {% if p.docente %}
+                {{ p.docente.apellido }}, {{ p.docente.nombre }}
+              {% else %}
+                {{ p.nombre_solicitante or '—' }}
+              {% endif %}
+            </td>
+            <td>{{ p.aula_destino or '—' }}</td>
+            <td><small>{{ p.fecha_retiro | arg_datetime }}</small></td>
+            <td>
+              <small>
+                {% if p.fecha_devolucion_esperada %}
+                  {{ p.fecha_devolucion_esperada | arg_datetime }}
+                {% else %}<span class="text-muted">Sin límite</span>{% endif %}
+              </small>
+            </td>
+            <td class="text-center">
+              {% if mins >= 60 %}
+                <span class="badge bg-danger">{{ mins // 60 }}h {{ mins % 60 }}m</span>
+              {% else %}
+                <span class="badge bg-success">{{ mins }}m</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <a href="{{ url_for('tvs.devolver', prestamo_id=p.id) }}"
+                 class="btn btn-sm btn-success fw-bold">✅ Devolver</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
