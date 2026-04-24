@@ -135,6 +135,33 @@
     </button>
 </div>
 
+<div class="no-print" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+    <a href="{{ url_for('etiquetas.tvs') }}"
+       style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;
+              background:white;border:1.5px solid #1a2a6c;color:#1a2a6c;font-size:13px;
+              font-weight:600;text-decoration:none;transition:all .15s;"
+       onmouseover="this.style.background='#1a2a6c';this.style.color='white'"
+       onmouseout="this.style.background='white';this.style.color='#1a2a6c'">
+        📺 Etiquetas Televisores
+    </a>
+    <a href="{{ url_for('etiquetas.pantallas') }}"
+       style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;
+              background:white;border:1.5px solid #1a2a6c;color:#1a2a6c;font-size:13px;
+              font-weight:600;text-decoration:none;transition:all .15s;"
+       onmouseover="this.style.background='#1a2a6c';this.style.color='white'"
+       onmouseout="this.style.background='white';this.style.color='#1a2a6c'">
+        🖥️ Etiquetas Pantallas Digitales
+    </a>
+    <a href="{{ url_for('etiquetas.impresoras') }}"
+       style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;
+              background:white;border:1.5px solid #1a2a6c;color:#1a2a6c;font-size:13px;
+              font-weight:600;text-decoration:none;transition:all .15s;"
+       onmouseover="this.style.background='#1a2a6c';this.style.color='white'"
+       onmouseout="this.style.background='white';this.style.color='#1a2a6c'">
+        🖨️ Etiquetas Impresoras 3D
+    </a>
+</div>
+
 <p class="et-status no-print" id="status-bar">Cargando netbooks...</p>
 
 <div class="et-grid no-print" id="et-grid">

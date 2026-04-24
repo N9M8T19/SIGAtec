@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% block title %}Etiquetas — Pantallas Digitales{% endblock %}
+{% block header %}Etiquetas de Pantallas Digitales{% endblock %}
+
+{% block content %}
+
+<style>
+.et-toolbar {
+    background: white; border: 1px solid #e5e7eb; border-radius: 12px;
+    padding: 14px 18px; display: flex; flex-wrap: wrap;
+    gap: 10px; align-items: center; margin-bottom: 16px;
+}
+.et-toolbar input[type=text] {
+    border: 1px solid #d1d5db; border-radius: 8px;
+    padding: 6px 12px; font-size: 13px; color: #374151;
+    background: white; height: 36px; outline: none;
+}
+.et-toolbar input[type=text]:focus {
+    border-color: #1a2a6c; box-shadow: 0 0 0 2px rgba(26,42,108,.1);
+}
+.et-btn {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid #d1d5db;
+    background: white; color: #374151; font-size: 13px; cursor: pointer;
+    height: 36px; white-space: nowrap; transition: all .15s;
+}
+.et-btn:hover { border-color: #1a2a6c; color: #1a2a6c; }
+.et-btn-orange { background: #e8821a; color: white; border-color: #e8821a; }
+.et-btn-orange:hover { background: #c96c0f; }
+.et-btn:disabled { opacity: .5; cursor: not-allowed; }
+.et-status { font-size: 13px; color: #6b7280; padding: 6px 0 12px; }
+.et-status strong { color: #1a2a6c; }
+.et-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px; margin-bottom: 20px;
+}
+.et-card {
+    background: white; border: 1.5px solid #e5e7eb; border-radius: 10px;
+    padding: 11px 13px; cursor: pointer; transition: border-color .15s; user-select: none;
+}
+.et-card:hover { border-color: #1a2a6c; }
+.et-card.selected { border: 2px solid #1a2a6c; background: #eef2fa; }
+.et-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+.et-badge { font-size: 11px; color: #e8821a; font-weight: 600; }
+.et-check {
+    width: 16px; height: 16px; border: 1.5px solid #9ca3af;
+    border-radius: 4px; background: white; flex-shrink: 0;
+}
+.et-card.selected .et-check {
+    background: #1a2a6c; border-color: #1a2a6c;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 10px; background-repeat: no-repeat; background-position: center;
+}
+.et-codigo { font-size: 22px; font-weight: 900; color: #1a2a6c; line-height: 1; margin: 4px 0; }
+.et-modelo { font-size: 11px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.et-serie  { font-size: 11px; color: #6b7280; font-family: monospace; }
+.et-empty, .et-loading { grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: #9ca3af; font-size: 14px; }
+@media screen { #print-area { display: none; } }
+</style>
+
+<div class="et-toolbar no-print">
+    <a href="{{ url_for('etiquetas.index') }}"
+       class="et-btn" style="color:#1a2a6c;border-color:#1a2a6c;">← Netbooks</a>
+    <input type="text" id="buscar" placeholder="Buscar código, aula, serie..." style="width:220px">
+    <button class="et-btn" onclick="selTodo()">Seleccionar todo</button>
+    <button class="et-btn" onclick="selNada()">Deseleccionar</button>
+    <div style="flex:1"></div>
+    <button class="et-btn et-btn-orange" id="btn-imprimir" onclick="imprimir()" disabled>
+        <i class="fas fa-print mr-1"></i> Imprimir seleccionadas
+    </button>
+</div>
+
+<p class="et-status no-print" id="status-bar">Cargando pantallas...</p>
+
+<div class="et-grid no-print" id="et-grid">
+    <div class="et-loading"><i class="fas fa-circle-notch fa-spin mr-2"></i>Cargando...</div>
+</div>
+
+<div id="print-area"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+let todos = [];
+let seleccionadas = new Set();
+
+function normalizar(str) {
+    return (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function filtradas() {
+    const q = normalizar(document.getElementById('buscar').value);
+    return todos.filter(p => {
+        if (!q) return true;
+        return normalizar([p.codigo, p.aula, p.marca, p.modelo, p.numero_serie].join(' ')).includes(q);
+    });
+}
+function renderGrid() {
+    const grid  = document.getElementById('et-grid');
+    const items = filtradas();
+    document.getElementById('status-bar').innerHTML =
+        `<strong>${seleccionadas.size}</strong> seleccionadas · mostrando <strong>${items.length}</strong> de <strong>${todos.length}</strong> pantallas`;
+    document.getElementById('btn-imprimir').disabled = seleccionadas.size === 0;
+    if (items.length === 0) {
+        grid.innerHTML = '<div class="et-empty"><i class="fas fa-search mr-2"></i>No se encontraron pantallas.</div>';
+        return;
+    }
+    grid.innerHTML = items.map(p => {
+        const sel = seleccionadas.has(p.id);
+        return `<div class="et-card ${sel ? 'selected' : ''}" onclick="toggleCard(${p.id})">
+            <div class="et-card-top">
+                <span class="et-badge">🖥️ Aula ${p.aula || '—'}</span>
+                <div class="et-check"></div>
+            </div>
+            <div class="et-codigo">${p.codigo}</div>
+            <div class="et-modelo">${p.marca} ${p.modelo}</div>
+            <div class="et-serie">${p.numero_serie || '(sin serie)'}</div>
+        </div>`;
+    }).join('');
+}
+function toggleCard(id) {
+    if (seleccionadas.has(id)) seleccionadas.delete(id); else seleccionadas.add(id);
+    renderGrid();
+}
+function selTodo() { filtradas().forEach(p => seleccionadas.add(p.id)); renderGrid(); }
+function selNada() { filtradas().forEach(p => seleccionadas.delete(p.id)); renderGrid(); }
+
+function mkEtiqueta(p) {
+    return `<div class="et-print-wrap" data-serie="${p.numero_serie || ''}">
+    <div class="etiqueta">
+        <div class="etiqueta-hdr">
+            <div class="etiqueta-hdr-accent"></div>
+            <div class="etiqueta-hdr-titulo">SIGA-Tec &nbsp;·&nbsp; E.T. N°7 D.E. 5</div>
+        </div>
+        <div class="etiqueta-body">
+            <div class="etiqueta-row">
+                <span class="etiqueta-lbl">Aula</span>
+                <span class="etiqueta-val">${p.aula || '—'}</span>
+            </div>
+            <div class="etiqueta-row">
+                <span class="etiqueta-lbl">Modelo</span>
+                <span class="etiqueta-val">${p.marca} ${p.modelo}</span>
+            </div>
+            <div class="etiqueta-row">
+                <span class="etiqueta-lbl">N° serie</span>
+                <span class="etiqueta-val">${p.numero_serie || '—'}</span>
+            </div>
+        </div>
+        <div class="etiqueta-barcode"><svg></svg></div>
+        <hr class="etiqueta-hr" style="margin:0 6px;">
+        <div class="etiqueta-codigo-bloque">
+            <div class="etiqueta-codigo-lbl">Código</div>
+            <div class="etiqueta-codigo-val">${p.codigo}</div>
+        </div>
+    </div></div>`;
+}
+
+function imprimir() {
+    const sel = todos.filter(p => seleccionadas.has(p.id));
+    if (sel.length === 0) return;
+    const POR_PAGINA = 18;
+    const paginas = [];
+    for (let i = 0; i < sel.length; i += POR_PAGINA) paginas.push(sel.slice(i, i + POR_PAGINA));
+
+    function mkTabla(grupo) {
+        const rows = [];
+        for (let i = 0; i < grupo.length; i += 3) {
+            const fila = grupo.slice(i, i + 3);
+            while (fila.length < 3) fila.push(null);
+            rows.push(fila);
+        }
+        return '<table class="hoja">' +
+            rows.map(fila => '<tr>' + fila.map(p => p ? `<td>${mkEtiqueta(p)}</td>` : '<td></td>').join('') + '</tr>').join('') +
+        '</table>';
+    }
+
+    const paginasHtml = paginas.map((g, i) => mkTabla(g) + (i < paginas.length - 1 ? '<div class="salto"></div>' : '')).join('');
+
+    const ventana = window.open('', '_blank', 'width=900,height=700');
+    ventana.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Etiquetas Pantallas — SIGA-Tec</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+@page { size: A4 portrait; margin: 15mm 12mm; }
+body { background: white; font-family: Arial, sans-serif; }
+.salto { page-break-after: always; break-after: page; }
+table.hoja { border-collapse: separate; border-spacing: 4mm; table-layout: fixed; width: 186mm; }
+table.hoja td { width: 59mm; height: 38mm; padding: 0; vertical-align: top; overflow: hidden; }
+.etiqueta { font-family: Arial, sans-serif; border: 1px solid #1a2a6c; border-radius: 4px; overflow: hidden; width: 59mm; height: 38mm; display: flex; flex-direction: column; page-break-inside: avoid; break-inside: avoid; }
+.etiqueta-hdr { background: #1a2a6c; color: white; padding: 2px 6px; display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.etiqueta-hdr-accent { width: 2px; height: 14px; background: #e8821a; border-radius: 1px; flex-shrink: 0; }
+.etiqueta-hdr-titulo { font-size: 8px; font-weight: 700; letter-spacing: .4px; color: white; }
+.etiqueta-body { padding: 2px 6px 1px; background: white; flex-shrink: 0; }
+.etiqueta-row { display: flex; align-items: baseline; gap: 3px; margin-bottom: 1px; }
+.etiqueta-lbl { font-size: 6.5px; color: #9ca3af; text-transform: uppercase; letter-spacing: .2px; min-width: 36px; flex-shrink: 0; }
+.etiqueta-val { font-size: 9px; font-weight: 700; color: #1a2a6c; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etiqueta-barcode { text-align: center; padding: 1px 6px 0; background: white; flex-shrink: 0; }
+.etiqueta-barcode svg { width: 100%; height: 18px; }
+.etiqueta-hr { border: none; border-top: .4px solid #e5e7eb; margin: 0 6px; flex-shrink: 0; }
+.etiqueta-codigo-bloque { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 1px 6px 2px; background: white; }
+.etiqueta-codigo-lbl { font-size: 6.5px; color: #9ca3af; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 1px; }
+.etiqueta-codigo-val { font-size: 26px; font-weight: 900; color: #1a2a6c; line-height: 1; letter-spacing: -0.5px; }
+</style>
+</head><body>
+${paginasHtml}
+<script>
+window.onload = function() {
+    document.querySelectorAll('[data-serie]').forEach(function(el) {
+        var svg = el.querySelector('svg');
+        var serie = el.getAttribute('data-serie');
+        if (svg && serie) { try { JsBarcode(svg, serie, {format:'CODE128',width:0.9,height:16,displayValue:false,margin:0}); } catch(e){} }
+    });
+    setTimeout(function(){ window.print(); }, 500);
+};
+<\/script>
+</body></html>`);
+    ventana.document.close();
+}
+
+document.getElementById('buscar').addEventListener('input', renderGrid);
+
+async function cargarDatos() {
+    try {
+        const resp = await fetch('/etiquetas/api/pantallas');
+        if (!resp.ok) throw new Error();
+        todos = await resp.json();
+        renderGrid();
+    } catch(e) {
+        document.getElementById('et-grid').innerHTML =
+            '<div class="et-empty"><i class="fas fa-exclamation-triangle mr-2"></i>Error al cargar los datos.</div>';
+    }
+}
+cargarDatos();
+</script>
+{% endblock %}
