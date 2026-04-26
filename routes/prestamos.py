@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Carro, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, Netbook, ConfigEspacioDigital
+from models import db, Carro, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, Netbook, ConfigEspacioDigital, PrestamoTV
 from datetime import datetime, timedelta
 import random, string
 
@@ -121,11 +121,13 @@ def _gen_codigo(prefijo='P'):
 @prestamos_bp.route('/carros')
 @login_required
 def carros():
-    prestamos = PrestamoCarro.query.filter_by(estado='activo').all()
-    carros    = Carro.query.filter(Carro.estado != 'baja').order_by(Carro.numero_fisico).all()
-    now       = datetime.utcnow()
+    prestamos     = PrestamoCarro.query.filter_by(estado='activo').all()
+    carros        = Carro.query.filter(Carro.estado != 'baja').order_by(Carro.numero_fisico).all()
+    tvs_prestadas = PrestamoTV.query.filter_by(estado='activo').order_by(PrestamoTV.fecha_retiro).all()
+    now           = datetime.utcnow()
     return render_template('prestamos/carros.html',
-                           prestamos=prestamos, carros=carros, now=now)
+                           prestamos=prestamos, carros=carros,
+                           tvs_prestadas=tvs_prestadas, now=now)
 
 
 @prestamos_bp.route('/carros/retiro', methods=['GET', 'POST'])
