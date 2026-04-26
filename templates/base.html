@@ -235,6 +235,11 @@
                       {% if request.endpoint == 'prestamos.espacio_digital' %}active{% endif %}">
                 <i class="fas fa-desktop w-5"></i> Espacio Digital
             </a>
+            <a href="{{ url_for('tvs.prestamos_activos') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'tvs.prestamos_activos' %}active{% endif %}">
+                <i class="fas fa-tv w-5"></i> Televisores
+            </a>
             <a href="{{ url_for('prestamos.historial') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint == 'prestamos.historial' %}active{% endif %}">
@@ -419,6 +424,7 @@
         <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Préstamos</p>
         <a href="{{ url_for('prestamos.carros') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.carros' %}active{% endif %}"><i class="fas fa-key w-5"></i> Préstamos Carros</a>
         <a href="{{ url_for('prestamos.espacio_digital') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.espacio_digital' %}active{% endif %}"><i class="fas fa-desktop w-5"></i> Espacio Digital</a>
+        <a href="{{ url_for('tvs.prestamos_activos') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'tvs.prestamos_activos' %}active{% endif %}"><i class="fas fa-tv w-5"></i> Televisores</a>
         <a href="{{ url_for('prestamos.historial') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'prestamos.historial' %}active{% endif %}"><i class="fas fa-history w-5"></i> Historial</a>
         <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Personas</p>
         <a href="{{ url_for('docentes.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'docentes' in request.endpoint %}active{% endif %}"><i class="fas fa-chalkboard-teacher w-5"></i> Docentes</a>
