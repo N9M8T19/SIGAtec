@@ -257,7 +257,6 @@ def historial_pdf():
 
 
 # ── Etiquetas ─────────────────────────────────────────────────────────────────
-# Redirige a la página de etiquetas HTML (igual que netbooks)
 
 @tvs_bp.route('/etiquetas')
 @login_required

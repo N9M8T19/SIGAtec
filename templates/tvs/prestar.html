@@ -3,7 +3,7 @@
 {% block header %}Préstamo de TV{% endblock %}
 
 {% block content %}
-<div class="max-w-xl">
+<div class="max-w-xl mx-auto">
 
     <div class="flex items-center gap-3 mb-6">
         <a href="{{ url_for('tvs.index') }}"
@@ -42,26 +42,16 @@
 
                 <div>
                     <label class="block text-xs font-bold text-gray-600 uppercase mb-1">
-                        Docente
+                        Docente <span class="text-red-500">*</span>
                     </label>
-                    <select name="docente_id"
+                    <select name="docente_id" required
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
                                    focus:outline-none focus:border-blue-900">
-                        <option value="">— Seleccioná docente (opcional) —</option>
+                        <option value="">— Seleccioná docente —</option>
                         {% for d in docentes %}
                         <option value="{{ d.id }}">{{ d.apellido }}, {{ d.nombre }}</option>
                         {% endfor %}
                     </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">
-                        O bien, nombre del solicitante
-                    </label>
-                    <input type="text" name="nombre_solicitante"
-                           placeholder="Si no es docente, escribí el nombre aquí"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-                                  focus:outline-none focus:border-blue-900">
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">

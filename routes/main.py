@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, TicketBA, Usuario, ConfigEspacioDigital, Alumno, AsignacionInterna
+from models import db, Carro, Netbook, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, TicketBA, Usuario, ConfigEspacioDigital, Alumno, AsignacionInterna, TV, PrestamoTV
 from datetime import datetime
 
 main_bp = Blueprint('main', __name__)
@@ -17,6 +17,7 @@ def dashboard():
     total_docentes = Docente.query.filter_by(activo=True).count()
     prestamos_activos = PrestamoCarro.query.filter_by(estado='activo').count()
     nb_prestadas = PrestamoNetbook.query.filter_by(estado='activo').count()
+    tvs_prestadas = PrestamoTV.query.filter_by(estado='activo').count()
 
     # Asignaciones internas — se suman a operativas y al total de netbooks
     asignaciones_activas = AsignacionInterna.query.filter_by(activa=True).count()
@@ -57,6 +58,7 @@ def dashboard():
         'prestamos_activos':   prestamos_activos,
         'nb_prestadas':        nb_prestadas,
         'asignaciones_activas': asignaciones_activas,   # ⚠️ Nuevo 22/04/2026
+        'tvs_prestadas':       tvs_prestadas,            # ⚠️ Nuevo 24/04/2026
     }
 
     return render_template('main/dashboard.html',
@@ -186,6 +188,34 @@ def novedades():
                 'hora':  hora_ar(c.fecha_servicio),
                 '_dt':   c.fecha_servicio
             })
+    except Exception:
+        pass
+
+    # Préstamos de TVs hoy
+    try:
+        from models import PrestamoTV
+        prestamos_tv = PrestamoTV.query.filter(
+            PrestamoTV.fecha_retiro >= hoy_utc
+        ).order_by(PrestamoTV.fecha_retiro.desc()).limit(10).all()
+        for p in prestamos_tv:
+            docente = p.docente.nombre_completo if p.docente else (p.nombre_solicitante or '—')
+            tv_cod  = p.tv.codigo if p.tv else '—'
+            if p.estado == 'devuelto' and p.fecha_devolucion_real:
+                eventos.append({
+                    'tipo':  'devolucion',
+                    'label': 'TV Devuelta',
+                    'texto': f'{docente} devolvió {tv_cod}',
+                    'hora':  hora_ar(p.fecha_devolucion_real),
+                    '_dt':   p.fecha_devolucion_real
+                })
+            else:
+                eventos.append({
+                    'tipo':  'retiro',
+                    'label': 'TV Prestada',
+                    'texto': f'{docente} retiró {tv_cod}',
+                    'hora':  hora_ar(p.fecha_retiro),
+                    '_dt':   p.fecha_retiro
+                })
     except Exception:
         pass
 

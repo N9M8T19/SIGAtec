@@ -136,6 +136,49 @@
 </div>
 {% endif %}
 
+{% if tvs_prestadas %}
+<h2 class="text-lg font-bold text-gray-800 mb-3 mt-6">TVs prestadas</h2>
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+    <table class="w-full text-sm">
+        <thead class="bg-blue-900 text-white">
+            <tr>
+                <th class="px-4 py-3 text-left">TV</th>
+                <th class="px-4 py-3 text-left">Docente</th>
+                <th class="px-4 py-3 text-left">Aula destino</th>
+                <th class="px-4 py-3 text-left">Hora retiro</th>
+                <th class="px-4 py-3 text-center">Tiempo</th>
+                <th class="px-4 py-3 text-center">Devolución</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for p in tvs_prestadas %}
+            {% set mins = ((now - p.fecha_retiro).total_seconds() / 60)|int %}
+            <tr class="hover:bg-gray-50 {% if mins >= 120 %}bg-red-50{% endif %}">
+                <td class="px-4 py-3 font-bold text-blue-900">
+                    {{ p.tv.codigo if p.tv else '—' }}
+                </td>
+                <td class="px-4 py-3">
+                    {{ p.docente.nombre_completo if p.docente else (p.nombre_solicitante or '—') }}
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ p.aula_destino or '—' }}</td>
+                <td class="px-4 py-3">{{ p.fecha_retiro|arg_datetime }}</td>
+                <td class="px-4 py-3 text-center {% if mins >= 120 %}text-red-600 font-bold{% endif %}">
+                    {% if mins >= 60 %}{{ mins // 60 }}h {{ mins % 60 }}m{% else %}{{ mins }}m{% endif %}
+                    {% if mins >= 120 %}<i class="fas fa-exclamation-triangle ml-1"></i>{% endif %}
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <a href="{{ url_for('tvs.devolver', prestamo_id=p.id) }}"
+                       class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs font-semibold">
+                        <i class="fas fa-undo mr-1"></i>Devolución
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
 <h2 class="text-lg font-bold text-gray-800 mb-3">Estado de Carros</h2>
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
     {% for carro in carros %}
