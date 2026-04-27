@@ -1931,6 +1931,234 @@ def pdf_control_masivo_stock(resultado):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+#  INVENTARIO INTEGRAL DE NETBOOKS  (sesión 16)
+#  Todas las netbooks del sistema: carros + asignaciones internas.
+#  PDF landscape A4 con resumen por estado y tabla completa.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def pdf_inventario_integral_netbooks():
+    """
+    PDF landscape con todas las netbooks del sistema:
+      - Sección 1: Netbooks en carros (operativas, servicio, baja)
+      - Sección 2: Asignaciones Internas activas
+    Devuelve una Response de Flask (send_file).
+    """
+    from reportlab.lib.pagesizes import landscape
+    from models import Netbook, Carro, AsignacionInterna, Docente
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+                            rightMargin=1.5*cm, leftMargin=1.5*cm,
+                            topMargin=1.5*cm, bottomMargin=1.5*cm)
+    story = []
+
+    fecha_str = (datetime.utcnow() + ARG_OFFSET).strftime('%d/%m/%Y %H:%M')
+    _encabezado(story, 'Inventario Integral de Netbooks',
+                f'Generado el {fecha_str}')
+
+    # ── Consultas ────────────────────────────────────────────────────────────
+    netbooks = (Netbook.query
+                .join(Carro)
+                .order_by(Carro.numero_fisico, Netbook.numero_interno)
+                .all())
+    asignaciones = (AsignacionInterna.query
+                    .filter_by(activa=True)
+                    .order_by(AsignacionInterna.id)
+                    .all())
+
+    total_nb         = len(netbooks)
+    total_operativas = sum(1 for n in netbooks if n.estado == 'operativa')
+    total_servicio   = sum(1 for n in netbooks if n.estado == 'servicio_tecnico')
+    total_baja       = sum(1 for n in netbooks if n.estado not in ('operativa', 'servicio_tecnico'))
+    total_asig       = len(asignaciones)
+    total_general    = total_nb + total_asig
+
+    # ── Resumen ──────────────────────────────────────────────────────────────
+    STYLE_RESUMEN_HDR = ParagraphStyle('ResHdr', parent=styles['Normal'],
+        fontSize=8, fontName='Helvetica-Bold', textColor=colors.white,
+        alignment=TA_CENTER)
+    STYLE_RESUMEN_VAL = ParagraphStyle('ResVal', parent=styles['Normal'],
+        fontSize=13, fontName='Helvetica-Bold', textColor=AZUL_ESCUELA,
+        alignment=TA_CENTER)
+    STYLE_RESUMEN_LBL = ParagraphStyle('ResLbl', parent=styles['Normal'],
+        fontSize=7, fontName='Helvetica', textColor=colors.grey,
+        alignment=TA_CENTER)
+
+    def _res_celda(valor, etiqueta):
+        return [Paragraph(str(valor), STYLE_RESUMEN_VAL),
+                Paragraph(etiqueta,   STYLE_RESUMEN_LBL)]
+
+    resumen_data = [[
+        _res_celda(total_general,    'TOTAL GENERAL'),
+        _res_celda(total_nb,         'EN CARROS'),
+        _res_celda(total_operativas, 'OPERATIVAS'),
+        _res_celda(total_servicio,   'SERVICIO TÉC.'),
+        _res_celda(total_baja,       'BAJA'),
+        _res_celda(total_asig,       'ASIG. INTERNAS'),
+    ]]
+    t_res = Table(resumen_data, colWidths=[4*cm]*6)
+    t_res.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), AZUL_CLARO),
+        ('BOX',           (0, 0), (-1, -1), 0.8, AZUL_ESCUELA),
+        ('INNERGRID',     (0, 0), (-1, -1), 0.5, colors.HexColor('#bfdbfe')),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        # Destacar total general
+        ('BACKGROUND',    (0, 0), (0, 0),   AZUL_ESCUELA),
+        ('TEXTCOLOR',     (0, 0), (0, 0),   colors.white),
+    ]))
+    story.append(t_res)
+    story.append(Spacer(1, 0.5*cm))
+
+    # ── SECCIÓN 1: Netbooks en carros ────────────────────────────────────────
+    story.append(Paragraph('NETBOOKS EN CARROS', STYLE_SECCION))
+    story.append(Spacer(1, 0.2*cm))
+
+    STYLE_CELL8 = ParagraphStyle('Cell8', parent=styles['Normal'],
+        fontSize=8, fontName='Helvetica')
+    STYLE_TH = ParagraphStyle('Th', parent=styles['Normal'],
+        fontSize=8, fontName='Helvetica-Bold', textColor=colors.white,
+        alignment=TA_CENTER)
+
+    # Ancho útil landscape A4 con márgenes 1.5cm = ~247mm
+    # 8 columnas: Carro(18) + División(28) + Aula(20) + N°Int(18) + N°Serie(50) +
+    #             Alumno Mañana(38) + Alumno Tarde(38) + Estado(21) = 231mm ✓
+    COLS_NB  = ['Carro', 'División', 'Aula', 'N° Int.', 'N° Serie',
+                'Alumno Mañana', 'Alumno Tarde', 'Estado']
+    WIDTHS_NB = [18, 28, 20, 18, 50, 38, 38, 21]  # mm — suma = 231mm
+
+    from reportlab.lib.units import mm as _mm
+
+    def _nombre_alumno(nb, turno):
+        """Devuelve apellido, nombre del alumno o '—'."""
+        alumno_obj = nb.alumno_manana if turno == 'M' else nb.alumno_tarde
+        if alumno_obj:
+            return f'{alumno_obj.apellido}, {alumno_obj.nombre}'
+        # fallback campo legacy
+        if turno == 'M' and nb.alumno:
+            return nb.alumno
+        return '—'
+
+    def _estado_nb(nb):
+        if nb.estado == 'operativa':
+            return 'Operativa'
+        if nb.estado == 'servicio_tecnico':
+            return 'Serv. Téc.'
+        return nb.estado.capitalize()
+
+    header_nb = [Paragraph(c, STYLE_TH) for c in COLS_NB]
+    data_nb   = [header_nb]
+    estados_nb = []
+
+    for nb in netbooks:
+        carro = nb.carro
+        data_nb.append([
+            Paragraph(carro.display if carro else '—',     STYLE_CELL8),
+            Paragraph(carro.division or '—' if carro else '—', STYLE_CELL8),
+            Paragraph(carro.aula or '—' if carro else '—',     STYLE_CELL8),
+            Paragraph(nb.numero_interno or '—',                STYLE_CELL8),
+            Paragraph(nb.numero_serie or '—',                  STYLE_CELL8),
+            Paragraph(_nombre_alumno(nb, 'M'),                 STYLE_CELL8),
+            Paragraph(_nombre_alumno(nb, 'T'),                 STYLE_CELL8),
+            Paragraph(_estado_nb(nb),                          STYLE_CELL8),
+        ])
+        estados_nb.append(nb.estado)
+
+    if len(data_nb) > 1:
+        ts_nb = [
+            ('BACKGROUND',    (0, 0), (-1, 0),  AZUL_ESCUELA),
+            ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, GRIS_CLARO]),
+            ('GRID',          (0, 0), (-1, -1), 0.4, colors.HexColor('#e5e7eb')),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
+        ]
+        for i, estado in enumerate(estados_nb, start=1):
+            if estado == 'servicio_tecnico':
+                ts_nb += [('TEXTCOLOR', (7, i), (7, i), NARANJA),
+                           ('FONTNAME',  (7, i), (7, i), 'Helvetica-Bold')]
+            elif estado not in ('operativa', 'servicio_tecnico'):
+                ts_nb += [('TEXTCOLOR', (7, i), (7, i), ROJO),
+                           ('FONTNAME',  (7, i), (7, i), 'Helvetica-Bold')]
+
+        t_nb = Table(data_nb, colWidths=[w * _mm for w in WIDTHS_NB], repeatRows=1)
+        t_nb.setStyle(TableStyle(ts_nb))
+        story.append(t_nb)
+        story.append(Spacer(1, 0.3*cm))
+        story.append(Paragraph(
+            f'Total: {total_nb} netbook(s)  |  '
+            f'Operativas: {total_operativas}  |  '
+            f'Servicio técnico: {total_servicio}  |  '
+            f'Baja: {total_baja}',
+            STYLE_NORMAL
+        ))
+    else:
+        story.append(Paragraph('No hay netbooks cargadas en el sistema.', STYLE_NORMAL))
+
+    story.append(Spacer(1, 0.7*cm))
+
+    # ── SECCIÓN 2: Asignaciones Internas ─────────────────────────────────────
+    story.append(Paragraph('ASIGNACIONES INTERNAS ACTIVAS', STYLE_SECCION))
+    story.append(Spacer(1, 0.2*cm))
+
+    if asignaciones:
+        # 6 columnas: N°Int(22) + N°Serie(50) + Modelo(52) + Destinatario(60) +
+        #             Área(40) + Fecha(23) = 247mm ✓
+        COLS_AI  = ['N° Interno', 'N° Serie', 'Modelo', 'Destinatario / Área', 'Motivo', 'Fecha']
+        WIDTHS_AI = [22, 50, 52, 60, 40, 23]
+
+        header_ai = [Paragraph(c, STYLE_TH) for c in COLS_AI]
+        data_ai   = [header_ai]
+
+        for a in asignaciones:
+            dest = a.destinatario  # property del modelo
+            fecha_asig = (a.fecha_asignacion + ARG_OFFSET).strftime('%d/%m/%Y') \
+                         if a.fecha_asignacion else '—'
+            data_ai.append([
+                Paragraph(a.numero_interno or '—', STYLE_CELL8),
+                Paragraph(a.numero_serie   or '—', STYLE_CELL8),
+                Paragraph(a.modelo         or '—', STYLE_CELL8),
+                Paragraph(dest,                    STYLE_CELL8),
+                Paragraph(a.motivo         or '—', STYLE_CELL8),
+                Paragraph(fecha_asig,              STYLE_CELL8),
+            ])
+
+        ts_ai = [
+            ('BACKGROUND',    (0, 0), (-1, 0),  VERDE),
+            ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, GRIS_CLARO]),
+            ('GRID',          (0, 0), (-1, -1), 0.4, colors.HexColor('#e5e7eb')),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
+        ]
+        t_ai = Table(data_ai, colWidths=[w * _mm for w in WIDTHS_AI], repeatRows=1)
+        t_ai.setStyle(TableStyle(ts_ai))
+        story.append(t_ai)
+        story.append(Spacer(1, 0.3*cm))
+        story.append(Paragraph(
+            f'Total asignaciones internas activas: {total_asig}',
+            STYLE_NORMAL
+        ))
+    else:
+        story.append(Paragraph('No hay asignaciones internas activas.', STYLE_NORMAL))
+
+    story.append(Spacer(1, 0.4*cm))
+    story.append(Paragraph(
+        f'SIGA-Tec — E.T. N°7 D.E. 5  ·  Inventario generado el {fecha_str}',
+        STYLE_FECHA
+    ))
+
+    doc.build(story)
+    nombre = f'inventario_integral_netbooks_{datetime.utcnow().strftime("%Y%m%d_%H%M")}.pdf'
+    return _generar_response(buffer, nombre)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 #  MÓDULO TVs — Etiquetas y Historial  (sesión 14 — corregido anchos PDF)
 # ═════════════════════════════════════════════════════════════════════════════
 
