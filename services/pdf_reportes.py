@@ -2098,23 +2098,40 @@ def pdf_inventario_integral_netbooks():
     else:
         story.append(Paragraph('No hay netbooks cargadas en el sistema.', STYLE_NORMAL))
 
-    story.append(Spacer(1, 0.7*cm))
+    story.append(Spacer(1, 0.8*cm))
+    story.append(HRFlowable(width='100%', thickness=1.5, color=VERDE))
+    story.append(Spacer(1, 0.3*cm))
 
     # ── SECCIÓN 2: Asignaciones Internas ─────────────────────────────────────
-    story.append(Paragraph('ASIGNACIONES INTERNAS ACTIVAS', STYLE_SECCION))
+    STYLE_SECCION_VERDE = ParagraphStyle('SeccionVerde', parent=styles['Normal'],
+        fontSize=12, fontName='Helvetica-Bold',
+        textColor=VERDE, spaceBefore=4, spaceAfter=4)
+
+    story.append(Paragraph('ASIGNACIONES INTERNAS ACTIVAS', STYLE_SECCION_VERDE))
+    story.append(Paragraph(
+        'Netbooks asignadas permanentemente a docentes o áreas — no forman parte de ningún carro.',
+        ParagraphStyle('SubAI', parent=styles['Normal'],
+            fontSize=8, fontName='Helvetica', textColor=colors.grey, spaceAfter=6)
+    ))
     story.append(Spacer(1, 0.2*cm))
 
     if asignaciones:
-        # 6 columnas: N°Int(22) + N°Serie(50) + Modelo(52) + Destinatario(60) +
-        #             Área(40) + Fecha(23) = 247mm ✓
-        COLS_AI  = ['N° Interno', 'N° Serie', 'Modelo', 'Destinatario / Área', 'Motivo', 'Fecha']
-        WIDTHS_AI = [22, 50, 52, 60, 40, 23]
+        # 6 columnas ajustadas para que el texto se lea bien
+        # N°Int(20) + N°Serie(52) + Modelo(48) + Destinatario(62) + Motivo(48) + Fecha(20) = 250mm
+        # Con márgenes 1.5cm ancho útil landscape = ~247mm — ajustamos a 247mm exacto
+        # N°Int(19) + N°Serie(50) + Modelo(47) + Destinatario(62) + Motivo(48) + Fecha(21) = 247mm ✓
+        COLS_AI   = ['N° Interno', 'N° Serie', 'Modelo', 'Destinatario / Área', 'Motivo', 'Fecha asig.']
+        WIDTHS_AI = [19, 50, 47, 62, 48, 21]  # suma = 247mm
 
-        header_ai = [Paragraph(c, STYLE_TH) for c in COLS_AI]
+        STYLE_TH_VERDE = ParagraphStyle('ThVerde', parent=styles['Normal'],
+            fontSize=8, fontName='Helvetica-Bold', textColor=colors.white,
+            alignment=TA_CENTER)
+
+        header_ai = [Paragraph(c, STYLE_TH_VERDE) for c in COLS_AI]
         data_ai   = [header_ai]
 
         for a in asignaciones:
-            dest = a.destinatario  # property del modelo
+            dest = a.destinatario
             fecha_asig = (a.fecha_asignacion + ARG_OFFSET).strftime('%d/%m/%Y') \
                          if a.fecha_asignacion else '—'
             data_ai.append([
@@ -2128,13 +2145,13 @@ def pdf_inventario_integral_netbooks():
 
         ts_ai = [
             ('BACKGROUND',    (0, 0), (-1, 0),  VERDE),
-            ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, GRIS_CLARO]),
-            ('GRID',          (0, 0), (-1, -1), 0.4, colors.HexColor('#e5e7eb')),
+            ('ROWBACKGROUNDS',(0, 1), (-1, -1), [colors.white, colors.HexColor('#f0fdf4')]),
+            ('GRID',          (0, 0), (-1, -1), 0.4, colors.HexColor('#d1fae5')),
             ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING',    (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-            ('LEFTPADDING',   (0, 0), (-1, -1), 4),
-            ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
+            ('TOPPADDING',    (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 5),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 5),
         ]
         t_ai = Table(data_ai, colWidths=[w * _mm for w in WIDTHS_AI], repeatRows=1)
         t_ai.setStyle(TableStyle(ts_ai))
@@ -2145,7 +2162,7 @@ def pdf_inventario_integral_netbooks():
             STYLE_NORMAL
         ))
     else:
-        story.append(Paragraph('No hay asignaciones internas activas.', STYLE_NORMAL))
+        story.append(Paragraph('No hay asignaciones internas activas registradas.', STYLE_NORMAL))
 
     story.append(Spacer(1, 0.4*cm))
     story.append(Paragraph(
