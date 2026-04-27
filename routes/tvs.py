@@ -227,12 +227,16 @@ def devolver(prestamo_id):
 @tvs_bp.route('/prestamos')
 @login_required
 def prestamos_activos():
-    prestamos = (PrestamoTV.query
-                 .filter_by(estado='activo')
-                 .order_by(PrestamoTV.fecha_retiro)
-                 .all())
-    ahora = datetime.utcnow()
-    return render_template('tvs/prestamos.html', prestamos=prestamos, ahora=ahora)
+    prestamos      = (PrestamoTV.query
+                      .filter_by(estado='activo')
+                      .order_by(PrestamoTV.fecha_retiro)
+                      .all())
+    todas_las_tvs  = TV.query.filter(TV.estado != 'de_baja').order_by(TV.numero_interno).all()
+    ahora          = datetime.utcnow()
+    return render_template('tvs/prestamos.html',
+                           prestamos=prestamos,
+                           todas_las_tvs=todas_las_tvs,
+                           ahora=ahora)
 
 
 # ── Historial ──────────────────────────────────────────────────────────────────

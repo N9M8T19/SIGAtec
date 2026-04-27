@@ -26,18 +26,19 @@
   {% endfor %}
 {% endwith %}
 
+{# ── Préstamos activos ── #}
 {% if not prestamos %}
-<div class="bg-green-50 border border-green-200 rounded-xl px-5 py-8 text-center text-green-700">
+<div class="bg-green-50 border border-green-200 rounded-xl px-5 py-8 text-center text-green-700 mb-6">
     <i class="fas fa-check-circle text-2xl mb-2"></i>
     <p class="font-semibold">No hay préstamos activos en este momento.</p>
 </div>
 {% else %}
-<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+<div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
     <table class="w-full text-sm">
         <thead class="bg-blue-900 text-white">
             <tr>
                 <th class="px-4 py-3 text-left">TV</th>
-                <th class="px-4 py-3 text-left">Solicitante</th>
+                <th class="px-4 py-3 text-left">Docente</th>
                 <th class="px-4 py-3 text-left">Aula destino</th>
                 <th class="px-4 py-3 text-left">Retiro</th>
                 <th class="px-4 py-3 text-left">Dev. esperada</th>
@@ -51,16 +52,13 @@
             <tr class="hover:bg-gray-50
                 {% if mins > 240 %}bg-red-50
                 {% elif mins > 120 %}bg-orange-50{% endif %}">
-
                 <td class="px-4 py-3 font-bold text-blue-900">
                     {{ p.tv.codigo if p.tv else '—' }}
                 </td>
                 <td class="px-4 py-3">
                     {% if p.docente %}
                         {{ p.docente.apellido }}, {{ p.docente.nombre }}
-                    {% else %}
-                        {{ p.nombre_solicitante or '—' }}
-                    {% endif %}
+                    {% else %}—{% endif %}
                 </td>
                 <td class="px-4 py-3 text-gray-600">{{ p.aula_destino or '—' }}</td>
                 <td class="px-4 py-3 text-gray-600 text-xs">
@@ -86,9 +84,9 @@
                 </td>
                 <td class="px-4 py-3 text-center">
                     <a href="{{ url_for('tvs.devolver', prestamo_id=p.id) }}"
-                       class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5
+                       class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5
                               rounded-lg text-xs font-semibold">
-                        <i class="fas fa-check mr-1"></i>Devolver
+                        <i class="fas fa-undo mr-1"></i>Devolución
                     </a>
                 </td>
             </tr>
@@ -97,4 +95,71 @@
     </table>
 </div>
 {% endif %}
+
+{# ── Estado de TVs — grilla igual que carros ── #}
+<h2 class="text-lg font-bold text-gray-800 mb-3">Estado de Televisores</h2>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    {% for tv in todas_las_tvs %}
+    {% set prestamo_tv = prestamos | selectattr('tv_id', 'equalto', tv.id) | list %}
+    {% set esta_prestada = prestamo_tv | length > 0 %}
+    {% set en_servicio  = tv.estado == 'en_servicio' %}
+
+    <div class="rounded-xl shadow-sm p-4 border-l-4
+        {% if esta_prestada %}border-red-500 bg-red-50
+        {% elif en_servicio %}border-orange-400 bg-orange-50
+        {% else %}border-green-400 bg-white{% endif %}">
+
+        <div class="flex items-start justify-between mb-1">
+            <div class="font-bold text-lg
+                {% if esta_prestada %}text-red-800
+                {% elif en_servicio %}text-orange-700
+                {% else %}text-blue-900{% endif %}">
+                {{ tv.codigo }}
+            </div>
+            {% if esta_prestada %}
+                <i class="fas fa-lock text-red-400 text-sm mt-1"></i>
+            {% elif en_servicio %}
+                <i class="fas fa-tools text-orange-400 text-sm mt-1"></i>
+            {% else %}
+                <i class="fas fa-lock-open text-green-400 text-sm mt-1"></i>
+            {% endif %}
+        </div>
+
+        <div class="text-xs text-gray-500 mb-1">
+            {{ tv.marca }} {{ tv.modelo }}
+            {% if tv.pulgadas %}<span class="ml-1">{{ tv.pulgadas }}"</span>{% endif %}
+        </div>
+
+        <div class="text-xs text-gray-400 mb-2">
+            {{ tv.aula or 'Aula Magna' }}
+        </div>
+
+        <div>
+            {% if esta_prestada %}
+                <span class="text-xs bg-red-200 text-red-800 px-2 py-1 rounded-full font-semibold">
+                    <i class="fas fa-circle text-red-500 mr-1" style="font-size:.45rem;vertical-align:middle;"></i>Prestada
+                </span>
+                <div class="text-xs text-red-500 mt-1 font-medium">
+                    {{ prestamo_tv[0].docente.apellido }}, {{ prestamo_tv[0].docente.nombre }}
+                </div>
+            {% elif en_servicio %}
+                <span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold">
+                    <i class="fas fa-tools mr-1"></i>En servicio
+                </span>
+            {% else %}
+                <a href="{{ url_for('tvs.prestar', tv_id=tv.id) }}"
+                   class="inline-block mt-1 bg-blue-900 hover:bg-blue-800 text-white
+                          px-3 py-1 rounded-lg text-xs font-semibold">
+                    <i class="fas fa-key mr-1"></i>Prestar
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="col-span-4 text-center text-gray-400 py-6">
+        No hay televisores registrados.
+    </div>
+    {% endfor %}
+</div>
+
 {% endblock %}
