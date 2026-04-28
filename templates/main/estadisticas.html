@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% block title %}ESTADÍSTICAS{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 max-w-7xl mx-auto">
+
+  <!-- Encabezado -->
+  <div class="mb-6 flex items-center gap-3">
+    <div class="w-1 h-8 rounded-full" style="background:var(--naranja)"></div>
+    <div>
+      <h1 class="text-xl font-bold uppercase tracking-wide" style="color:var(--azul-oscuro)">
+        Estadísticas de Préstamos
+      </h1>
+      <p class="text-sm text-gray-500 mt-0.5">Solo visible para Directivo y Administrador</p>
+    </div>
+  </div>
+
+  <!-- Tarjetas resumen -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+
+    <!-- Total histórico -->
+    <div class="rounded-xl p-4 shadow-sm border border-gray-100 bg-white">
+      <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">Total histórico</p>
+      <p class="text-3xl font-bold" style="color:var(--azul-oscuro)">{{ total_prestamos_hist }}</p>
+      <p class="text-xs text-gray-400 mt-1">préstamos de carros</p>
+    </div>
+
+    <!-- Mes actual -->
+    <div class="rounded-xl p-4 shadow-sm border border-gray-100 bg-white">
+      <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">{{ nombre_mes }}</p>
+      <p class="text-3xl font-bold" style="color:var(--naranja)">{{ total_prestamos_mes }}</p>
+      <p class="text-xs text-gray-400 mt-1">préstamos este mes</p>
+    </div>
+
+    <!-- Carro top -->
+    <div class="rounded-xl p-4 shadow-sm border border-gray-100 bg-white">
+      <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">Carro más prestado</p>
+      {% if carro_top %}
+        <p class="text-2xl font-bold" style="color:var(--azul-oscuro)">
+          #{{ carro_top.carro.numero_fisico or '—' }}
+        </p>
+        <p class="text-xs text-gray-400 mt-1">{{ carro_top.total }} veces en total</p>
+      {% else %}
+        <p class="text-2xl font-bold text-gray-300">—</p>
+      {% endif %}
+    </div>
+
+    <!-- Docente top -->
+    <div class="rounded-xl p-4 shadow-sm border border-gray-100 bg-white">
+      <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">Docente más activo</p>
+      {% if docente_top %}
+        <p class="text-base font-bold leading-tight" style="color:var(--azul-oscuro)">
+          {{ docente_top.apellido }},<br>{{ docente_top.nombre }}
+        </p>
+        <p class="text-xs text-gray-400 mt-1">{{ docente_top_total }} préstamos</p>
+      {% else %}
+        <p class="text-2xl font-bold text-gray-300">—</p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Tabla de carros -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+
+    <!-- Header tabla -->
+    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="text-sm font-bold uppercase tracking-wide" style="color:var(--azul-oscuro)">
+        Préstamos por carro
+      </h2>
+      <span class="text-xs text-gray-400">Ordenado por total histórico</span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr style="background:var(--azul-oscuro); color:white;">
+            <th class="px-4 py-3 text-left font-semibold uppercase text-xs tracking-wide">#</th>
+            <th class="px-4 py-3 text-left font-semibold uppercase text-xs tracking-wide">Carro</th>
+            <th class="px-4 py-3 text-left font-semibold uppercase text-xs tracking-wide">División</th>
+            <th class="px-4 py-3 text-center font-semibold uppercase text-xs tracking-wide">Total histórico</th>
+            <th class="px-4 py-3 text-center font-semibold uppercase text-xs tracking-wide">{{ nombre_mes }}</th>
+            <th class="px-4 py-3 text-left font-semibold uppercase text-xs tracking-wide">Último préstamo</th>
+            <th class="px-4 py-3 text-center font-semibold uppercase text-xs tracking-wide">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in stats_carros_ranking %}
+          {% set loop_index = loop.index %}
+          <tr class="border-b border-gray-50 hover:bg-orange-50 transition-colors">
+
+            <!-- Ranking -->
+            <td class="px-4 py-3">
+              {% if loop_index == 1 %}
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white" style="background:var(--naranja)">1</span>
+              {% elif loop_index == 2 %}
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white bg-gray-400">2</span>
+              {% elif loop_index == 3 %}
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white bg-yellow-600">3</span>
+              {% else %}
+                <span class="text-gray-400 text-xs pl-1">{{ loop_index }}</span>
+              {% endif %}
+            </td>
+
+            <!-- Número físico -->
+            <td class="px-4 py-3 font-bold" style="color:var(--azul-oscuro)">
+              #{{ item.carro.numero_fisico or '—' }}
+            </td>
+
+            <!-- División -->
+            <td class="px-4 py-3 text-gray-600">
+              {{ item.carro.division or '—' }}
+            </td>
+
+            <!-- Total histórico con barra visual -->
+            <td class="px-4 py-3 text-center">
+              <div class="flex items-center justify-center gap-2">
+                {% if stats_carros_ranking and stats_carros_ranking[0].total > 0 %}
+                  {% set pct = (item.total / stats_carros_ranking[0].total * 100) | int %}
+                {% else %}
+                  {% set pct = 0 %}
+                {% endif %}
+                <div class="w-20 bg-gray-100 rounded-full h-2 hidden md:block">
+                  <div class="h-2 rounded-full transition-all" style="width:{{ pct }}%; background:var(--azul-oscuro)"></div>
+                </div>
+                <span class="font-bold" style="color:var(--azul-oscuro)">{{ item.total }}</span>
+              </div>
+            </td>
+
+            <!-- Mes actual -->
+            <td class="px-4 py-3 text-center">
+              {% if item.mes > 0 %}
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold text-white" style="background:var(--naranja)">
+                  {{ item.mes }}
+                </span>
+              {% else %}
+                <span class="text-gray-300 text-xs">—</span>
+              {% endif %}
+            </td>
+
+            <!-- Último préstamo -->
+            <td class="px-4 py-3 text-gray-500 text-xs">
+              {{ item.ultimo }}
+            </td>
+
+            <!-- Estado carro -->
+            <td class="px-4 py-3 text-center">
+              {% if item.carro.estado == 'operativo' %}
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Operativo</span>
+              {% elif item.carro.estado == 'en_servicio' %}
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">En servicio</span>
+              {% else %}
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">{{ item.carro.estado }}</span>
+              {% endif %}
+            </td>
+
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="px-4 py-8 text-center text-gray-400 text-sm">
+              No hay carros registrados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer con totales -->
+    <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex flex-wrap gap-4 text-xs text-gray-500">
+      <span>Total carros: <strong class="text-gray-700">{{ stats_carros | length }}</strong></span>
+      <span>Total préstamos históricos: <strong style="color:var(--azul-oscuro)">{{ total_prestamos_hist }}</strong></span>
+      <span>Préstamos en {{ nombre_mes }}: <strong style="color:var(--naranja)">{{ total_prestamos_mes }}</strong></span>
+    </div>
+
+  </div>
+  <!-- fin tabla -->
+
+</div>
+{% endblock %}

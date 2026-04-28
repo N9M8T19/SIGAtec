@@ -57,12 +57,137 @@ def dashboard():
         'total_docentes':      total_docentes,
         'prestamos_activos':   prestamos_activos,
         'nb_prestadas':        nb_prestadas,
-        'asignaciones_activas': asignaciones_activas,   # ⚠️ Nuevo 22/04/2026
-        'tvs_prestadas':       tvs_prestadas,            # ⚠️ Nuevo 24/04/2026
+        'asignaciones_activas': asignaciones_activas,
+        'tvs_prestadas':       tvs_prestadas,
     }
 
     return render_template('main/dashboard.html',
                            stats=stats, alertas=alertas, now=ahora)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ESTADÍSTICAS — solo Directivo y Administrador
+#  ⚠️ Nuevo 28/04/2026 — préstamos por carro (histórico + mes actual)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@main_bp.route('/estadisticas')
+@login_required
+def estadisticas():
+    if not current_user.tiene_permiso('estadisticas'):
+        flash('No tenés permisos para acceder a esta sección.', 'danger')
+        return redirect(url_for('main.dashboard'))
+
+    from sqlalchemy import func
+    from datetime import date, timedelta
+    from zoneinfo import ZoneInfo
+    from datetime import timezone
+
+    AR = ZoneInfo('America/Argentina/Buenos_Aires')
+    ahora_ar = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(AR)
+
+    # ── Mes actual ──────────────────────────────────────────────────────────
+    inicio_mes_ar = ahora_ar.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    inicio_mes_utc = inicio_mes_ar.astimezone(timezone.utc).replace(tzinfo=None)
+
+    # ── Préstamos de carros agrupados por carro — histórico total ───────────
+    filas_historico = (
+        db.session.query(
+            PrestamoCarro.carro_id,
+            func.count(PrestamoCarro.id).label('total')
+        )
+        .group_by(PrestamoCarro.carro_id)
+        .all()
+    )
+    hist_por_carro = {fila.carro_id: fila.total for fila in filas_historico}
+
+    # ── Préstamos de carros agrupados por carro — mes actual ────────────────
+    filas_mes = (
+        db.session.query(
+            PrestamoCarro.carro_id,
+            func.count(PrestamoCarro.id).label('total')
+        )
+        .filter(PrestamoCarro.hora_retiro >= inicio_mes_utc)
+        .group_by(PrestamoCarro.carro_id)
+        .all()
+    )
+    mes_por_carro = {fila.carro_id: fila.total for fila in filas_mes}
+
+    # ── Último préstamo por carro ────────────────────────────────────────────
+    filas_ultimo = (
+        db.session.query(
+            PrestamoCarro.carro_id,
+            func.max(PrestamoCarro.hora_retiro).label('ultimo')
+        )
+        .group_by(PrestamoCarro.carro_id)
+        .all()
+    )
+    ultimo_por_carro = {fila.carro_id: fila.ultimo for fila in filas_ultimo}
+
+    # ── Armar tabla por carro ────────────────────────────────────────────────
+    carros = Carro.query.filter(Carro.estado != 'baja').order_by(
+        db.func.cast(Carro.numero_fisico, db.Integer)
+    ).all()
+
+    def hora_arg(dt):
+        if dt is None:
+            return '—'
+        dt_utc = dt.replace(tzinfo=timezone.utc)
+        return dt_utc.astimezone(AR).strftime('%d/%m/%Y %H:%M hs')
+
+    stats_carros = []
+    for c in carros:
+        total_hist = hist_por_carro.get(c.id, 0)
+        total_mes  = mes_por_carro.get(c.id, 0)
+        ultimo     = ultimo_por_carro.get(c.id)
+        stats_carros.append({
+            'carro':      c,
+            'total':      total_hist,
+            'mes':        total_mes,
+            'ultimo':     hora_arg(ultimo),
+        })
+
+    # Ordenar de mayor a menor préstamos históricos para el ranking
+    stats_carros_ranking = sorted(stats_carros, key=lambda x: x['total'], reverse=True)
+
+    # ── Totales generales ────────────────────────────────────────────────────
+    total_prestamos_hist = sum(r['total'] for r in stats_carros)
+    total_prestamos_mes  = sum(r['mes']   for r in stats_carros)
+
+    # ── Docente más activo (más préstamos históricos de carros) ─────────────
+    fila_docente = (
+        db.session.query(
+            PrestamoCarro.docente_id,
+            func.count(PrestamoCarro.id).label('total')
+        )
+        .group_by(PrestamoCarro.docente_id)
+        .order_by(func.count(PrestamoCarro.id).desc())
+        .first()
+    )
+    docente_top = None
+    docente_top_total = 0
+    if fila_docente:
+        docente_top = Docente.query.get(fila_docente.docente_id)
+        docente_top_total = fila_docente.total
+
+    # ── Carro más prestado ──────────────────────────────────────────────────
+    carro_top = stats_carros_ranking[0] if stats_carros_ranking else None
+
+    # ── Nombre del mes actual ────────────────────────────────────────────────
+    MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+             'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+    nombre_mes = f"{MESES[ahora_ar.month - 1]} {ahora_ar.year}"
+
+    return render_template(
+        'main/estadisticas.html',
+        stats_carros=stats_carros,
+        stats_carros_ranking=stats_carros_ranking,
+        total_prestamos_hist=total_prestamos_hist,
+        total_prestamos_mes=total_prestamos_mes,
+        docente_top=docente_top,
+        docente_top_total=docente_top_total,
+        carro_top=carro_top,
+        nombre_mes=nombre_mes,
+    )
 
 
 @main_bp.route('/api/novedades')
