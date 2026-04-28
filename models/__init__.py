@@ -194,6 +194,7 @@ class PrestamoCarro(db.Model):
     estado                = db.Column(db.String(20), default='activo')
     encargado_retiro      = db.Column(db.String(200))
     encargado_devolucion  = db.Column(db.String(200))
+    materia_prestamo      = db.Column(db.String(200), nullable=True)
 
     @property
     def duracion_minutos(self):

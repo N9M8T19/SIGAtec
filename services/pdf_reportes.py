@@ -525,6 +525,10 @@ def pdf_historial_netbooks(prestamos, periodo='todos'):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def pdf_estadisticas(top_docentes, top_materias):
+    """
+    top_docentes: lista de (docente, total_prestamos)
+    top_materias: lista de (materia_prestamo, total) — materia específica del módulo
+    """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4,
                              rightMargin=1.5*cm, leftMargin=1.5*cm,
@@ -532,23 +536,26 @@ def pdf_estadisticas(top_docentes, top_materias):
     story = []
     _encabezado(story, 'Estadísticas de Uso del Sistema')
 
+    # ── Top Docentes ──────────────────────────────────────────────────────────
     story.append(Paragraph('Top Docentes por Préstamos', STYLE_SECCION))
-    data = [['#', 'Docente', 'Materia', 'Total Préstamos']]
+    data = [['#', 'Docente', 'Total Préstamos']]
     for i, (docente, total) in enumerate(top_docentes, start=1):
-        data.append([str(i), docente.nombre_completo, docente.materia or '—', str(total)])
+        data.append([str(i), docente.nombre_completo, str(total)])
 
     if len(data) > 1:
-        t = Table(data, colWidths=[1*cm, 7*cm, 6*cm, 3.5*cm])
+        t = Table(data, colWidths=[1*cm, 13*cm, 3.5*cm])
         t.setStyle(_tabla_estilo())
         story.append(t)
     else:
         story.append(Paragraph('Sin datos.', STYLE_NORMAL))
 
     story.append(Spacer(1, 0.5*cm))
+
+    # ── Top Materias ──────────────────────────────────────────────────────────
     story.append(Paragraph('Top Materias por Préstamos', STYLE_SECCION))
     data2 = [['#', 'Materia', 'Total Préstamos']]
     for i, (materia, total) in enumerate(top_materias, start=1):
-        data2.append([str(i), materia or 'Sin materia', str(total)])
+        data2.append([str(i), materia or 'Sin materia asignada', str(total)])
 
     if len(data2) > 1:
         t2 = Table(data2, colWidths=[1*cm, 13*cm, 3.5*cm])

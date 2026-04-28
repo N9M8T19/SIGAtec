@@ -103,6 +103,55 @@ def _umbral_alerta_netbooks(prestamo):
         return delta_mins >= mins_alerta
 
 
+def _materia_modulo_actual(docente_id):
+    """
+    Detecta qué materia está dando el docente en el módulo actual.
+    Cruza la hora y día actuales (Argentina) con HorarioDocente.
+    Devuelve el nombre de la materia o None si no se puede determinar.
+    """
+    from models_extra.horarios_notificaciones import HorarioDocente, MODULOS
+
+    ARG_OFFSET = timedelta(hours=-3)
+    ahora_arg  = datetime.utcnow() + ARG_OFFSET
+
+    # Día de la semana en español
+    dias = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']
+    dia_actual = dias[ahora_arg.weekday()]
+
+    # Hora actual como minutos desde medianoche
+    minutos_ahora = ahora_arg.hour * 60 + ahora_arg.minute
+
+    # Buscar qué módulo corresponde a la hora actual
+    # MODULOS es un dict {numero: {'inicio': 'HH:MM', 'fin': 'HH:MM', 'codigo': 'M1', ...}}
+    modulo_actual = None
+    for num, datos in MODULOS.items():
+        try:
+            h_ini, m_ini = map(int, datos['inicio'].split(':'))
+            h_fin, m_fin = map(int, datos['fin'].split(':'))
+            min_ini = h_ini * 60 + m_ini
+            min_fin = h_fin * 60 + m_fin
+            if min_ini <= minutos_ahora <= min_fin:
+                modulo_actual = num
+                break
+        except Exception:
+            continue
+
+    if modulo_actual is None:
+        return None
+
+    # Buscar en HorarioDocente
+    horario = HorarioDocente.query.filter_by(
+        docente_id=docente_id,
+        dia=dia_actual,
+        modulo=modulo_actual,
+    ).first()
+
+    if horario and horario.materia:
+        return horario.materia.strip()
+
+    return None
+
+
 def _gen_codigo(prefijo='P'):
     while True:
         codigo = prefijo + ''.join(random.choices(string.digits, k=4))
@@ -157,7 +206,8 @@ def retiro_carro():
             docente_id       = docente.id,
             carro_id         = carro.id,
             aula             = carro.aula,
-            encargado_retiro = current_user.nombre_completo
+            encargado_retiro = current_user.nombre_completo,
+            materia_prestamo = _materia_modulo_actual(docente.id),
         )
         db.session.add(prestamo)
         db.session.commit()

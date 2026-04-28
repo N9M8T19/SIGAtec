@@ -176,6 +176,38 @@ def estadisticas():
              'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
     nombre_mes = f"{MESES[ahora_ar.month - 1]} {ahora_ar.year}"
 
+    # ── Top docentes por préstamos históricos ───────────────────────────────
+    filas_top_docentes = (
+        db.session.query(
+            PrestamoCarro.docente_id,
+            func.count(PrestamoCarro.id).label('total')
+        )
+        .group_by(PrestamoCarro.docente_id)
+        .order_by(func.count(PrestamoCarro.id).desc())
+        .limit(10)
+        .all()
+    )
+    top_docentes = []
+    for fila in filas_top_docentes:
+        doc = Docente.query.get(fila.docente_id)
+        if doc:
+            top_docentes.append((doc, fila.total))
+
+    # ── Top materias por préstamos — usa materia_prestamo si existe ──────────
+    # Cada préstamo tiene materia_prestamo (materia específica del módulo).
+    # Si es None (préstamos viejos sin ese campo), cae en 'Sin materia'.
+    filas_top_materias = (
+        db.session.query(
+            PrestamoCarro.materia_prestamo,
+            func.count(PrestamoCarro.id).label('total')
+        )
+        .group_by(PrestamoCarro.materia_prestamo)
+        .order_by(func.count(PrestamoCarro.id).desc())
+        .limit(10)
+        .all()
+    )
+    top_materias = [(fila.materia_prestamo, fila.total) for fila in filas_top_materias]
+
     return render_template(
         'main/estadisticas.html',
         stats_carros=stats_carros,
@@ -186,6 +218,8 @@ def estadisticas():
         docente_top_total=docente_top_total,
         carro_top=carro_top,
         nombre_mes=nombre_mes,
+        top_docentes=top_docentes,
+        top_materias=top_materias,
     )
 
 
