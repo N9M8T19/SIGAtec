@@ -11,7 +11,22 @@ def nuevo(carro_id):
     carro = Carro.query.get_or_404(carro_id)
 
     if request.method == 'POST':
-        numero_serie = request.form.get('numero_serie', '').strip()
+        numero_serie   = request.form.get('numero_serie', '').strip()
+        numero_interno = request.form.get('numero_interno', '').strip()
+
+        # Validación: número interno duplicado dentro del mismo carro
+        if numero_interno:
+            dup_interno = Netbook.query.filter_by(
+                carro_id=carro_id,
+                numero_interno=numero_interno
+            ).first()
+            if dup_interno:
+                flash(
+                    f'El número interno <strong>{numero_interno}</strong> ya existe '
+                    f'en el carro <strong>{carro.display}</strong>.',
+                    'danger'
+                )
+                return render_template('netbooks/form.html', carro=carro, netbook=None)
 
         # Validación: número de serie duplicado
         existente = Netbook.query.filter_by(numero_serie=numero_serie).first()
@@ -26,7 +41,7 @@ def nuevo(carro_id):
 
         nb = Netbook(
             carro_id       = carro_id,
-            numero_interno = request.form.get('numero_interno', '').strip(),
+            numero_interno = numero_interno,
             numero_serie   = numero_serie,
             alumno         = request.form.get('alumno', '').strip(),
         )
@@ -44,7 +59,23 @@ def editar(id):
     nb = Netbook.query.get_or_404(id)
 
     if request.method == 'POST':
-        numero_serie = request.form.get('numero_serie', '').strip()
+        numero_serie   = request.form.get('numero_serie', '').strip()
+        numero_interno = request.form.get('numero_interno', '').strip()
+
+        # Validación: número interno duplicado dentro del mismo carro (excluyendo la netbook actual)
+        if numero_interno:
+            dup_interno = Netbook.query.filter(
+                Netbook.carro_id       == nb.carro_id,
+                Netbook.numero_interno == numero_interno,
+                Netbook.id             != id
+            ).first()
+            if dup_interno:
+                flash(
+                    f'El número interno <strong>{numero_interno}</strong> ya existe '
+                    f'en el carro <strong>{nb.carro.display}</strong>.',
+                    'danger'
+                )
+                return render_template('netbooks/form.html', carro=nb.carro, netbook=nb)
 
         # Validación: número de serie duplicado (excluyendo la netbook actual)
         existente = Netbook.query.filter(
@@ -60,7 +91,7 @@ def editar(id):
             )
             return render_template('netbooks/form.html', carro=nb.carro, netbook=nb)
 
-        nb.numero_interno = request.form.get('numero_interno', '').strip()
+        nb.numero_interno = numero_interno
         nb.numero_serie   = numero_serie
         nb.alumno         = request.form.get('alumno', '').strip()
         db.session.commit()
@@ -94,6 +125,27 @@ def verificar_serie():
     return jsonify({'duplicado': False})
 
 
+@netbooks_bp.route('/verificar-numero-interno')
+@login_required
+def verificar_numero_interno():
+    """AJAX — verifica si un número interno ya existe en el mismo carro. excluir_id se usa en edición."""
+    numero_interno = request.args.get('numero_interno', '').strip()
+    carro_id       = request.args.get('carro_id', type=int)
+    excluir_id     = request.args.get('excluir_id', type=int)
+
+    if not numero_interno or not carro_id:
+        return jsonify({'duplicado': False})
+
+    query = Netbook.query.filter_by(carro_id=carro_id, numero_interno=numero_interno)
+    if excluir_id:
+        query = query.filter(Netbook.id != excluir_id)
+
+    existente = query.first()
+    if existente:
+        return jsonify({'duplicado': True})
+    return jsonify({'duplicado': False})
+
+
 @netbooks_bp.route('/<int:id>/servicio', methods=['POST'])
 @login_required
 def marcar_servicio(id):
@@ -124,7 +176,7 @@ def marcar_reparada(id):
 @netbooks_bp.route('/servicio-tecnico')
 @login_required
 def servicio_tecnico():
-    netbooks = Netbook.query.filter_by(estado='servicio_tecnico').all()
+    netbooks = Netbook.query.filter_by(estado='servicio_tecnico').order_by(db.func.cast(Netbook.numero_interno, db.Integer)).all()
     carros_servicio = Carro.query.filter_by(estado='en_servicio').order_by(Carro.numero_fisico).all()
     return render_template('netbooks/servicio_tecnico.html',
                            netbooks=netbooks,

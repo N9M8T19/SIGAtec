@@ -82,7 +82,7 @@ def dar_baja(id):
 def netbooks(id):
     carro = Carro.query.get_or_404(id)
     from models import Alumno
-    from sqlalchemy import func
+    from sqlalchemy import func, cast, Integer
     cursos_m = db.session.query(Alumno.curso, func.count(Alumno.id)) \
                          .filter(Alumno.turno == 'M') \
                          .group_by(Alumno.curso).order_by(Alumno.curso).all()
@@ -92,6 +92,8 @@ def netbooks(id):
     cursos_manana = [c[0] for c in cursos_m]
     cursos_tarde  = [c[0] for c in cursos_t]
     conteo_cursos = {c[0]: c[1] for c in list(cursos_m) + list(cursos_t)}
+    # Ordenar netbooks numericamente por numero_interno
+    carro.netbooks.sort(key=lambda nb: int(nb.numero_interno) if nb.numero_interno and nb.numero_interno.isdigit() else 9999)
     return render_template('carros/netbooks.html', carro=carro,
                            cursos_manana=cursos_manana,
                            cursos_tarde=cursos_tarde,
@@ -117,7 +119,7 @@ def asignar_automatico(id):
 
     netbooks = sorted(
         [nb for nb in carro.netbooks if nb.estado == 'operativa'],
-        key=lambda nb: (nb.numero_interno or '').zfill(10)
+        key=lambda nb: int(nb.numero_interno) if nb.numero_interno and nb.numero_interno.isdigit() else 9999
     )
 
     if not netbooks:
