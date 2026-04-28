@@ -124,9 +124,8 @@ def estadisticas():
     ultimo_por_carro = {fila.carro_id: fila.ultimo for fila in filas_ultimo}
 
     # ── Armar tabla por carro ────────────────────────────────────────────────
-    carros = Carro.query.filter(Carro.estado != 'baja').order_by(
-        db.func.cast(Carro.numero_fisico, db.Integer)
-    ).all()
+    carros = Carro.query.filter(Carro.estado != 'baja').all()
+    carros.sort(key=lambda c: int(c.numero_fisico) if c.numero_fisico and c.numero_fisico.isdigit() else 9999)
 
     def hora_arg(dt):
         if dt is None:
