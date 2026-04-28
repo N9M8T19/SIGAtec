@@ -84,10 +84,16 @@
           <ul id="archivos-ul" class="space-y-1"></ul>
         </div>
 
-        <div class="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4 text-sm text-amber-800">
-          <strong>⚠ Atención:</strong> Esta operación <strong>reemplaza completamente</strong>
-          los horarios actuales de cada docente procesado.
-          Los docentes que no estén en los archivos no se modifican.
+        <div class="bg-blue-50 border border-blue-300 rounded-lg px-4 py-3 mb-4 text-sm text-blue-800">
+          <strong>ℹ Cómo funciona:</strong>
+          <ul class="mt-1 ml-4 list-disc space-y-1">
+            <li>Los módulos se <strong>acumulan</strong> — no se borran los existentes.</li>
+            <li>Para docentes con turno <strong>Mañana y Tarde</strong>: subí las dos planillas juntas o en dos pasos. Los módulos de la segunda se suman a los de la primera.</li>
+            <li>El nombre del archivo determina qué docente se actualiza:<br>
+                Formato: <strong>APELLIDO_NOMBRE_HORARIO_2026.xlsx</strong><br>
+                Ejemplo con apellido compuesto: <strong>FERREYRA_ATTIANESE_FEDERICO_HORARIO_2026.xlsx</strong>
+            </li>
+          </ul>
         </div>
 
         <button type="submit" id="btn-subir-excel" disabled
@@ -133,9 +139,8 @@
                         focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
         </div>
 
-        <div class="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-6 text-sm text-amber-800">
-          <strong>⚠ Atención:</strong> Esta operación <strong>reemplaza completamente</strong>
-          los horarios actuales de cada docente que aparezca en la planilla.
+        <div class="bg-blue-50 border border-blue-300 rounded-lg px-4 py-3 mb-6 text-sm text-blue-800">
+          <strong>ℹ Cómo funciona:</strong> Los módulos se <strong>acumulan</strong> — no se borran los existentes de cada docente.
         </div>
 
         <div class="flex gap-3">
@@ -169,7 +174,7 @@
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
       <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
         <div class="text-2xl font-bold text-green-700">{{ resultados.actualizados }}</div>
-        <div class="text-xs text-green-600 font-semibold mt-1">Docentes actualizados</div>
+        <div class="text-xs text-green-600 font-semibold mt-1">Docentes procesados</div>
       </div>
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
         <div class="text-2xl font-bold text-blue-700">{{ resultados.importados }}</div>

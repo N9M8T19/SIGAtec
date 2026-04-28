@@ -632,14 +632,23 @@ DIAS_NORMALIZADOS = _DIAS_NORMALIZADOS
 
 
 def _normalizar_horario(horario):
-    """Normaliza variantes de horario a formato '13.20 a 14.00'."""
+    """
+    Normaliza variantes de horario a formato '07.30 a 08.10' (con ceros).
+    Soporta: '7.30 a 8.10', '07:30 a 08:10', '07:30 - 08:10', '7:30-8:10'.
+    """
     import re
     if not horario:
         return ''
     h = str(horario).strip()
-    h = re.sub(r'(\d{2}):(\d{2})', r'\1.\2', h)
+    # Reemplazar dos puntos por punto (08:10 → 08.10)
+    h = re.sub(r'(\d{1,2}):(\d{2})', r'\1.\2', h)
+    # Reemplazar separador de rango por ' a '
     h = re.sub(r'\s*[-–]\s*', ' a ', h)
-    h = re.sub(r'\s+', ' ', h)
+    h = re.sub(r'\s+', ' ', h).strip()
+    # Agregar cero inicial si falta: '7.30 a 8.10' → '07.30 a 08.10'
+    def agregar_cero(match):
+        return match.group(0).zfill(5)  # '7.30' → '07.30'
+    h = re.sub(r'\b\d\.\d{2}\b', agregar_cero, h)
     return h
 
 
@@ -746,17 +755,25 @@ def parsear_excel_horario(archivo_bytes, nombre_archivo, nombre_hoja='HORARIO 26
         return resultado
 
     # Procesar filas de datos (desde fila_dias + 2 en adelante)
+    # ultima_asig: lleva la última asignatura vista por día (para celdas mergeadas visualmente)
+    ultima_asig = {dia: None for dia in dia_cols}
+
     for row in todas_las_filas[fila_dias + 2:]:
         if all(c is None for c in row):
             break
 
         for dia, col_inicio in dia_cols.items():
             try:
-                asignatura = str(row[col_inicio]).strip().upper() if len(row) > col_inicio and row[col_inicio] else ''
-                horario    = _normalizar_horario(row[col_inicio + 1] if len(row) > col_inicio + 1 else '')
-                curso      = _normalizar_curso(row[col_inicio + 2] if len(row) > col_inicio + 2 else '')
+                asignatura_celda = str(row[col_inicio]).strip().upper() if len(row) > col_inicio and row[col_inicio] else ''
+                horario          = _normalizar_horario(row[col_inicio + 1] if len(row) > col_inicio + 1 else '')
+                curso            = _normalizar_curso(row[col_inicio + 2] if len(row) > col_inicio + 2 else '')
             except IndexError:
                 continue
+
+            # Carry: si la celda de asignatura está vacía, usar la última vista para este día
+            if asignatura_celda:
+                ultima_asig[dia] = asignatura_celda
+            asignatura = ultima_asig[dia]
 
             if not asignatura:
                 continue
@@ -863,17 +880,26 @@ def importar_horarios_desde_excel(archivos):
             )
             continue
 
-        # Borrar horarios actuales y reemplazar
-        HorarioDocente.query.filter_by(docente_id=docente.id).delete()
-
+        # ACUMULAR: no borramos los módulos existentes.
+        # Si el docente tiene turno Varios con 2 planillas, la segunda se suma a la primera.
+        # Solo actualizamos si el slot exacto (dia + modulo + curso) ya existe.
         for item in registros:
-            db.session.add(HorarioDocente(
-                docente_id = docente.id,
-                dia        = item['dia'],
-                modulo     = item['modulo'],
-                materia    = item['materia'] or None,
-                aula       = item['curso']   or None,
-            ))
+            existente = HorarioDocente.query.filter_by(
+                docente_id=docente.id,
+                dia=item['dia'],
+                modulo=item['modulo'],
+                aula=item['curso'] or None,
+            ).first()
+            if existente:
+                existente.materia = item['materia'] or existente.materia
+            else:
+                db.session.add(HorarioDocente(
+                    docente_id=docente.id,
+                    dia=item['dia'],
+                    modulo=item['modulo'],
+                    materia=item['materia'] or None,
+                    aula=item['curso'] or None,
+                ))
 
         # Actualizar materia y turno en el perfil del docente
         _actualizar_materia_turno(docente, registros)
