@@ -7,7 +7,7 @@
     <div class="flex flex-wrap gap-3 items-center mb-3">
         <div class="flex gap-2 flex-wrap">
             {% for val, label in [('hoy','Hoy'),('semana','Semana'),('mes','Mes'),('todo','Todo')] %}
-            <a href="?periodo={{ val }}&tipo={{ tipo }}"
+            <a href="?periodo={{ val }}&tipo={{ tipo }}&hora_desde={{ hora_desde }}&hora_hasta={{ hora_hasta }}"
                class="px-3 py-1 rounded-full text-sm font-medium
                    {% if periodo == val and not fecha_desde %}bg-blue-900 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
                 {{ label }}
@@ -15,12 +15,12 @@
             {% endfor %}
         </div>
         <div class="flex gap-2 ml-2">
-            <a href="?periodo={{ periodo }}&tipo=carros&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}"
+            <a href="?periodo={{ periodo }}&tipo=carros&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&hora_desde={{ hora_desde }}&hora_hasta={{ hora_hasta }}"
                class="px-3 py-1 rounded-full text-sm font-medium
                    {% if tipo == 'carros' %}bg-green-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
                 <i class="fas fa-key mr-1"></i>Carros
             </a>
-            <a href="?periodo={{ periodo }}&tipo=netbooks&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}"
+            <a href="?periodo={{ periodo }}&tipo=netbooks&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&hora_desde={{ hora_desde }}&hora_hasta={{ hora_hasta }}"
                class="px-3 py-1 rounded-full text-sm font-medium
                    {% if tipo == 'netbooks' %}bg-blue-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
                 <i class="fas fa-laptop mr-1"></i>Espacio Digital
@@ -31,6 +31,8 @@
             <input type="hidden" name="tipo" value="{{ tipo }}">
             <input type="hidden" name="fecha_desde" value="{{ fecha_desde }}">
             <input type="hidden" name="fecha_hasta" value="{{ fecha_hasta }}">
+            <input type="hidden" name="hora_desde" value="{{ hora_desde }}">
+            <input type="hidden" name="hora_hasta" value="{{ hora_hasta }}">
             <input type="text" name="q" value="{{ busqueda }}"
                    placeholder="Buscar docente..."
                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
@@ -64,21 +66,46 @@
             <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}"
                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
         </div>
+        <div class="w-px h-8 bg-gray-200 self-center hidden sm:block"></div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+                <i class="fas fa-clock mr-1 text-orange-400"></i>Hora retiro desde
+            </label>
+            <input type="time" name="hora_desde" value="{{ hora_desde }}"
+                   class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 outline-none">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+                <i class="fas fa-clock mr-1 text-orange-400"></i>Hora retiro hasta
+            </label>
+            <input type="time" name="hora_hasta" value="{{ hora_hasta }}"
+                   class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 outline-none">
+        </div>
         <button type="submit"
                 class="bg-blue-900 hover:bg-blue-800 text-white px-4 py-1 rounded-lg text-sm font-semibold">
-            <i class="fas fa-filter mr-1"></i>Filtrar por fechas
+            <i class="fas fa-filter mr-1"></i>Filtrar
         </button>
-        {% if fecha_desde or fecha_hasta %}
+        {% if fecha_desde or fecha_hasta or hora_desde or hora_hasta %}
         <a href="?tipo={{ tipo }}&periodo=todo" class="text-gray-400 hover:text-gray-600 text-sm">
             <i class="fas fa-times mr-1"></i>Limpiar
         </a>
         {% endif %}
     </form>
 
-    {% if fecha_desde or fecha_hasta %}
-    <div class="mt-2 text-xs text-blue-700 bg-blue-50 rounded px-3 py-1 inline-block">
-        <i class="fas fa-calendar mr-1"></i>
-        Desde {{ fecha_desde or '—' }} hasta {{ fecha_hasta or 'hoy' }}
+    {% if fecha_desde or fecha_hasta or hora_desde or hora_hasta %}
+    <div class="mt-2 flex flex-wrap gap-2">
+        {% if fecha_desde or fecha_hasta %}
+        <div class="text-xs text-blue-700 bg-blue-50 rounded px-3 py-1 inline-block">
+            <i class="fas fa-calendar mr-1"></i>
+            Desde {{ fecha_desde or '—' }} hasta {{ fecha_hasta or 'hoy' }}
+        </div>
+        {% endif %}
+        {% if hora_desde or hora_hasta %}
+        <div class="text-xs text-orange-700 bg-orange-50 rounded px-3 py-1 inline-block">
+            <i class="fas fa-clock mr-1"></i>
+            Retiro entre {{ hora_desde or '00:00' }} y {{ hora_hasta or '23:59' }} hs
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 </div>

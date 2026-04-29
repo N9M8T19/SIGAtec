@@ -410,35 +410,90 @@ def devolucion_netbooks(id):
 @prestamos_bp.route('/historial')
 @login_required
 def historial():
+    ARG_OFFSET  = timedelta(hours=-3)
     periodo     = request.args.get('periodo', 'hoy')
     busqueda    = request.args.get('q', '').strip()
     tipo        = request.args.get('tipo', 'carros')
     fecha_desde = request.args.get('fecha_desde', '').strip()
     fecha_hasta = request.args.get('fecha_hasta', '').strip()
+    hora_desde  = request.args.get('hora_desde', '').strip()
+    hora_hasta  = request.args.get('hora_hasta', '').strip()
 
     ahora = datetime.utcnow()
 
     def _aplicar_filtro_fecha(query, campo_fecha):
-        if fecha_desde and fecha_hasta:
+        """Aplica filtros de fecha y, opcionalmente, de hora (rango horario en UTC)."""
+        if fecha_desde or fecha_hasta:
             try:
-                d_desde = datetime.strptime(fecha_desde, '%Y-%m-%d')
-                d_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-                return query.filter(campo_fecha >= d_desde, campo_fecha <= d_hasta)
-            except ValueError:
-                pass
-        elif fecha_desde:
-            try:
-                d_desde = datetime.strptime(fecha_desde, '%Y-%m-%d')
-                return query.filter(campo_fecha >= d_desde)
+                # Fecha base desde/hasta (hora Argentina → UTC para comparar con la BD)
+                if fecha_desde:
+                    d_desde = datetime.strptime(fecha_desde, '%Y-%m-%d')
+                    if hora_desde:
+                        h, m = map(int, hora_desde.split(':'))
+                        d_desde = d_desde.replace(hour=h, minute=m, second=0)
+                    else:
+                        d_desde = d_desde.replace(hour=0, minute=0, second=0)
+                    d_desde = d_desde - ARG_OFFSET   # Argentina → UTC
+                else:
+                    d_desde = None
+
+                if fecha_hasta:
+                    d_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d')
+                    if hora_hasta:
+                        h, m = map(int, hora_hasta.split(':'))
+                        d_hasta = d_hasta.replace(hour=h, minute=m, second=59)
+                    else:
+                        d_hasta = d_hasta.replace(hour=23, minute=59, second=59)
+                    d_hasta = d_hasta - ARG_OFFSET   # Argentina → UTC
+                else:
+                    d_hasta = None
+
+                if d_desde:
+                    query = query.filter(campo_fecha >= d_desde)
+                if d_hasta:
+                    query = query.filter(campo_fecha <= d_hasta)
+                return query
             except ValueError:
                 pass
         else:
+            # Filtros rápidos (Hoy / Semana / Mes) — también aplica filtro de hora si está presente
             if periodo == 'hoy':
-                return query.filter(campo_fecha >= ahora.replace(hour=0, minute=0, second=0))
+                base = ahora.replace(hour=0, minute=0, second=0)
+                query = query.filter(campo_fecha >= base)
             elif periodo == 'semana':
-                return query.filter(campo_fecha >= ahora - timedelta(days=7))
+                query = query.filter(campo_fecha >= ahora - timedelta(days=7))
             elif periodo == 'mes':
-                return query.filter(campo_fecha >= ahora - timedelta(days=30))
+                query = query.filter(campo_fecha >= ahora - timedelta(days=30))
+
+            # Filtro de hora sobre el resultado del período (como franja horaria diaria en UTC)
+            if hora_desde:
+                try:
+                    h, m = map(int, hora_desde.split(':'))
+                    minutos_desde = (h * 60 + m) - (-3 * 60)   # Argentina → UTC minutos
+                    # Extraer la hora UTC equivalente para el filtro
+                    hora_utc_desde = timedelta(minutes=minutos_desde)
+                    from sqlalchemy import func, extract
+                    h_utc_d = (h * 60 + m + 180) // 60 % 24
+                    m_utc_d = (h * 60 + m + 180) % 60
+                    query = query.filter(
+                        extract('hour', campo_fecha) * 60 + extract('minute', campo_fecha)
+                        >= h_utc_d * 60 + m_utc_d
+                    )
+                except (ValueError, TypeError):
+                    pass
+            if hora_hasta:
+                try:
+                    h, m = map(int, hora_hasta.split(':'))
+                    h_utc_h = (h * 60 + m + 180) // 60 % 24
+                    m_utc_h = (h * 60 + m + 180) % 60
+                    from sqlalchemy import extract
+                    query = query.filter(
+                        extract('hour', campo_fecha) * 60 + extract('minute', campo_fecha)
+                        <= h_utc_h * 60 + m_utc_h
+                    )
+                except (ValueError, TypeError):
+                    pass
+
         return query
 
     if tipo == 'carros':
@@ -462,7 +517,8 @@ def historial():
     return render_template('prestamos/historial.html',
                            prestamos=prestamos, periodo=periodo,
                            busqueda=busqueda, tipo=tipo,
-                           fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+                           fecha_desde=fecha_desde, fecha_hasta=fecha_hasta,
+                           hora_desde=hora_desde, hora_hasta=hora_hasta)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
