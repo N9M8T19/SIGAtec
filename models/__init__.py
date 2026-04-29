@@ -322,6 +322,7 @@ class HistorialPantalla(db.Model):
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  TICKET BA COLABORATIVA
+#  ⚠️ Actualizado 29/04/2026 — campos estado, fecha_cierre, motivo_cierre, cerrado_por
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TicketBA(db.Model):
@@ -332,6 +333,12 @@ class TicketBA(db.Model):
     usuario        = db.Column(db.String(200))
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     observaciones  = db.Column(db.Text)
+
+    # ── Campos de cierre ────────────────────────────────────────────────────
+    estado         = db.Column(db.String(20), default='activo')   # 'activo' | 'resuelto'
+    fecha_cierre   = db.Column(db.DateTime,   nullable=True)
+    motivo_cierre  = db.Column(db.Text,       nullable=True)
+    cerrado_por    = db.Column(db.String(200), nullable=True)
 
     netbooks = db.relationship('TicketBANetbook', backref='ticket',
                                 lazy=True, cascade='all, delete-orphan')
@@ -388,6 +395,7 @@ class AsignacionInterna(db.Model):
     # Destinatario: docente del sistema O área libre (texto)
     docente_id       = db.Column(db.Integer, db.ForeignKey('docentes.id'), nullable=True)
     area             = db.Column(db.String(200))        # ej: "Dirección", "Preceptoría"
+
     # Metadatos
     fecha_asignacion = db.Column(db.DateTime, default=datetime.utcnow)
     motivo           = db.Column(db.Text)
