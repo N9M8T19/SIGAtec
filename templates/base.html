@@ -168,6 +168,17 @@
                 <i class="fas fa-tachometer-alt w-5"></i> Dashboard
             </a>
 
+            <a href="{{ url_for('mensajeria.index') }}"
+               class="sidebar-link flex items-center justify-between px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint and 'mensajeria' in request.endpoint %}active{% endif %}">
+                <span class="flex items-center gap-3">
+                    <i class="fas fa-comments w-5"></i> Mensajería
+                </span>
+                <span id="badge-mensajeria-sidebar"
+                      class="hidden text-xs font-bold bg-red-500 text-white rounded-full
+                             px-1.5 py-0.5 min-w-[1.25rem] text-center"></span>
+            </a>
+
             <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Inventario</p>
             <a href="{{ url_for('carros.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
@@ -418,6 +429,7 @@
     </div>
     <nav class="flex-1 overflow-y-auto p-2 space-y-0.5 text-white">
         <a href="{{ url_for('main.dashboard') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.dashboard' %}active{% endif %}"><i class="fas fa-tachometer-alt w-5"></i> Dashboard</a>
+        <a href="{{ url_for('mensajeria.index') }}" class="sidebar-link flex items-center justify-between px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'mensajeria' in request.endpoint %}active{% endif %}"><span class="flex items-center gap-3"><i class="fas fa-comments w-5"></i> Mensajería</span><span id="badge-mensajeria-peek" class="hidden text-xs font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center"></span></a>
         <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Inventario</p>
         <a href="{{ url_for('carros.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'carros' in request.endpoint %}active{% endif %}"><i class="fas fa-box w-5"></i> Carros</a>
         <a href="{{ url_for('netbooks.servicio_tecnico') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'netbooks.servicio_tecnico' %}active{% endif %}"><i class="fas fa-laptop w-5"></i> Servicio Técnico</a>
@@ -521,5 +533,33 @@
     })();
 </script>
 {% block scripts %}{% endblock %}
+
+{% if current_user.is_authenticated %}
+<script>
+// ── Badge global mensajería — actualiza cada 15 seg en todas las páginas ─────
+(function() {
+    function actualizarBadgeMensajeria() {
+        fetch("{{ url_for('mensajeria.no_leidos') }}")
+            .then(r => r.json())
+            .then(data => {
+                ['badge-mensajeria-sidebar', 'badge-mensajeria-peek'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    if (data.total > 0) {
+                        el.textContent = data.total;
+                        el.classList.remove('hidden');
+                    } else {
+                        el.textContent = '';
+                        el.classList.add('hidden');
+                    }
+                });
+            })
+            .catch(() => {});
+    }
+    actualizarBadgeMensajeria();
+    setInterval(actualizarBadgeMensajeria, 15000);
+})();
+</script>
+{% endif %}
 </body>
 </html>

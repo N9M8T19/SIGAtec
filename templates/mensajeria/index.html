@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+{% block title %}MENSAJERÍA — SIGA-Tec{% endblock %}
+{% block header %}MENSAJERÍA INTERNA{% endblock %}
+
+{% block content %}
+<div class="flex gap-4" style="height: calc(100vh - 140px);">
+
+    {# ── Panel izquierdo: canales ──────────────────────────────────────────── #}
+    <aside class="w-56 flex-shrink-0 flex flex-col gap-2">
+        <div class="bg-white rounded-xl shadow-sm p-3">
+            <p class="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2 px-1">Canales</p>
+            {% for clave, info in canales.items() %}
+            <a href="{{ url_for('mensajeria.index', canal=clave) }}"
+               class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition
+                      {% if clave == canal_activo %}
+                          bg-blue-900 text-white
+                      {% else %}
+                          text-gray-700 hover:bg-gray-100
+                      {% endif %}"
+               id="canal-link-{{ clave }}">
+                <span class="flex items-center gap-2">
+                    <i class="fas {{ info.icon }} w-4
+                        {% if clave == canal_activo %}text-orange-400{% else %}text-gray-400{% endif %}"></i>
+                    {{ info.label }}
+                </span>
+                <span id="badge-{{ clave }}"
+                      class="text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center
+                             {% if badges[clave] > 0 %}bg-red-500 text-white{% else %}hidden{% endif %}">
+                    {{ badges[clave] if badges[clave] > 0 else '' }}
+                </span>
+            </a>
+            {% endfor %}
+        </div>
+
+        {# Avisos rápidos #}
+        {% if avisos_rapidos %}
+        <div class="bg-white rounded-xl shadow-sm p-3">
+            <p class="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2 px-1">Avisos rápidos</p>
+            {% for aviso in avisos_rapidos %}
+            <button onclick="enviarAviso({{ aviso|tojson }})"
+                    class="w-full text-left px-3 py-2 rounded-lg text-xs text-gray-700
+                           hover:bg-orange-50 hover:text-orange-800 transition mb-1
+                           border border-transparent hover:border-orange-200">
+                {{ aviso }}
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </aside>
+
+    {# ── Panel derecho: chat ───────────────────────────────────────────────── #}
+    <div class="flex-1 flex flex-col bg-white rounded-xl shadow-sm overflow-hidden">
+
+        {# Header del canal #}
+        <div class="px-5 py-3 border-b border-gray-100 flex items-center gap-3"
+             style="background: linear-gradient(90deg, #1a2a6c 0%, #2557a7 100%);">
+            <i class="fas {{ canales[canal_activo].icon }} text-orange-400"></i>
+            <span class="font-bold text-white text-sm uppercase tracking-wide">
+                {{ canales[canal_activo].label }}
+            </span>
+            <span class="ml-auto text-xs text-blue-200" id="estado-conexion">
+                <i class="fas fa-circle text-green-400 text-xs mr-1"></i>En línea
+            </span>
+        </div>
+
+        {# Área de mensajes #}
+        <div id="chat-mensajes"
+             class="flex-1 overflow-y-auto px-5 py-4 space-y-3"
+             style="background: #f8fafc;">
+
+            {% if not mensajes %}
+            <div class="text-center text-gray-400 text-sm mt-12">
+                <i class="fas fa-comments text-4xl mb-3 block text-gray-300"></i>
+                No hay mensajes en este canal todavía.<br>
+                <span class="text-xs">Sé el primero en escribir.</span>
+            </div>
+            {% endif %}
+
+            {% for m in mensajes %}
+            {% set propio = m.autor_id == current_user.id %}
+            <div class="flex {% if propio %}justify-end{% else %}justify-start{% endif %} mensaje-item"
+                 data-id="{{ m.id }}">
+                <div class="max-w-xs lg:max-w-md xl:max-w-lg">
+                    {% if not propio %}
+                    <div class="text-xs text-gray-400 mb-1 px-1">
+                        <span class="font-semibold text-gray-600">{{ m.autor_nombre }}</span>
+                        <span class="ml-1
+                            {% if m.autor_rol == 'Administrador' %}text-red-500
+                            {% elif m.autor_rol == 'Directivo' %}text-purple-500
+                            {% else %}text-blue-500{% endif %}">
+                            · {{ m.autor_rol }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    <div class="px-4 py-2.5 rounded-2xl text-sm leading-relaxed
+                        {% if m.tipo == 'aviso' %}
+                            {% if propio %}bg-orange-500 text-white{% else %}bg-orange-100 text-orange-900 border border-orange-200{% endif %}
+                        {% else %}
+                            {% if propio %}text-white{% else %}bg-white text-gray-800 border border-gray-200 shadow-sm{% endif %}
+                        {% endif %}"
+                        style="{% if propio and m.tipo != 'aviso' %}background-color:#1a2a6c;{% endif %}">
+                        {% if m.tipo == 'aviso' %}
+                        <i class="fas fa-bullhorn mr-1 text-xs opacity-75"></i>
+                        {% endif %}
+                        {{ m.contenido }}
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1 px-1 {% if propio %}text-right{% endif %}">
+                        {{ fmt_hora(m.creado_en) }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {# Barra de escritura #}
+        <div class="px-4 py-3 border-t border-gray-100 bg-white">
+            <div class="flex items-end gap-3">
+                <textarea id="input-mensaje"
+                          placeholder="Escribí un mensaje..."
+                          rows="1"
+                          maxlength="1000"
+                          class="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2.5
+                                 text-sm focus:outline-none focus:border-blue-500 focus:ring-1
+                                 focus:ring-blue-500 transition"
+                          style="max-height: 120px;"
+                          onkeydown="handleKeyDown(event)"
+                          oninput="autoResize(this)"></textarea>
+                <button onclick="enviarMensaje()"
+                        id="btn-enviar"
+                        class="flex-shrink-0 px-4 py-2.5 rounded-xl text-white text-sm font-semibold
+                               transition flex items-center gap-2"
+                        style="background-color: #1a2a6c;">
+                    <i class="fas fa-paper-plane"></i>
+                    <span class="hidden sm:inline">Enviar</span>
+                </button>
+            </div>
+            <div class="text-xs text-gray-400 mt-1 px-1">
+                Enter para enviar · Shift+Enter para nueva línea
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CANAL     = {{ canal_activo|tojson }};
+const URL_ENVIAR = "{{ url_for('mensajeria.enviar') }}";
+const URL_POLL   = "{{ url_for('mensajeria.poll') }}";
+
+let ultimoId = {% if mensajes %}{{ mensajes[-1].id }}{% else %}0{% endif %};
+let enviando = false;
+
+// ── Scroll al fondo al cargar ─────────────────────────────────────────────────
+const chatBox = document.getElementById('chat-mensajes');
+chatBox.scrollTop = chatBox.scrollHeight;
+
+// ── Auto-resize textarea ──────────────────────────────────────────────────────
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ── Enter / Shift+Enter ───────────────────────────────────────────────────────
+function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        enviarMensaje();
+    }
+}
+
+// ── Crear burbuja de mensaje ──────────────────────────────────────────────────
+function crearBurbuja(m) {
+    const wrap = document.createElement('div');
+    wrap.className = `flex ${m.propio ? 'justify-end' : 'justify-start'} mensaje-item`;
+    wrap.dataset.id = m.id;
+
+    const esAviso = m.tipo === 'aviso';
+    const bgClass = esAviso
+        ? (m.propio ? 'background-color:#e8821a;color:#fff;' : '')
+        : (m.propio ? 'background-color:#1a2a6c;color:#fff;' : '');
+
+    const bgTailwind = esAviso
+        ? (m.propio ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-900 border border-orange-200')
+        : (m.propio ? 'text-white border border-gray-200' : 'bg-white text-gray-800 border border-gray-200 shadow-sm');
+
+    const rolColor = m.rol === 'Administrador' ? 'text-red-500'
+                   : m.rol === 'Directivo'     ? 'text-purple-500'
+                   :                             'text-blue-500';
+
+    const headerHtml = !m.propio ? `
+        <div class="text-xs text-gray-400 mb-1 px-1">
+            <span class="font-semibold text-gray-600">${m.autor}</span>
+            <span class="ml-1 ${rolColor}">· ${m.rol}</span>
+        </div>` : '';
+
+    const avisoIcon = esAviso ? '<i class="fas fa-bullhorn mr-1 text-xs opacity-75"></i>' : '';
+
+    wrap.innerHTML = `
+        <div class="max-w-xs lg:max-w-md xl:max-w-lg">
+            ${headerHtml}
+            <div class="px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${bgTailwind}"
+                 style="${bgClass}">
+                ${avisoIcon}${escapeHtml(m.contenido)}
+            </div>
+            <div class="text-xs text-gray-400 mt-1 px-1 ${m.propio ? 'text-right' : ''}">
+                ${m.hora}
+            </div>
+        </div>`;
+
+    // Quitar el placeholder si existía
+    const placeholder = chatBox.querySelector('.text-center');
+    if (placeholder) placeholder.remove();
+
+    chatBox.appendChild(wrap);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+}
+
+// ── Enviar mensaje ────────────────────────────────────────────────────────────
+async function enviarMensaje(contenidoOverride, tipoOverride) {
+    if (enviando) return;
+    const input    = document.getElementById('input-mensaje');
+    const contenido = contenidoOverride || input.value.trim();
+    const tipo      = tipoOverride || 'normal';
+    if (!contenido) return;
+
+    enviando = true;
+    document.getElementById('btn-enviar').disabled = true;
+
+    try {
+        const res = await fetch(URL_ENVIAR, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({canal: CANAL, contenido, tipo}),
+        });
+        const data = await res.json();
+        if (data.ok) {
+            if (!contenidoOverride) {
+                input.value = '';
+                input.style.height = 'auto';
+            }
+            crearBurbuja(data.mensaje);
+            ultimoId = data.mensaje.id;
+        } else {
+            alert(data.error || 'Error al enviar el mensaje.');
+        }
+    } catch (e) {
+        alert('Error de conexión.');
+    } finally {
+        enviando = false;
+        document.getElementById('btn-enviar').disabled = false;
+        input.focus();
+    }
+}
+
+async function enviarAviso(texto) {
+    await enviarMensaje(texto, 'aviso');
+}
+
+// ── Polling cada 8 segundos ───────────────────────────────────────────────────
+async function poll() {
+    try {
+        const res  = await fetch(`${URL_POLL}?canal=${CANAL}&desde=${ultimoId}`);
+        const data = await res.json();
+
+        data.mensajes.forEach(m => {
+            if (!m.propio) crearBurbuja(m);   // los propios ya se agregaron al enviar
+            if (m.id > ultimoId) ultimoId = m.id;
+        });
+
+        // Actualizar badges en el sidebar de canales
+        for (const [canal, total] of Object.entries(data.badges)) {
+            const badge = document.getElementById(`badge-${canal}`);
+            if (!badge) continue;
+            if (total > 0) {
+                badge.textContent = total;
+                badge.classList.remove('hidden');
+            } else {
+                badge.textContent = '';
+                badge.classList.add('hidden');
+            }
+        }
+    } catch (_) { /* silencioso */ }
+}
+
+setInterval(poll, 8000);
+
+// ── Badge global del sidebar (base.html lo llama también) ────────────────────
+async function actualizarBadgeGlobal() {
+    try {
+        const res  = await fetch("{{ url_for('mensajeria.no_leidos') }}");
+        const data = await res.json();
+        const el   = document.getElementById('badge-mensajeria-sidebar');
+        if (!el) return;
+        if (data.total > 0) {
+            el.textContent = data.total;
+            el.classList.remove('hidden');
+        } else {
+            el.textContent = '';
+            el.classList.add('hidden');
+        }
+    } catch (_) {}
+}
+</script>
+{% endblock %}

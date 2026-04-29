@@ -528,3 +528,43 @@ class UbicacionEquipo(db.Model):
 
     def __repr__(self):
         return f'<UbicacionEquipo {self.tipo_equipo} #{self.equipo_id} → {self.aula}>'
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  MENSAJERÍA INTERNA
+#  Solo visible para Encargado, Directivo y Administrador.
+#  Canales: general | servicio_tecnico | prestamos | avisos
+#  Agregado 29/04/2026
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Mensaje(db.Model):
+    __tablename__ = 'mensajes'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    canal        = db.Column(db.String(50),  nullable=False, default='general')
+    autor_id     = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+    autor_nombre = db.Column(db.String(200))
+    autor_rol    = db.Column(db.String(50))
+    contenido    = db.Column(db.Text, nullable=False)
+    # 'normal' | 'aviso'
+    tipo         = db.Column(db.String(30),  nullable=False, default='normal')
+    creado_en    = db.Column(db.DateTime, default=datetime.utcnow)
+
+    leidos = db.relationship('MensajeLeid', backref='mensaje',
+                             lazy=True, cascade='all, delete-orphan')
+    autor  = db.relationship('Usuario', foreign_keys=[autor_id])
+
+    def __repr__(self):
+        return f'<Mensaje #{self.id} canal={self.canal}>'
+
+
+class MensajeLeid(db.Model):
+    __tablename__ = 'mensajes_leidos'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    mensaje_id = db.Column(db.Integer, db.ForeignKey('mensajes.id'), nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    leido_en   = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('mensaje_id', 'usuario_id',
+                                          name='uq_mensaje_usuario'),)

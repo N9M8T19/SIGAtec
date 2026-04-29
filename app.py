@@ -92,6 +92,7 @@ def create_app():
     from routes.mantenimiento   import mantenimiento_bp
     from routes.asignaciones    import asignaciones_bp   # ⚠️ Nuevo 22/04/2026
     from routes.tvs             import tvs_bp            # ⚠️ Nuevo 24/04/2026
+    from routes.mensajeria      import mensajeria_bp     # ⚠️ Nuevo 29/04/2026
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(carros_bp)
@@ -115,6 +116,7 @@ def create_app():
     app.register_blueprint(mantenimiento_bp)
     app.register_blueprint(asignaciones_bp)              # ⚠️ Nuevo 22/04/2026
     app.register_blueprint(tvs_bp)                       # ⚠️ Nuevo 24/04/2026
+    app.register_blueprint(mensajeria_bp)                # ⚠️ Nuevo 29/04/2026
 
     with app.app_context():
         import models_extra.horarios_notificaciones  # noqa
