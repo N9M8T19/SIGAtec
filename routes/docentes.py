@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from models import db, Docente, PrestamoCarro, PrestamoNetbook
-from models_extra.horarios_notificaciones import MATERIAS
+from models_extra.horarios_notificaciones import _get_materias_activas
 
 docentes_bp = Blueprint('docentes', __name__, url_prefix='/docentes')
 
@@ -62,7 +62,7 @@ def nuevo():
         return redirect(url_for('docentes.index'))
 
     return render_template('docentes/form.html',
-                           docente=None, turnos=TURNOS, materias=MATERIAS)
+                           docente=None, turnos=TURNOS, materias=_get_materias_activas())
 
 
 @docentes_bp.route('/<int:id>/editar', methods=['GET', 'POST'])
@@ -81,7 +81,7 @@ def editar(id):
         return redirect(url_for('docentes.index'))
 
     return render_template('docentes/form.html',
-                           docente=docente, turnos=TURNOS, materias=MATERIAS)
+                           docente=docente, turnos=TURNOS, materias=_get_materias_activas())
 
 
 @docentes_bp.route('/<int:id>/baja', methods=['GET', 'POST'])
