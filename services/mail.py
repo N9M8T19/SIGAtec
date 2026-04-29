@@ -35,6 +35,9 @@ def _get_template_mail(campo):
     except Exception:
         pass
     return None
+
+
+def _enviar_mail(destinatario, asunto, cuerpo):
     if not GMAIL_PASSWORD:
         raise RuntimeError(
             'GMAIL_APP_PASSWORD no está configurada. '
@@ -70,11 +73,8 @@ def _log(evento, destinatario, asunto, enviado, error=None):
 
 def _enviar_a_todos(evento, asunto, cuerpo, correo_docente=None):
     destinatarios = _destinatarios_por_evento(evento)
-
-    # Agregar el correo del docente si existe y no está ya en la lista
     if correo_docente and correo_docente not in destinatarios:
         destinatarios.append(correo_docente)
-
     if not destinatarios:
         current_app.logger.warning(
             f'[mail] No hay destinatarios para el evento "{evento}".'
@@ -90,13 +90,24 @@ def _enviar_a_todos(evento, asunto, cuerpo, correo_docente=None):
             current_app.logger.error(f'[mail] Error enviando a {correo}: {e}')
 
 
+def _cantidad_netbooks_carro(carro):
+    """Cuenta las netbooks operativas del carro (excluye en_servicio y de_baja)."""
+    return sum(
+        1 for nb in carro.netbooks
+        if getattr(nb, 'estado', 'operativa') not in ('en_servicio', 'de_baja', 'baja')
+    )
+
+
 # ── Notificaciones de carros ───────────────────────────────────────────────────
 
 def enviar_notificacion_retiro_carro(prestamo):
     correo = prestamo.docente.correo
     if not correo:
-        current_app.logger.warning(f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — retiro carro omitido.')
+        current_app.logger.warning(
+            f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — retiro carro omitido.'
+        )
         return
+    cantidad_nb = _cantidad_netbooks_carro(prestamo.carro)
     asunto = f'Retiro de carro {prestamo.carro.display}'
     _tpl = _get_template_mail('mail_retiro_carro')
     if _tpl:
@@ -106,16 +117,18 @@ def enviar_notificacion_retiro_carro(prestamo):
             aula=prestamo.aula or '—',
             hora=_hora_ar(prestamo.hora_retiro),
             encargado=prestamo.encargado_retiro or '—',
+            cantidad_netbooks=cantidad_nb,
         )
     else:
-        cuerpo = f"""Retiro de carro
-
-Docente:   {prestamo.docente.nombre_completo}
-Carro:     {prestamo.carro.display}
-Aula:      {prestamo.aula or '—'}
-Hora:      {_hora_ar(prestamo.hora_retiro)}
-Registró:  {prestamo.encargado_retiro}
-"""
+        cuerpo = (
+            f"Retiro de carro\n\n"
+            f"Docente:    {prestamo.docente.nombre_completo}\n"
+            f"Carro:      {prestamo.carro.display}\n"
+            f"Netbooks:   {cantidad_nb} equipos operativos\n"
+            f"Aula:       {prestamo.aula or '—'}\n"
+            f"Hora:       {_hora_ar(prestamo.hora_retiro)}\n"
+            f"Registró:   {prestamo.encargado_retiro}\n"
+        )
     try:
         _enviar_mail(correo, asunto, cuerpo)
         _log('retiro_carro', correo, asunto, enviado=True)
@@ -128,10 +141,13 @@ Registró:  {prestamo.encargado_retiro}
 def enviar_notificacion_devolucion_carro(prestamo):
     correo = prestamo.docente.correo
     if not correo:
-        current_app.logger.warning(f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — devolución carro omitida.')
+        current_app.logger.warning(
+            f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — devolución carro omitida.'
+        )
         return
+    cantidad_nb = _cantidad_netbooks_carro(prestamo.carro)
+    mins = prestamo.duracion_minutos or 0
     asunto = f'Devolución de carro {prestamo.carro.display}'
-    mins   = prestamo.duracion_minutos or 0
     _tpl = _get_template_mail('mail_devolucion_carro')
     if _tpl:
         cuerpo = _tpl.format(
@@ -141,17 +157,19 @@ def enviar_notificacion_devolucion_carro(prestamo):
             hora_devolucion=_hora_ar(prestamo.hora_devolucion),
             duracion=f"{mins // 60}h {mins % 60}m",
             encargado=prestamo.encargado_devolucion or '—',
+            cantidad_netbooks=cantidad_nb,
         )
     else:
-        cuerpo = f"""Devolución de carro
-
-Docente:    {prestamo.docente.nombre_completo}
-Carro:      {prestamo.carro.display}
-Retiro:     {_hora_ar(prestamo.hora_retiro)}
-Devolución: {_hora_ar(prestamo.hora_devolucion)}
-Duración:   {mins // 60}h {mins % 60}m
-Registró:   {prestamo.encargado_devolucion}
-"""
+        cuerpo = (
+            f"Devolución de carro\n\n"
+            f"Docente:    {prestamo.docente.nombre_completo}\n"
+            f"Carro:      {prestamo.carro.display}\n"
+            f"Netbooks:   {cantidad_nb} equipos operativos\n"
+            f"Retiro:     {_hora_ar(prestamo.hora_retiro)}\n"
+            f"Devolución: {_hora_ar(prestamo.hora_devolucion)}\n"
+            f"Duración:   {mins // 60}h {mins % 60}m\n"
+            f"Registró:   {prestamo.encargado_devolucion}\n"
+        )
     try:
         _enviar_mail(correo, asunto, cuerpo)
         _log('devolucion_carro', correo, asunto, enviado=True)
@@ -161,16 +179,25 @@ Registró:   {prestamo.encargado_devolucion}
         current_app.logger.error(f'[mail] Error enviando a {correo}: {e}')
 
 
-# ── Notificaciones de netbooks ─────────────────────────────────────────────────
+# ── Notificaciones de netbooks (Espacio Digital) ───────────────────────────────
+#
+#  {items} muestra cada netbook con su número interno y el alumno asignado:
+#    • N°5 — García, Lucía
+#    • N°12 — Sin asignar
+#
+#  {cantidad} muestra el total de netbooks del préstamo.
 
 def enviar_notificacion_retiro_netbook(prestamo):
     correo = prestamo.docente.correo
     if not correo:
-        current_app.logger.warning(f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — retiro netbooks omitido.')
+        current_app.logger.warning(
+            f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — retiro netbooks omitido.'
+        )
         return
     asunto = f'Retiro de netbooks — {prestamo.docente.nombre_completo}'
-    items  = '\n'.join(
-        [f'  • N°{i.numero_interno} — {i.alumno or "Sin asignar"}' for i in prestamo.items]
+    items = '\n'.join(
+        f'  • N°{i.numero_interno} — {i.alumno or "Sin asignar"}'
+        for i in prestamo.items
     )
     _tpl = _get_template_mail('mail_retiro_nb')
     if _tpl:
@@ -179,17 +206,17 @@ def enviar_notificacion_retiro_netbook(prestamo):
             hora=_hora_ar(prestamo.hora_retiro),
             encargado=prestamo.encargado_retiro or '—',
             items=items,
+            cantidad=len(prestamo.items),
         )
     else:
-        cuerpo = f"""Retiro de netbooks
-
-Docente:   {prestamo.docente.nombre_completo}
-Hora:      {_hora_ar(prestamo.hora_retiro)}
-Registró:  {prestamo.encargado_retiro}
-
-Netbooks:
-{items}
-"""
+        cuerpo = (
+            f"Retiro de netbooks — Espacio Digital\n\n"
+            f"Docente:   {prestamo.docente.nombre_completo}\n"
+            f"Hora:      {_hora_ar(prestamo.hora_retiro)}\n"
+            f"Registró:  {prestamo.encargado_retiro}\n\n"
+            f"Netbooks retiradas ({len(prestamo.items)}):\n"
+            f"{items}\n"
+        )
     try:
         _enviar_mail(correo, asunto, cuerpo)
         _log('retiro_netbook', correo, asunto, enviado=True)
@@ -202,10 +229,16 @@ Netbooks:
 def enviar_notificacion_devolucion_netbook(prestamo):
     correo = prestamo.docente.correo
     if not correo:
-        current_app.logger.warning(f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — devolución netbooks omitida.')
+        current_app.logger.warning(
+            f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — devolución netbooks omitida.'
+        )
         return
     asunto = f'Devolución de netbooks — {prestamo.docente.nombre_completo}'
-    mins   = int((prestamo.hora_devolucion - prestamo.hora_retiro).total_seconds() / 60)
+    mins = int((prestamo.hora_devolucion - prestamo.hora_retiro).total_seconds() / 60)
+    items = '\n'.join(
+        f'  • N°{i.numero_interno} — {i.alumno or "Sin asignar"}'
+        for i in prestamo.items
+    )
     _tpl = _get_template_mail('mail_devolucion_nb')
     if _tpl:
         cuerpo = _tpl.format(
@@ -215,17 +248,19 @@ def enviar_notificacion_devolucion_netbook(prestamo):
             duracion=f"{mins // 60}h {mins % 60}m",
             encargado=prestamo.encargado_devolucion or '—',
             cantidad=len(prestamo.items),
+            items=items,
         )
     else:
-        cuerpo = f"""Devolución de netbooks
-
-Docente:    {prestamo.docente.nombre_completo}
-Retiro:     {_hora_ar(prestamo.hora_retiro)}
-Devolución: {_hora_ar(prestamo.hora_devolucion)}
-Duración:   {mins // 60}h {mins % 60}m
-Registró:   {prestamo.encargado_devolucion}
-Netbooks:   {len(prestamo.items)}
-"""
+        cuerpo = (
+            f"Devolución de netbooks — Espacio Digital\n\n"
+            f"Docente:    {prestamo.docente.nombre_completo}\n"
+            f"Retiro:     {_hora_ar(prestamo.hora_retiro)}\n"
+            f"Devolución: {_hora_ar(prestamo.hora_devolucion)}\n"
+            f"Duración:   {mins // 60}h {mins % 60}m\n"
+            f"Registró:   {prestamo.encargado_devolucion}\n\n"
+            f"Netbooks devueltas ({len(prestamo.items)}):\n"
+            f"{items}\n"
+        )
     try:
         _enviar_mail(correo, asunto, cuerpo)
         _log('devolucion_netbook', correo, asunto, enviado=True)
@@ -245,15 +280,14 @@ def enviar_alerta_demora(prestamo, tipo='carro'):
     else:
         item   = f'{len(prestamo.items)} netbook(s)'
         asunto = '⚠️ DEMORA — netbooks no devueltas'
-    cuerpo = f"""⚠️ Alerta de demora
-
-Docente:   {prestamo.docente.nombre_completo}
-Ítem:      {item}
-Retirado:  {_hora_ar(prestamo.hora_retiro)}
-Transcurrido: {prestamo.tiempo_transcurrido}
-
-Por favor verificar el estado del préstamo.
-"""
+    cuerpo = (
+        f"⚠️ Alerta de demora\n\n"
+        f"Docente:      {prestamo.docente.nombre_completo}\n"
+        f"Ítem:         {item}\n"
+        f"Retirado:     {_hora_ar(prestamo.hora_retiro)}\n"
+        f"Transcurrido: {prestamo.tiempo_transcurrido}\n\n"
+        f"Por favor verificar el estado del préstamo.\n"
+    )
     _enviar_a_todos(evento, asunto, cuerpo)
 
 
@@ -265,14 +299,14 @@ def enviar_alerta_horario(prestamo, horario, tipo='carro'):
     else:
         item   = f'{len(prestamo.items)} netbook(s)'
         asunto = '⚠️ Clase terminada — netbooks no devueltas'
-    cuerpo = f"""⚠️ El docente terminó su módulo y no devolvió el material.
-
-Docente:  {prestamo.docente.nombre_completo}
-Materia:  {horario.materia or prestamo.docente.materia or '—'}
-Módulo:   {horario.modulo} ({horario.hora_inicio} - {horario.hora_fin})
-Ítem:     {item}
-Retirado: {_hora_ar(prestamo.hora_retiro)}
-"""
+    cuerpo = (
+        f"⚠️ El docente terminó su módulo y no devolvió el material.\n\n"
+        f"Docente:  {prestamo.docente.nombre_completo}\n"
+        f"Materia:  {horario.materia or prestamo.docente.materia or '—'}\n"
+        f"Módulo:   {horario.modulo} ({horario.hora_inicio} - {horario.hora_fin})\n"
+        f"Ítem:     {item}\n"
+        f"Retirado: {_hora_ar(prestamo.hora_retiro)}\n"
+    )
     _enviar_a_todos(evento, asunto, cuerpo)
 
 
@@ -296,6 +330,7 @@ def enviar_planilla_movimientos(destinatario, pdf_buffer, remitente_nombre=''):
     from email.mime.multipart import MIMEMultipart
     from email.mime.base import MIMEBase
     from email import encoders
+    from datetime import datetime
 
     if not GMAIL_PASSWORD:
         raise RuntimeError(
@@ -303,8 +338,6 @@ def enviar_planilla_movimientos(destinatario, pdf_buffer, remitente_nombre=''):
             'Agregala como variable de entorno en Render.'
         )
 
-    from datetime import datetime
-    AR = timezone(timedelta(hours=-3))
     ahora_ar = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(AR)
     fecha_str = ahora_ar.strftime('%d/%m/%Y %H:%M')
     nombre_archivo = f'movimientos_activos_{ahora_ar.strftime("%Y%m%d_%H%M")}.pdf'
@@ -324,12 +357,10 @@ def enviar_planilla_movimientos(destinatario, pdf_buffer, remitente_nombre=''):
     mensaje['Subject'] = asunto
     mensaje.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
 
-    # Adjunto PDF
     adjunto = MIMEBase('application', 'pdf')
     adjunto.set_payload(pdf_buffer.read())
     encoders.encode_base64(adjunto)
-    adjunto.add_header('Content-Disposition', 'attachment',
-                       filename=nombre_archivo)
+    adjunto.add_header('Content-Disposition', 'attachment', filename=nombre_archivo)
     mensaje.attach(adjunto)
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
