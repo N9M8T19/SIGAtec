@@ -290,6 +290,13 @@
             {% endif %}
 
             <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Sistema</p>
+            {% if current_user.tiene_permiso('configuracion') %}
+            <a href="{{ url_for('main.config_sistema') }}"
+               class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
+                      {% if request.endpoint == 'main.config_sistema' %}active{% endif %}">
+                <i class="fas fa-sliders-h w-5"></i> Config. Sistema
+            </a>
+            {% endif %}
             <a href="{{ url_for('main.config_espacio_digital') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint == 'main.config_espacio_digital' %}active{% endif %}">
@@ -447,6 +454,7 @@
         <a href="{{ url_for('main.estadisticas') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.estadisticas' %}active{% endif %}"><i class="fas fa-chart-pie w-5"></i> Estadísticas</a>
         {% endif %}
         <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Sistema</p>
+        {% if current_user.tiene_permiso('configuracion') %}<a href="{{ url_for('main.config_sistema') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.config_sistema' %}active{% endif %}"><i class="fas fa-sliders-h w-5"></i> Config. Sistema</a>{% endif %}
         <a href="{{ url_for('main.config_espacio_digital') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.config_espacio_digital' %}active{% endif %}"><i class="fas fa-cog w-5"></i> Config. Espacio Digital</a>
         {% if current_user.tiene_permiso('configuracion') %}
         <a href="{{ url_for('importar.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'importar' in request.endpoint and 'horarios' not in request.endpoint %}active{% endif %}"><i class="fab fa-google-drive w-5"></i> Importar Drive</a>

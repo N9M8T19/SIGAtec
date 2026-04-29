@@ -25,7 +25,16 @@ def _hora_ar(dt):
     return dt.replace(tzinfo=timezone.utc).astimezone(AR).strftime('%d/%m/%Y %H:%M')
 
 
-def _enviar_mail(destinatario, asunto, cuerpo):
+def _get_template_mail(campo):
+    """Devuelve el template de mail desde ConfigSistema o None si no está configurado."""
+    try:
+        from models.config_sistema import ConfigSistema
+        cfg = ConfigSistema.query.first()
+        if cfg:
+            return getattr(cfg, campo, None) or None
+    except Exception:
+        pass
+    return None
     if not GMAIL_PASSWORD:
         raise RuntimeError(
             'GMAIL_APP_PASSWORD no está configurada. '
@@ -89,7 +98,17 @@ def enviar_notificacion_retiro_carro(prestamo):
         current_app.logger.warning(f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — retiro carro omitido.')
         return
     asunto = f'Retiro de carro {prestamo.carro.display}'
-    cuerpo = f"""Retiro de carro
+    _tpl = _get_template_mail('mail_retiro_carro')
+    if _tpl:
+        cuerpo = _tpl.format(
+            docente=prestamo.docente.nombre_completo,
+            carro=prestamo.carro.display,
+            aula=prestamo.aula or '—',
+            hora=_hora_ar(prestamo.hora_retiro),
+            encargado=prestamo.encargado_retiro or '—',
+        )
+    else:
+        cuerpo = f"""Retiro de carro
 
 Docente:   {prestamo.docente.nombre_completo}
 Carro:     {prestamo.carro.display}
@@ -113,7 +132,18 @@ def enviar_notificacion_devolucion_carro(prestamo):
         return
     asunto = f'Devolución de carro {prestamo.carro.display}'
     mins   = prestamo.duracion_minutos or 0
-    cuerpo = f"""Devolución de carro
+    _tpl = _get_template_mail('mail_devolucion_carro')
+    if _tpl:
+        cuerpo = _tpl.format(
+            docente=prestamo.docente.nombre_completo,
+            carro=prestamo.carro.display,
+            hora_retiro=_hora_ar(prestamo.hora_retiro),
+            hora_devolucion=_hora_ar(prestamo.hora_devolucion),
+            duracion=f"{mins // 60}h {mins % 60}m",
+            encargado=prestamo.encargado_devolucion or '—',
+        )
+    else:
+        cuerpo = f"""Devolución de carro
 
 Docente:    {prestamo.docente.nombre_completo}
 Carro:      {prestamo.carro.display}
@@ -142,7 +172,16 @@ def enviar_notificacion_retiro_netbook(prestamo):
     items  = '\n'.join(
         [f'  • N°{i.numero_interno} — {i.alumno or "Sin asignar"}' for i in prestamo.items]
     )
-    cuerpo = f"""Retiro de netbooks
+    _tpl = _get_template_mail('mail_retiro_nb')
+    if _tpl:
+        cuerpo = _tpl.format(
+            docente=prestamo.docente.nombre_completo,
+            hora=_hora_ar(prestamo.hora_retiro),
+            encargado=prestamo.encargado_retiro or '—',
+            items=items,
+        )
+    else:
+        cuerpo = f"""Retiro de netbooks
 
 Docente:   {prestamo.docente.nombre_completo}
 Hora:      {_hora_ar(prestamo.hora_retiro)}
@@ -167,7 +206,18 @@ def enviar_notificacion_devolucion_netbook(prestamo):
         return
     asunto = f'Devolución de netbooks — {prestamo.docente.nombre_completo}'
     mins   = int((prestamo.hora_devolucion - prestamo.hora_retiro).total_seconds() / 60)
-    cuerpo = f"""Devolución de netbooks
+    _tpl = _get_template_mail('mail_devolucion_nb')
+    if _tpl:
+        cuerpo = _tpl.format(
+            docente=prestamo.docente.nombre_completo,
+            hora_retiro=_hora_ar(prestamo.hora_retiro),
+            hora_devolucion=_hora_ar(prestamo.hora_devolucion),
+            duracion=f"{mins // 60}h {mins % 60}m",
+            encargado=prestamo.encargado_devolucion or '—',
+            cantidad=len(prestamo.items),
+        )
+    else:
+        cuerpo = f"""Devolución de netbooks
 
 Docente:    {prestamo.docente.nombre_completo}
 Retiro:     {_hora_ar(prestamo.hora_retiro)}

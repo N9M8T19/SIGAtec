@@ -57,9 +57,45 @@ MODULOS = {
 }
 
 
+def _get_modulos_activos():
+    """
+    Devuelve el dict de módulos activos.
+    Si ConfigSistema tiene módulos configurados, los usa.
+    Si no, usa los MODULOS por defecto definidos arriba.
+    """
+    try:
+        from models.config_sistema import ConfigSistema
+        cfg = ConfigSistema.query.first()
+        if cfg:
+            custom = cfg.get_modulos()
+            if custom:
+                return custom
+    except Exception:
+        pass
+    return MODULOS
+
+
+def _get_materias_activas():
+    """
+    Devuelve la lista de materias activa.
+    Si ConfigSistema tiene materias configuradas, las usa.
+    Si no, usa MATERIAS por defecto.
+    """
+    try:
+        from models.config_sistema import ConfigSistema
+        cfg = ConfigSistema.query.first()
+        if cfg:
+            custom = cfg.get_materias()
+            if custom:
+                return custom
+    except Exception:
+        pass
+    return MATERIAS
+
+
 def modulo_label(num):
     """Devuelve el label completo de un módulo: 'M1 — 07:30 a 08:10 (Mañana)'"""
-    m = MODULOS.get(num)
+    m = _get_modulos_activos().get(num)
     if not m:
         return f'Módulo {num}'
     inicio, fin, turno, codigo = m
@@ -158,19 +194,19 @@ class HorarioDocente(db.Model):
 
     @property
     def hora_inicio(self):
-        return MODULOS.get(self.modulo, ('--:--', '--:--', '', ''))[0]
+        return _get_modulos_activos().get(self.modulo, ('--:--', '--:--', '', ''))[0]
 
     @property
     def hora_fin(self):
-        return MODULOS.get(self.modulo, ('--:--', '--:--', '', ''))[1]
+        return _get_modulos_activos().get(self.modulo, ('--:--', '--:--', '', ''))[1]
 
     @property
     def turno_modulo(self):
-        return MODULOS.get(self.modulo, ('', '', '', ''))[2]
+        return _get_modulos_activos().get(self.modulo, ('', '', '', ''))[2]
 
     @property
     def codigo_modulo(self):
-        return MODULOS.get(self.modulo, ('', '', '', 'M?'))[3]
+        return _get_modulos_activos().get(self.modulo, ('', '', '', 'M?'))[3]
 
     @property
     def label(self):

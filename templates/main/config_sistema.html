@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+{% block title %}Configuración del Sistema — SIGA-Tec{% endblock %}
+{% block header %}Configuración del Sistema{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+    {# ── Solapas ──────────────────────────────────────────────────────────── #}
+    <div class="flex gap-1 mb-6 border-b border-gray-200">
+        <button onclick="mostrarSolapa('materias')"
+                id="tab-materias"
+                class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors">
+            <i class="fas fa-list-ul mr-2"></i>Materias y Cargos
+        </button>
+        <button onclick="mostrarSolapa('modulos')"
+                id="tab-modulos"
+                class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors">
+            <i class="fas fa-clock mr-2"></i>Horarios de Módulos
+        </button>
+        <button onclick="mostrarSolapa('mails')"
+                id="tab-mails"
+                class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors">
+            <i class="fas fa-envelope mr-2"></i>Templates de Mail
+        </button>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════
+       SOLAPA 1 — MATERIAS Y CARGOS
+    ══════════════════════════════════════════════════════════════════════════ #}
+    <div id="panel-materias" class="panel-solapa">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-bold uppercase mb-1" style="color:var(--azul-oscuro)">
+                Materias y Cargos
+            </h2>
+            <p class="text-sm text-gray-500 mb-4">
+                Cada línea es una materia o cargo. Se guardan en mayúscula y orden alfabético automáticamente.
+                <br>Podés agregar cargos como <strong>PRECEPTOR</strong>, <strong>MEP</strong>, <strong>ATTP</strong>, <strong>DIRECTIVO</strong>, etc.
+            </p>
+
+            <form method="POST">
+                <input type="hidden" name="accion" value="guardar_materias">
+
+                <div class="flex gap-4 mb-4">
+                    <div class="flex-1">
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                            Lista actual ({{ materias|length }} ítems)
+                        </label>
+                        <textarea
+                            name="materias_texto"
+                            rows="28"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:border-transparent"
+                            style="focus-ring-color: var(--azul-medio); resize:vertical"
+                        >{{ materias | join('\n') }}</textarea>
+                        <p class="text-xs text-gray-400 mt-1">
+                            Una materia o cargo por línea. Las líneas en blanco se ignoran.
+                        </p>
+                    </div>
+
+                    <div class="w-64 flex-shrink-0">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+                            <p class="font-semibold text-blue-800 mb-2">
+                                <i class="fas fa-info-circle mr-1"></i>Cómo usar
+                            </p>
+                            <ul class="text-blue-700 space-y-1.5 text-xs">
+                                <li>• Escribí una materia o cargo por línea</li>
+                                <li>• Para agregar, escribí al final de la lista</li>
+                                <li>• Para eliminar, borrá la línea completa</li>
+                                <li>• Para modificar un nombre, editá la línea</li>
+                                <li>• Se guardan en <strong>MAYÚSCULA</strong> y orden alfabético automáticamente</li>
+                            </ul>
+                            <hr class="my-3 border-blue-200">
+                            <p class="font-semibold text-blue-800 mb-1">Ejemplos de cargos</p>
+                            <div class="space-y-0.5 text-xs text-blue-700 font-mono">
+                                <div>PRECEPTOR</div>
+                                <div>MEP</div>
+                                <div>ATTP</div>
+                                <div>DIRECTIVO</div>
+                                <div>SECRETARIO</div>
+                                <div>COORDINADOR DE AREA</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button type="submit"
+                            class="px-6 py-2 rounded-lg text-white text-sm font-semibold transition-colors"
+                            style="background-color:var(--azul-oscuro)"
+                            onmouseover="this.style.backgroundColor='var(--azul-hover)'"
+                            onmouseout="this.style.backgroundColor='var(--azul-oscuro)'">
+                        <i class="fas fa-save mr-2"></i>Guardar Lista
+                    </button>
+                    <button type="button"
+                            onclick="if(confirm('¿Restaurar la lista original de materias?')) window.location.href='?reset_materias=1'"
+                            class="px-4 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 hover:bg-gray-50">
+                        <i class="fas fa-undo mr-2"></i>Restaurar original
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════
+       SOLAPA 2 — HORARIOS DE MÓDULOS
+    ══════════════════════════════════════════════════════════════════════════ #}
+    <div id="panel-modulos" class="panel-solapa hidden">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-bold uppercase mb-1" style="color:var(--azul-oscuro)">
+                Horarios de Módulos
+            </h2>
+            <p class="text-sm text-gray-500 mb-5">
+                Modificá los horarios de inicio y fin de cada módulo. El sistema usa estos valores para detectar la materia actual al registrar un préstamo.
+                <br><strong>Formato:</strong> HH:MM (ej: <code>07:30</code>)
+            </p>
+
+            <form method="POST">
+                <input type="hidden" name="accion" value="guardar_modulos">
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="text-xs font-semibold uppercase text-white"
+                                style="background-color:var(--azul-oscuro)">
+                                <th class="px-4 py-2.5 text-left rounded-tl-lg">#</th>
+                                <th class="px-4 py-2.5 text-left">Código</th>
+                                <th class="px-4 py-2.5 text-left">Turno</th>
+                                <th class="px-4 py-2.5 text-left">Hora inicio</th>
+                                <th class="px-4 py-2.5 text-left rounded-tr-lg">Hora fin</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for num in range(1, 16) %}
+                            {% set mod = modulos.get(num, ('','','','')) %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-2 font-semibold text-gray-500">{{ num }}</td>
+                                <td class="px-4 py-2">
+                                    <input type="text"
+                                           name="mod_{{ num }}_codigo"
+                                           value="{{ mod[3] }}"
+                                           class="w-24 border border-gray-300 rounded px-2 py-1 text-sm font-mono"
+                                           placeholder="M1">
+                                </td>
+                                <td class="px-4 py-2">
+                                    <select name="mod_{{ num }}_turno"
+                                            class="border border-gray-300 rounded px-2 py-1 text-sm">
+                                        <option value="Mañana"     {% if mod[2] == 'Mañana'     %}selected{% endif %}>Mañana</option>
+                                        <option value="Tarde"      {% if mod[2] == 'Tarde'      %}selected{% endif %}>Tarde</option>
+                                        <option value="Compartido" {% if mod[2] == 'Compartido' %}selected{% endif %}>Compartido</option>
+                                    </select>
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input type="text"
+                                           name="mod_{{ num }}_inicio"
+                                           value="{{ mod[0] }}"
+                                           class="w-24 border border-gray-300 rounded px-2 py-1 text-sm font-mono"
+                                           placeholder="07:30"
+                                           pattern="\d{2}:\d{2}">
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input type="text"
+                                           name="mod_{{ num }}_fin"
+                                           value="{{ mod[1] }}"
+                                           class="w-24 border border-gray-300 rounded px-2 py-1 text-sm font-mono"
+                                           placeholder="08:10"
+                                           pattern="\d{2}:\d{2}">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-5 flex gap-3 items-center">
+                    <button type="submit"
+                            class="px-6 py-2 rounded-lg text-white text-sm font-semibold transition-colors"
+                            style="background-color:var(--azul-oscuro)"
+                            onmouseover="this.style.backgroundColor='var(--azul-hover)'"
+                            onmouseout="this.style.backgroundColor='var(--azul-oscuro)'">
+                        <i class="fas fa-save mr-2"></i>Guardar Módulos
+                    </button>
+                    <p class="text-xs text-gray-400">
+                        <i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i>
+                        Los cambios afectan la detección de materia en nuevos préstamos y las alertas de fin de módulo.
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════
+       SOLAPA 3 — TEMPLATES DE MAIL
+    ══════════════════════════════════════════════════════════════════════════ #}
+    <div id="panel-mails" class="panel-solapa hidden">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-bold uppercase mb-1" style="color:var(--azul-oscuro)">
+                Templates de Mail
+            </h2>
+            <p class="text-sm text-gray-500 mb-1">
+                Editá el texto de los mails que se envían a los docentes.
+                Usá los <strong>placeholders</strong> para insertar los datos del préstamo automáticamente.
+            </p>
+
+            {# Referencia de placeholders #}
+            <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 text-xs">
+                <p class="font-semibold text-amber-800 mb-1.5"><i class="fas fa-tags mr-1"></i>Placeholders disponibles</p>
+                <div class="flex flex-wrap gap-x-6 gap-y-1 text-amber-700 font-mono">
+                    <span><code>{docente}</code> — Nombre completo del docente</span>
+                    <span><code>{carro}</code> — Identificación del carro</span>
+                    <span><code>{aula}</code> — Aula de destino</span>
+                    <span><code>{hora}</code> — Hora de retiro (Argentina)</span>
+                    <span><code>{hora_retiro}</code> — Hora de retiro</span>
+                    <span><code>{hora_devolucion}</code> — Hora de devolución</span>
+                    <span><code>{duracion}</code> — Duración del préstamo</span>
+                    <span><code>{encargado}</code> — Nombre del encargado que registró</span>
+                    <span><code>{items}</code> — Lista de netbooks (solo en mails de netbooks)</span>
+                    <span><code>{cantidad}</code> — Cantidad de netbooks devueltas</span>
+                </div>
+            </div>
+
+            <form method="POST">
+                <input type="hidden" name="accion" value="guardar_mails">
+
+                <div class="grid grid-cols-2 gap-5">
+
+                    {# Retiro de carro #}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">
+                            <i class="fas fa-sign-out-alt text-green-600 mr-1"></i>
+                            Mail — Retiro de Carro
+                        </label>
+                        <textarea name="mail_retiro_carro" rows="10"
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                                  style="resize:vertical">{{ mail_retiro_carro }}</textarea>
+                    </div>
+
+                    {# Devolución de carro #}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">
+                            <i class="fas fa-sign-in-alt text-blue-600 mr-1"></i>
+                            Mail — Devolución de Carro
+                        </label>
+                        <textarea name="mail_devolucion_carro" rows="10"
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                                  style="resize:vertical">{{ mail_devolucion_carro }}</textarea>
+                    </div>
+
+                    {# Retiro de netbooks #}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">
+                            <i class="fas fa-laptop text-green-600 mr-1"></i>
+                            Mail — Retiro de Netbooks (Espacio Digital)
+                        </label>
+                        <textarea name="mail_retiro_nb" rows="10"
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                                  style="resize:vertical">{{ mail_retiro_nb }}</textarea>
+                    </div>
+
+                    {# Devolución de netbooks #}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">
+                            <i class="fas fa-laptop text-blue-600 mr-1"></i>
+                            Mail — Devolución de Netbooks (Espacio Digital)
+                        </label>
+                        <textarea name="mail_devolucion_nb" rows="10"
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                                  style="resize:vertical">{{ mail_devolucion_nb }}</textarea>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex gap-3">
+                    <button type="submit"
+                            class="px-6 py-2 rounded-lg text-white text-sm font-semibold"
+                            style="background-color:var(--azul-oscuro)"
+                            onmouseover="this.style.backgroundColor='var(--azul-hover)'"
+                            onmouseout="this.style.backgroundColor='var(--azul-oscuro)'">
+                        <i class="fas fa-save mr-2"></i>Guardar Templates
+                    </button>
+                    <button type="button"
+                            onclick="if(confirm('¿Restaurar todos los templates al texto original?')) window.location.href='?reset_mails=1'"
+                            class="px-4 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 hover:bg-gray-50">
+                        <i class="fas fa-undo mr-2"></i>Restaurar originales
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .tab-btn {
+        color: #6b7280;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -1px;
+    }
+    .tab-btn:hover {
+        color: var(--azul-oscuro);
+        background-color: #f8fafc;
+    }
+    .tab-btn.activa {
+        color: var(--azul-oscuro);
+        border-bottom-color: var(--naranja);
+        background-color: white;
+    }
+</style>
+<script>
+    function mostrarSolapa(nombre) {
+        document.querySelectorAll('.panel-solapa').forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activa'));
+        document.getElementById('panel-' + nombre).classList.remove('hidden');
+        document.getElementById('tab-' + nombre).classList.add('activa');
+        localStorage.setItem('config-sistema-tab', nombre);
+    }
+
+    // Restaurar solapa activa o abrir la primera
+    const tabGuardada = localStorage.getItem('config-sistema-tab') || 'materias';
+    mostrarSolapa(tabGuardada);
+</script>
+{% endblock %}

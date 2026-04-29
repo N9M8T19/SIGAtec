@@ -507,3 +507,126 @@ def config_espacio_digital():
 
     return render_template('main/config_espacio_digital.html',
                            config=config, carros=carros)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CONFIGURACIÓN DEL SISTEMA — solo Directivo y Administrador
+#  ⚠️ Nuevo — gestión de materias, cargos, módulos horarios y templates de mail
+# ─────────────────────────────────────────────────────────────────────────────
+
+@main_bp.route('/configuracion/sistema', methods=['GET', 'POST'])
+@login_required
+def config_sistema():
+    if not current_user.tiene_permiso('configuracion'):
+        flash('No tenés permisos para acceder a esta sección.', 'danger')
+        return redirect(url_for('main.dashboard'))
+
+    from models_extra.horarios_notificaciones import MATERIAS, MODULOS
+    import json
+
+    # Leer configuración persistida (guardada en la tabla ConfigSistema si existe,
+    # o en un archivo JSON simple como fallback)
+    from models import ConfigSistema
+
+    cfg = ConfigSistema.obtener()
+
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+
+        # ── 1. Guardar materias / cargos ────────────────────────────────────
+        if accion == 'guardar_materias':
+            materias_raw = request.form.get('materias_texto', '')
+            nuevas = sorted(set(
+                m.strip().upper()
+                for m in materias_raw.splitlines()
+                if m.strip()
+            ))
+            cfg.set_materias(nuevas)
+            flash(f'Lista de materias actualizada ({len(nuevas)} ítems).', 'success')
+
+        # ── 2. Guardar módulos horarios ─────────────────────────────────────
+        elif accion == 'guardar_modulos':
+            nuevos_modulos = {}
+            for num in range(1, 16):
+                inicio = request.form.get(f'mod_{num}_inicio', '').strip()
+                fin    = request.form.get(f'mod_{num}_fin', '').strip()
+                turno  = request.form.get(f'mod_{num}_turno', '').strip()
+                codigo = request.form.get(f'mod_{num}_codigo', '').strip()
+                if inicio and fin and turno and codigo:
+                    nuevos_modulos[num] = (inicio, fin, turno, codigo)
+            cfg.set_modulos(nuevos_modulos)
+            flash('Horarios de módulos actualizados.', 'success')
+
+        # ── 3. Guardar templates de mail ────────────────────────────────────
+        elif accion == 'guardar_mails':
+            cfg.mail_retiro_carro     = request.form.get('mail_retiro_carro', '').strip()
+            cfg.mail_devolucion_carro = request.form.get('mail_devolucion_carro', '').strip()
+            cfg.mail_retiro_nb        = request.form.get('mail_retiro_nb', '').strip()
+            cfg.mail_devolucion_nb    = request.form.get('mail_devolucion_nb', '').strip()
+            cfg.guardar()
+            flash('Templates de mail actualizados.', 'success')
+
+        return redirect(url_for('main.config_sistema'))
+
+    # GET — preparar datos para el template
+    materias_actuales = cfg.get_materias() or MATERIAS
+    modulos_actuales  = cfg.get_modulos()  or MODULOS
+
+    # Defaults de mail si no están configurados
+    mail_retiro_carro     = cfg.mail_retiro_carro     or _mail_default_retiro_carro()
+    mail_devolucion_carro = cfg.mail_devolucion_carro or _mail_default_devolucion_carro()
+    mail_retiro_nb        = cfg.mail_retiro_nb        or _mail_default_retiro_nb()
+    mail_devolucion_nb    = cfg.mail_devolucion_nb    or _mail_default_devolucion_nb()
+
+    return render_template(
+        'main/config_sistema.html',
+        materias=materias_actuales,
+        modulos=modulos_actuales,
+        mail_retiro_carro=mail_retiro_carro,
+        mail_devolucion_carro=mail_devolucion_carro,
+        mail_retiro_nb=mail_retiro_nb,
+        mail_devolucion_nb=mail_devolucion_nb,
+    )
+
+
+def _mail_default_retiro_carro():
+    return """Retiro de carro
+
+Docente:   {docente}
+Carro:     {carro}
+Aula:      {aula}
+Hora:      {hora}
+Registró:  {encargado}"""
+
+
+def _mail_default_devolucion_carro():
+    return """Devolución de carro
+
+Docente:    {docente}
+Carro:      {carro}
+Retiro:     {hora_retiro}
+Devolución: {hora_devolucion}
+Duración:   {duracion}
+Registró:   {encargado}"""
+
+
+def _mail_default_retiro_nb():
+    return """Retiro de netbooks
+
+Docente:   {docente}
+Hora:      {hora}
+Registró:  {encargado}
+
+Netbooks:
+{items}"""
+
+
+def _mail_default_devolucion_nb():
+    return """Devolución de netbooks
+
+Docente:    {docente}
+Retiro:     {hora_retiro}
+Devolución: {hora_devolucion}
+Duración:   {duracion}
+Registró:   {encargado}
+Netbooks:   {cantidad}"""
