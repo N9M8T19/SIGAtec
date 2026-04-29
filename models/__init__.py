@@ -2,11 +2,15 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from models.config_sistema import ConfigSistema
+
 import random
 import string
 
 db = SQLAlchemy()
+
+# ConfigSistema se inicializa aqui, despues de db, para evitar import circular
+from models.config_sistema import _init_model as _init_config_sistema
+ConfigSistema = _init_config_sistema(db)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
