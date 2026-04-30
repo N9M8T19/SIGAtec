@@ -8,7 +8,9 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from models import db, Netbook, Carro, Usuario
-from sqlalchemy import text
+import os
+import psycopg2
+import psycopg2.extras
 
 ARG_OFFSET = timedelta(hours=-3)
 
@@ -19,35 +21,44 @@ def _now_arg():
     return datetime.utcnow() + ARG_OFFSET
 
 
-def _get_tabla():
-    """Devuelve referencia a la tabla via text() para no duplicar modelo."""
-    return "obsolescencias"
+def _get_conn():
+    """Conexión psycopg2 directa — compatible con SQLAlchemy 1.4 en Render."""
+    return psycopg2.connect(os.environ["DATABASE_URL"])
 
-
-# ─────────────────────────────────────────────
-# Helpers de query directa (sin modelo ORM para no tocar models/__init__.py
-# con una clase enorme — se usa text() de SQLAlchemy)
-# ─────────────────────────────────────────────
 
 def _fetch_all(sql, params=None):
-    with db.engine.connect() as conn:
-        result = conn.execute(text(sql), params or {})
-        return result.fetchall()
+    conn = _get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql, params or ())
+        rows = cur.fetchall()
+        cur.close()
+        return rows
+    finally:
+        conn.close()
 
 
 def _fetch_one(sql, params=None):
-    with db.engine.connect() as conn:
-        result = conn.execute(text(sql), params or {})
-        return result.fetchone()
+    conn = _get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql, params or ())
+        row = cur.fetchone()
+        cur.close()
+        return row
+    finally:
+        conn.close()
 
 
 def _execute(sql, params=None):
-    with db.engine.connect() as conn:
-        conn.execute(text(sql), params or {})
-        try:
-            conn.commit()
-        except Exception:
-            pass  # SQLAlchemy 1.x no tiene commit en Connection
+    conn = _get_conn()
+    conn.autocommit = True
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, params or ())
+        cur.close()
+    finally:
+        conn.close()
 
 
 # ─────────────────────────────────────────────
@@ -57,7 +68,7 @@ def _execute(sql, params=None):
 @obsolescencia_bp.route("/")
 @login_required
 def index():
-    filtro = request.args.get("filtro", "todas")  # todas | pendientes | con_reemplazo | sin_reemplazo
+    filtro = request.args.get("filtro", "todas")
 
     sql_base = """
         SELECT o.id, o.motivo, o.observaciones, o.fecha_baja,
@@ -89,9 +100,8 @@ def index():
 
     carros = Carro.query.filter_by(estado="activo").order_by(Carro.numero_fisico).all()
 
-    # Contar pendientes para badge
-    pendientes = _fetch_one("SELECT COUNT(*) FROM obsolescencias WHERE reemplazo_pendiente = TRUE")
-    total_pendientes = pendientes[0] if pendientes else 0
+    pendiente = _fetch_one("SELECT COUNT(*) AS total FROM obsolescencias WHERE reemplazo_pendiente = TRUE")
+    total_pendientes = pendiente["total"] if pendiente else 0
 
     return render_template(
         "obsolescencia/index.html",
@@ -103,7 +113,7 @@ def index():
 
 
 # ─────────────────────────────────────────────
-# NUEVA OBSOLESCENCIA — marcar netbook como obsoleta
+# NUEVA OBSOLESCENCIA
 # ─────────────────────────────────────────────
 
 @obsolescencia_bp.route("/nueva", methods=["GET", "POST"])
@@ -125,19 +135,7 @@ def nueva():
             flash("Netbook no encontrada.", "danger")
             return redirect(url_for("obsolescencia.index"))
 
-        # Verificar que no tenga ya una obsolescencia activa
-        existente = _fetch_one(
-            "SELECT id FROM obsolescencias WHERE netbook_id = :nid AND tiene_reemplazo = FALSE AND reemplazo_pendiente = FALSE",
-            {"nid": int(netbook_id)}
-        )
-        # Si ya fue procesada (tiene reemplazo o está pendiente), permitir igual
-        # Solo bloqueamos si tiene una obsolescencia sin resolver sin reemplazo asignado
-        ya_obsoleta = _fetch_one(
-            "SELECT id FROM obsolescencias WHERE netbook_id = :nid AND tiene_reemplazo = FALSE AND reemplazo_pendiente = FALSE",
-            {"nid": int(netbook_id)}
-        )
-
-        # Marcar la netbook como de_baja en el sistema
+        # Marcar la netbook como de_baja
         netbook.estado = "de_baja"
         db.session.commit()
 
@@ -147,21 +145,18 @@ def nueva():
             INSERT INTO obsolescencias
                 (netbook_id, motivo, observaciones, fecha_baja, registrado_por,
                  tiene_reemplazo, reemplazo_pendiente)
-            VALUES
-                (:nid, :motivo, :obs, :fecha, :user,
-                 FALSE, FALSE)
-        """, {
-            "nid": int(netbook_id),
-            "motivo": motivo,
-            "obs": observaciones or None,
-            "fecha": fecha_baja,
-            "user": current_user.id,
-        })
+            VALUES (%s, %s, %s, %s, %s, FALSE, FALSE)
+        """, (
+            int(netbook_id),
+            motivo,
+            observaciones or None,
+            fecha_baja,
+            current_user.id,
+        ))
 
         flash(f"Netbook N°{netbook.numero_interno} — serie {netbook.numero_serie} registrada como obsoleta.", "success")
         return redirect(url_for("obsolescencia.index"))
 
-    # GET — precarga carro si viene de query param
     carro_id = request.args.get("carro_id")
     netbooks_carro = []
     if carro_id:
@@ -215,21 +210,19 @@ def registrar_reemplazo(obs_id):
         FROM obsolescencias o
         JOIN netbooks n ON n.id = o.netbook_id
         LEFT JOIN carros c ON c.id = n.carro_id
-        WHERE o.id = :oid
-    """, {"oid": obs_id})
+        WHERE o.id = %s
+    """, (obs_id,))
 
     if not obs:
         flash("Registro no encontrado.", "danger")
         return redirect(url_for("obsolescencia.index"))
 
-    carros = Carro.query.filter(
-        Carro.estado == "activo"
-    ).order_by(Carro.numero_fisico).all()
+    carros = Carro.query.filter_by(estado="activo").order_by(Carro.numero_fisico).all()
 
     if request.method == "POST":
         reemplazo_serie = request.form.get("reemplazo_serie", "").strip()
         reemplazo_modelo = request.form.get("reemplazo_modelo", "").strip()
-        destino = request.form.get("destino")  # "carro" o "pendiente"
+        destino = request.form.get("destino")
         carro_destino_id = request.form.get("carro_destino_id")
         numero_interno_nuevo = request.form.get("numero_interno_nuevo", "").strip()
 
@@ -240,13 +233,11 @@ def registrar_reemplazo(obs_id):
         fecha_reemplazo = datetime.utcnow()
 
         if destino == "carro" and carro_destino_id:
-            # Crear la nueva netbook en el carro indicado
             carro_obj = Carro.query.get(int(carro_destino_id))
             if not carro_obj:
                 flash("Carro no encontrado.", "danger")
                 return render_template("obsolescencia/reemplazo.html", obs=obs, carros=carros)
 
-            # Validar serie duplicada
             existente_serie = Netbook.query.filter_by(numero_serie=reemplazo_serie).first()
             if existente_serie:
                 flash(f"El número de serie {reemplazo_serie} ya está registrado en el sistema.", "danger")
@@ -266,43 +257,42 @@ def registrar_reemplazo(obs_id):
                 UPDATE obsolescencias SET
                     tiene_reemplazo = TRUE,
                     reemplazo_pendiente = FALSE,
-                    reemplazo_serie = :serie,
-                    reemplazo_modelo = :modelo,
-                    reemplazo_carro_id = :carro_id,
-                    fecha_reemplazo = :fecha,
-                    reemplazo_registrado_por = :user
-                WHERE id = :oid
-            """, {
-                "serie": reemplazo_serie,
-                "modelo": reemplazo_modelo or None,
-                "carro_id": int(carro_destino_id),
-                "fecha": fecha_reemplazo,
-                "user": current_user.id,
-                "oid": obs_id,
-            })
+                    reemplazo_serie = %s,
+                    reemplazo_modelo = %s,
+                    reemplazo_carro_id = %s,
+                    fecha_reemplazo = %s,
+                    reemplazo_registrado_por = %s
+                WHERE id = %s
+            """, (
+                reemplazo_serie,
+                reemplazo_modelo or None,
+                int(carro_destino_id),
+                fecha_reemplazo,
+                current_user.id,
+                obs_id,
+            ))
 
             flash(f"Netbook nueva ({reemplazo_serie}) registrada y asignada al Carro {carro_obj.numero_fisico}.", "success")
 
         else:
-            # Dejar pendiente
             _execute("""
                 UPDATE obsolescencias SET
                     tiene_reemplazo = TRUE,
                     reemplazo_pendiente = TRUE,
-                    reemplazo_serie = :serie,
-                    reemplazo_modelo = :modelo,
-                    fecha_reemplazo = :fecha,
-                    reemplazo_registrado_por = :user
-                WHERE id = :oid
-            """, {
-                "serie": reemplazo_serie,
-                "modelo": reemplazo_modelo or None,
-                "fecha": fecha_reemplazo,
-                "user": current_user.id,
-                "oid": obs_id,
-            })
+                    reemplazo_serie = %s,
+                    reemplazo_modelo = %s,
+                    fecha_reemplazo = %s,
+                    reemplazo_registrado_por = %s
+                WHERE id = %s
+            """, (
+                reemplazo_serie,
+                reemplazo_modelo or None,
+                fecha_reemplazo,
+                current_user.id,
+                obs_id,
+            ))
 
-            flash(f"Reemplazo registrado como PENDIENTE DE ASIGNACIÓN. Aparecerá en Novedades del día.", "warning")
+            flash("Reemplazo registrado como PENDIENTE DE ASIGNACIÓN. Aparecerá en Novedades del día.", "warning")
 
         return redirect(url_for("obsolescencia.index"))
 
@@ -316,7 +306,7 @@ def registrar_reemplazo(obs_id):
 @obsolescencia_bp.route("/<int:obs_id>/asignar-carro", methods=["POST"])
 @login_required
 def asignar_carro(obs_id):
-    obs = _fetch_one("SELECT * FROM obsolescencias WHERE id = :oid", {"oid": obs_id})
+    obs = _fetch_one("SELECT * FROM obsolescencias WHERE id = %s", (obs_id,))
     if not obs or not obs["reemplazo_pendiente"]:
         flash("Registro no encontrado o ya asignado.", "danger")
         return redirect(url_for("obsolescencia.index"))
@@ -333,15 +323,13 @@ def asignar_carro(obs_id):
         flash("Carro no encontrado.", "danger")
         return redirect(url_for("obsolescencia.index"))
 
-    # Validar serie duplicada
     reemplazo_serie = obs["reemplazo_serie"]
     existente_serie = Netbook.query.filter_by(numero_serie=reemplazo_serie).first()
     if existente_serie:
         flash(f"El número de serie {reemplazo_serie} ya fue ingresado al sistema.", "danger")
         return redirect(url_for("obsolescencia.index"))
 
-    # Obtener datos del registro original
-    netbook_orig = _fetch_one("SELECT * FROM netbooks WHERE id = :nid", {"nid": obs["netbook_id"]})
+    netbook_orig = _fetch_one("SELECT * FROM netbooks WHERE id = %s", (obs["netbook_id"],))
 
     nueva_nb = Netbook(
         carro_id=int(carro_destino_id),
@@ -356,9 +344,9 @@ def asignar_carro(obs_id):
     _execute("""
         UPDATE obsolescencias SET
             reemplazo_pendiente = FALSE,
-            reemplazo_carro_id = :carro_id
-        WHERE id = :oid
-    """, {"carro_id": int(carro_destino_id), "oid": obs_id})
+            reemplazo_carro_id = %s
+        WHERE id = %s
+    """, (int(carro_destino_id), obs_id))
 
     flash(f"Netbook {reemplazo_serie} asignada al Carro {carro_obj.numero_fisico}. ✅", "success")
     return redirect(url_for("obsolescencia.index"))
