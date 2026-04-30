@@ -48,6 +48,7 @@
                 <th class="px-4 py-3 text-left">Apellido y Nombre</th>
                 <th class="px-4 py-3 text-left">DNI</th>
                 <th class="px-4 py-3 text-left">Materia</th>
+                <th class="px-4 py-3 text-left">Cargo</th>
                 <th class="px-4 py-3 text-left">Turno</th>
                 <th class="px-4 py-3 text-left">Correo</th>
                 <th class="px-4 py-3 text-center">Estado</th>
@@ -60,6 +61,11 @@
                 <td class="px-4 py-3 font-medium">{{ d.nombre_completo }}</td>
                 <td class="px-4 py-3 font-mono text-xs">{{ d.dni }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ d.materia or '—' }}</td>
+                <td class="px-4 py-3 text-gray-500">
+                    {% if d.cargo %}
+                    <span class="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">{{ d.cargo }}</span>
+                    {% else %}—{% endif %}
+                </td>
                 <td class="px-4 py-3 text-gray-500">{{ d.turno or '—' }}</td>
                 <td class="px-4 py-3 text-gray-400 text-xs">{{ d.correo or '—' }}</td>
                 <td class="px-4 py-3 text-center">
@@ -97,7 +103,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" class="px-4 py-8 text-center text-gray-400">
+                <td colspan="8" class="px-4 py-8 text-center text-gray-400">
                     No hay docentes registrados
                 </td>
             </tr>

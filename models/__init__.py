@@ -76,6 +76,7 @@ class Docente(db.Model):
     nombre   = db.Column(db.String(100), nullable=False)
     apellido = db.Column(db.String(100), nullable=False)
     materia  = db.Column(db.String(150))
+    cargo    = db.Column(db.String(150))
     correo   = db.Column(db.String(150))
     turno    = db.Column(db.String(50))
     activo   = db.Column(db.Boolean, default=True)

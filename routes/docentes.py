@@ -7,6 +7,13 @@ docentes_bp = Blueprint('docentes', __name__, url_prefix='/docentes')
 
 TURNOS = ['Mañana', 'Tarde', 'Noche', 'Mañana y Tarde', 'Tarde y Noche', 'Varios']
 
+CARGOS = [
+    'TC', 'TP1', 'TP2', 'TP3', 'TP4',
+    'MEP', 'ATTP', 'PRECEPTOR', 'HORAS CATEDRAS',
+    'SECRETARIO', 'VICERECTOR', 'RECTOR',
+    'REGENTE TÉCNICO', 'REGENTE DE CULTURA',
+]
+
 MOTIVOS_BAJA = [
     ('jubilacion', 'Jubilación (se elimina del sistema)'),
     ('renuncia',   'Renuncia'),
@@ -53,6 +60,7 @@ def nuevo():
             nombre   = request.form.get('nombre', '').strip(),
             apellido = request.form.get('apellido', '').strip(),
             materia  = request.form.get('materia', '').strip(),
+            cargo    = request.form.get('cargo', '').strip(),
             correo   = request.form.get('correo', '').strip(),
             turno    = request.form.get('turno', '').strip(),
         )
@@ -62,7 +70,7 @@ def nuevo():
         return redirect(url_for('docentes.index'))
 
     return render_template('docentes/form.html',
-                           docente=None, turnos=TURNOS, materias=_get_materias_activas())
+                           docente=None, turnos=TURNOS, cargos=CARGOS, materias=_get_materias_activas())
 
 
 @docentes_bp.route('/<int:id>/editar', methods=['GET', 'POST'])
@@ -74,6 +82,7 @@ def editar(id):
         docente.nombre   = request.form.get('nombre', '').strip()
         docente.apellido = request.form.get('apellido', '').strip()
         docente.materia  = request.form.get('materia', '').strip()
+        docente.cargo    = request.form.get('cargo', '').strip()
         docente.correo   = request.form.get('correo', '').strip()
         docente.turno    = request.form.get('turno', '').strip()
         db.session.commit()
@@ -81,7 +90,7 @@ def editar(id):
         return redirect(url_for('docentes.index'))
 
     return render_template('docentes/form.html',
-                           docente=docente, turnos=TURNOS, materias=_get_materias_activas())
+                           docente=docente, turnos=TURNOS, cargos=CARGOS, materias=_get_materias_activas())
 
 
 @docentes_bp.route('/<int:id>/baja', methods=['GET', 'POST'])
