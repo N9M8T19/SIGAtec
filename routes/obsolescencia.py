@@ -17,12 +17,7 @@ ARG_OFFSET = timedelta(hours=-3)
 obsolescencia_bp = Blueprint("obsolescencia", __name__, url_prefix="/obsolescencia")
 
 
-def _now_arg():
-    return datetime.utcnow() + ARG_OFFSET
-
-
 def _get_conn():
-    """Conexión psycopg2 directa — compatible con SQLAlchemy 1.4 en Render."""
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
 
@@ -62,7 +57,7 @@ def _execute(sql, params=None):
 
 
 # ─────────────────────────────────────────────
-# INDEX — listado de obsolescencias
+# INDEX
 # ─────────────────────────────────────────────
 
 @obsolescencia_bp.route("/")
@@ -75,7 +70,7 @@ def index():
                o.tiene_reemplazo, o.reemplazo_serie, o.reemplazo_modelo,
                o.reemplazo_pendiente, o.fecha_reemplazo,
                o.reemplazo_carro_id,
-               n.numero_serie, n.numero_interno, n.modelo,
+               n.numero_serie, n.numero_interno,
                c.numero_fisico AS carro_numero,
                u1.username AS registrado_por,
                u2.username AS reemplazo_registrado_por,
@@ -135,11 +130,8 @@ def nueva():
             flash("Netbook no encontrada.", "danger")
             return redirect(url_for("obsolescencia.index"))
 
-        # Marcar la netbook como de_baja
         netbook.estado = "de_baja"
         db.session.commit()
-
-        fecha_baja = datetime.utcnow()
 
         _execute("""
             INSERT INTO obsolescencias
@@ -150,7 +142,7 @@ def nueva():
             int(netbook_id),
             motivo,
             observaciones or None,
-            fecha_baja,
+            datetime.utcnow(),
             current_user.id,
         ))
 
@@ -188,7 +180,6 @@ def netbooks_de_carro(carro_id):
             "id": n.id,
             "numero_interno": n.numero_interno,
             "numero_serie": n.numero_serie,
-            "modelo": n.modelo or "",
             "estado": n.estado,
         }
         for n in netbooks
@@ -205,8 +196,7 @@ def netbooks_de_carro(carro_id):
 def registrar_reemplazo(obs_id):
     obs = _fetch_one("""
         SELECT o.*, n.numero_serie AS nb_serie, n.numero_interno AS nb_interno,
-               n.modelo AS nb_modelo, c.numero_fisico AS carro_numero,
-               n.carro_id AS nb_carro_id
+               c.numero_fisico AS carro_numero, n.carro_id AS nb_carro_id
         FROM obsolescencias o
         JOIN netbooks n ON n.id = o.netbook_id
         LEFT JOIN carros c ON c.id = n.carro_id
@@ -247,7 +237,6 @@ def registrar_reemplazo(obs_id):
                 carro_id=int(carro_destino_id),
                 numero_serie=reemplazo_serie,
                 numero_interno=numero_interno_nuevo or obs["nb_interno"],
-                modelo=reemplazo_modelo or obs["nb_modelo"],
                 estado="activo",
             )
             db.session.add(nueva_nb)
@@ -263,14 +252,8 @@ def registrar_reemplazo(obs_id):
                     fecha_reemplazo = %s,
                     reemplazo_registrado_por = %s
                 WHERE id = %s
-            """, (
-                reemplazo_serie,
-                reemplazo_modelo or None,
-                int(carro_destino_id),
-                fecha_reemplazo,
-                current_user.id,
-                obs_id,
-            ))
+            """, (reemplazo_serie, reemplazo_modelo or None,
+                  int(carro_destino_id), fecha_reemplazo, current_user.id, obs_id))
 
             flash(f"Netbook nueva ({reemplazo_serie}) registrada y asignada al Carro {carro_obj.numero_fisico}.", "success")
 
@@ -284,13 +267,8 @@ def registrar_reemplazo(obs_id):
                     fecha_reemplazo = %s,
                     reemplazo_registrado_por = %s
                 WHERE id = %s
-            """, (
-                reemplazo_serie,
-                reemplazo_modelo or None,
-                fecha_reemplazo,
-                current_user.id,
-                obs_id,
-            ))
+            """, (reemplazo_serie, reemplazo_modelo or None,
+                  fecha_reemplazo, current_user.id, obs_id))
 
             flash("Reemplazo registrado como PENDIENTE DE ASIGNACIÓN. Aparecerá en Novedades del día.", "warning")
 
@@ -335,7 +313,6 @@ def asignar_carro(obs_id):
         carro_id=int(carro_destino_id),
         numero_serie=reemplazo_serie,
         numero_interno=numero_interno_nuevo or (netbook_orig["numero_interno"] if netbook_orig else ""),
-        modelo=obs["reemplazo_modelo"] or (netbook_orig["modelo"] if netbook_orig else ""),
         estado="activo",
     )
     db.session.add(nueva_nb)
