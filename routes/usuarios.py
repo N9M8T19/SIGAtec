@@ -47,12 +47,20 @@ def nuevo():
             activo            = True,
             codigo_credencial = Usuario.generar_codigo()
         )
+        # Secciones habilitadas (solo aplica si el rol es Encargado)
+        secciones = request.form.getlist('secciones')
+        usuario.set_secciones(secciones)
+
         db.session.add(usuario)
         db.session.commit()
         flash(f'Usuario {usuario.nombre_completo} creado correctamente.', 'success')
         return redirect(url_for('usuarios.index'))
 
-    return render_template('usuarios/form.html', usuario=None)
+    from models.config_sistema import SECCIONES_DISPONIBLES
+    return render_template('usuarios/form.html',
+                           usuario=None,
+                           secciones_disponibles=SECCIONES_DISPONIBLES,
+                           secciones_habilitadas=[])
 
 
 @usuarios_bp.route('/<int:id>/editar', methods=['GET', 'POST'])
@@ -90,11 +98,20 @@ def editar(id):
         if nuevo_username:
             usuario.username = nuevo_username
 
+        # Secciones habilitadas (solo aplica si el rol es Encargado)
+        secciones = request.form.getlist('secciones')
+        usuario.set_secciones(secciones)
+
         db.session.commit()
         flash(f'Usuario {usuario.nombre_completo} actualizado correctamente.', 'success')
         return redirect(url_for('usuarios.index'))
 
-    return render_template('usuarios/form.html', usuario=usuario)
+    from models.config_sistema import SECCIONES_DISPONIBLES
+    secciones_habilitadas = usuario.get_secciones() if usuario else []
+    return render_template('usuarios/form.html',
+                           usuario=usuario,
+                           secciones_disponibles=SECCIONES_DISPONIBLES,
+                           secciones_habilitadas=secciones_habilitadas)
 
 
 @usuarios_bp.route('/mi-perfil', methods=['GET', 'POST'])

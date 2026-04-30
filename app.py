@@ -59,15 +59,22 @@ def create_app():
     def inject_secciones_encargado():
         """
         Inyecta 'secciones_enc' en todos los templates.
-        - Para Encargado: lista de claves de secciones habilitadas (desde ConfigSistema)
-        - Para otros roles: lista vacía (no se usa — siempre tienen acceso completo)
+        - Para Encargado: lista de claves de secciones habilitadas para ESE usuario.
+          Si el usuario no tiene secciones configuradas individualmente, usa los
+          defaults de ConfigSistema (todas habilitadas).
+        - Para Directivo/Administrador: lista vacía (no se usa, siempre ven todo).
         """
         from flask_login import current_user
         try:
             if current_user.is_authenticated and current_user.rol == 'Encargado':
-                from models import ConfigSistema
-                cfg = ConfigSistema.obtener()
-                return {'secciones_enc': cfg.get_secciones_encargado()}
+                secciones = current_user.get_secciones()
+                if not secciones:
+                    # Sin config individual → usar defaults de ConfigSistema
+                    from models import ConfigSistema
+                    from models.config_sistema import SECCIONES_DEFAULT
+                    cfg = ConfigSistema.obtener()
+                    secciones = cfg.get_secciones_encargado() or list(SECCIONES_DEFAULT)
+                return {'secciones_enc': secciones}
         except Exception:
             pass
         return {'secciones_enc': []}

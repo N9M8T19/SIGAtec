@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+import json
 
 import random
 import string
@@ -31,6 +32,7 @@ class Usuario(UserMixin, db.Model):
     rol               = db.Column(db.String(30), default='Encargado')
     activo            = db.Column(db.Boolean, default=True)
     created_at        = db.Column(db.DateTime, default=datetime.utcnow)
+    secciones_json    = db.Column(db.Text, default='[]')   # secciones extra habilitadas para Encargado
 
     ROLES = ['Encargado', 'Directivo', 'Administrador']
 
@@ -53,6 +55,21 @@ class Usuario(UserMixin, db.Model):
     def tiene_permiso(self, permiso):
         permisos = self.PERMISOS.get(self.rol, [])
         return permiso in permisos or 'todo' in permisos
+
+    def get_secciones(self):
+        """
+        Devuelve la lista de claves de secciones extra habilitadas para este usuario.
+        Solo relevante cuando rol == 'Encargado'.
+        Lista vacía significa que usa los defaults de ConfigSistema (todas habilitadas).
+        """
+        try:
+            data = json.loads(self.secciones_json or '[]')
+            return data if isinstance(data, list) else []
+        except Exception:
+            return []
+
+    def set_secciones(self, lista):
+        self.secciones_json = json.dumps(lista, ensure_ascii=False)
 
     @staticmethod
     def generar_codigo():

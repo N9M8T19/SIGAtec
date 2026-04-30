@@ -1,5 +1,45 @@
 {% extends 'base.html' %}
-{% block title %}{{ 'Nuevo' if not usuario else 'Editar' }} Usuario — SIGA-Tec{% endblock %}
+{% block title %}{{ 'Nuevo' if not usuario else 'Editar' }} Usuario — SIGA-Tec{% block scripts %}
+<script>
+    const rolSelect = document.querySelector('select[name="rol"]');
+    const bloqueSecciones = document.getElementById('bloque-secciones');
+
+    function actualizarBloqueSecciones() {
+        if (rolSelect.value === 'Encargado') {
+            bloqueSecciones.style.display = 'block';
+        } else {
+            bloqueSecciones.style.display = 'none';
+            // Desmarcar todos al cambiar a otro rol
+            document.querySelectorAll('input[name="secciones"]').forEach(cb => {
+                cb.checked = false;
+                toggleSecLabel(cb);
+            });
+        }
+    }
+
+    function toggleSecLabel(checkbox) {
+        const label = checkbox.closest('label');
+        if (checkbox.checked) {
+            label.style.borderColor = 'var(--azul-medio)';
+            label.style.backgroundColor = '#eff6ff';
+        } else {
+            label.style.borderColor = '#e5e7eb';
+            label.style.backgroundColor = '#fff';
+        }
+    }
+
+    function marcarTodos(estado) {
+        document.querySelectorAll('input[name="secciones"]').forEach(cb => {
+            cb.checked = estado;
+            toggleSecLabel(cb);
+        });
+    }
+
+    rolSelect.addEventListener('change', actualizarBloqueSecciones);
+    // Inicializar al cargar la página
+    actualizarBloqueSecciones();
+</script>
+{% endblock %}
 {% block header %}{{ 'Nuevo Usuario' if not usuario else 'Editar: ' + usuario.nombre_completo }}{% endblock %}
 
 {% block content %}
@@ -95,6 +135,54 @@
                     <option value="{{ rol }}" {% if usuario and usuario.rol == rol %}selected{% endif %}>{{ rol }}</option>
                     {% endfor %}
                 </select>
+            </div>
+
+
+            {# ── Secciones habilitadas (solo visible y editable cuando rol = Encargado) ── #}
+            <div id="bloque-secciones" class="mb-6" style="display:none">
+                <div class="border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="px-4 py-3 flex items-center justify-between"
+                         style="background-color: var(--azul-oscuro)">
+                        <div class="text-white text-sm font-semibold">
+                            <i class="fas fa-user-shield mr-2"></i>Secciones habilitadas para este Encargado
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="marcarTodos(true)"
+                                    class="text-xs px-3 py-1 rounded text-white border border-white/30 hover:bg-white/10">
+                                Habilitar todas
+                            </button>
+                            <button type="button" onclick="marcarTodos(false)"
+                                    class="text-xs px-3 py-1 rounded text-white border border-white/30 hover:bg-white/10">
+                                Deshabilitar todas
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-gray-50">
+                        <p class="text-xs text-gray-500 mb-3">
+                            <i class="fas fa-info-circle mr-1 text-blue-400"></i>
+                            Si no seleccionás ninguna, el encargado verá las secciones habilitadas globalmente en Config. Sistema.
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {% for clave, label, descripcion in secciones_disponibles %}
+                            <label class="flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer transition-all"
+                                   id="label-sec-{{ clave }}"
+                                   style="{% if clave in secciones_habilitadas %}border-color: var(--azul-medio); background-color: #eff6ff;{% else %}border-color: #e5e7eb; background-color: #fff;{% endif %}">
+                                <input type="checkbox"
+                                       name="secciones"
+                                       value="{{ clave }}"
+                                       {% if clave in secciones_habilitadas %}checked{% endif %}
+                                       class="mt-0.5 w-4 h-4 flex-shrink-0"
+                                       style="accent-color: var(--azul-oscuro)"
+                                       onchange="toggleSecLabel(this)">
+                                <div>
+                                    <div class="text-xs font-semibold text-gray-800">{{ label }}</div>
+                                    <div class="text-xs text-gray-400">{{ descripcion }}</div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {# ── Botones ── #}
