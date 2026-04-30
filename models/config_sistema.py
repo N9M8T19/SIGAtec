@@ -13,7 +13,7 @@ import sys
 # ── Secciones del sistema que se pueden habilitar/deshabilitar para el Encargado ──
 SECCIONES_DISPONIBLES = [
     # (clave, label, descripción)
-    ('mensajeria',          'Mensajería',             'Chat interno entre el equipo'),
+    # ── Inventario ────────────────────────────────────────────────────────────
     ('carros',              'Carros',                 'ABM de carros de netbooks'),
     ('servicio_tecnico',    'Servicio Técnico',       'Pantalla de netbooks y carros en servicio'),
     ('tickets_ba',          'Tickets BA Colaborativa','Gestión de reclamos BA'),
@@ -24,13 +24,28 @@ SECCIONES_DISPONIBLES = [
     ('tvs',                 'Televisores',            'ABM y préstamos de televisores'),
     ('obsolescencia',       'Obsolescencia',          'Registro de netbooks obsoletas y reemplazos'),
     ('transferencias',      'Transferir Netbooks',    'Mover netbooks entre carros'),
+    ('asignaciones',        'Asignaciones Internas',  'Netbooks asignadas a docentes o áreas'),
+    # ── Préstamos ─────────────────────────────────────────────────────────────
     ('prestamos_carros',    'Préstamos Carros',       'Retiro y devolución de llaves'),
     ('espacio_digital',     'Espacio Digital',        'Préstamo de netbooks individuales'),
     ('prestamos_tvs',       'Préstamos Televisores',  'Préstamos activos de TVs'),
     ('historial',           'Historial',              'Historial completo de préstamos'),
+    # ── Personas ──────────────────────────────────────────────────────────────
     ('docentes',            'Docentes',               'ABM de docentes'),
     ('alumnos',             'Alumnos',                'Listado y asignación de alumnos'),
+    ('usuarios',            'Usuarios',               'ABM de usuarios del sistema'),
+    # ── Reportes ──────────────────────────────────────────────────────────────
+    ('estadisticas',        'Estadísticas',           'Estadísticas de préstamos (solo Admin/Directivo por defecto)'),
     ('etiquetas',           'Etiquetas',              'Generación de etiquetas adhesivas'),
+    # ── Comunicación ──────────────────────────────────────────────────────────
+    ('mensajeria',          'Mensajería',             'Chat interno entre el equipo'),
+    # ── Sistema ───────────────────────────────────────────────────────────────
+    ('sesiones',            'Sesiones',               'Historial de sesiones de encargados'),
+    ('importar',            'Importar Drive',         'Importación de datos desde Google Drive'),
+    ('notificaciones',      'Notificaciones',         'Configuración de alertas por mail'),
+    ('backups',             'Backups',                'Descarga de backups de la base de datos'),
+    ('mantenimiento',       'Mantenimiento',          'Administración del historial de préstamos'),
+    ('config_sistema',      'Config. Sistema',        'Configuración general del sistema'),
 ]
 
 # Secciones habilitadas por defecto para el Encargado (todas)

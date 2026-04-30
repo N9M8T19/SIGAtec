@@ -231,7 +231,7 @@
                 <i class="fas fa-layer-group w-5"></i> Stock Masivo
             </a>
             {% endif %}
-            {% if current_user.rol in ('Directivo', 'Administrador') %}
+            {% if current_user.rol in ('Directivo', 'Administrador') or 'asignaciones' in secciones_enc %}
             <a href="{{ url_for('asignaciones.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint and 'asignaciones' in request.endpoint %}active{% endif %}">
@@ -477,7 +477,7 @@
         <a href="{{ url_for('impresoras3d.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'impresoras3d' in request.endpoint %}active{% endif %}"><i class="fas fa-cube w-5"></i> Impresoras 3D</a>
         <a href="{{ url_for('stock.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'stock' in request.endpoint and 'masivo' not in request.endpoint %}active{% endif %}"><i class="fas fa-clipboard-check w-5"></i> Control de Stock</a>
         <a href="{{ url_for('stock.control_masivo') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'masivo' in request.endpoint %}active{% endif %}"><i class="fas fa-layer-group w-5"></i> Stock Masivo</a>
-        {% if current_user.rol in ('Directivo', 'Administrador') %}
+        {% if current_user.rol in ('Directivo', 'Administrador') or 'asignaciones' in secciones_enc %}
         <a href="{{ url_for('asignaciones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'asignaciones' in request.endpoint %}active{% endif %}"><i class="fas fa-user-tag w-5"></i> Asignaciones Internas</a>
         {% endif %}
         <a href="{{ url_for('tvs.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'tvs' in request.endpoint %}active{% endif %}"><i class="fas fa-tv w-5"></i> Televisores</a>
@@ -494,27 +494,27 @@
         <a href="{{ url_for('docentes.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'docentes' in request.endpoint %}active{% endif %}"><i class="fas fa-chalkboard-teacher w-5"></i> Docentes</a>
         <a href="{{ url_for('alumnos.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'alumnos' in request.endpoint %}active{% endif %}"><i class="fas fa-user-graduate w-5"></i> Alumnos</a>
         <a href="{{ url_for('etiquetas.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'etiquetas' in request.endpoint %}active{% endif %}"><i class="fas fa-tag w-5"></i> Etiquetas</a>
-        {% if current_user.tiene_permiso('estadisticas') %}
-        <a href="{{ url_for('usuarios.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'usuarios' in request.endpoint %}active{% endif %}"><i class="fas fa-users w-5"></i> Usuarios</a>
+        {% if current_user.tiene_permiso('estadisticas') or 'usuarios' in secciones_enc %}
+        {% if current_user.tiene_permiso('estadisticas') or 'usuarios' in secciones_enc %}<a href="{{ url_for('usuarios.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'usuarios' in request.endpoint %}active{% endif %}"><i class="fas fa-users w-5"></i> Usuarios</a>{% endif %}
         {% endif %}
         {% if current_user.tiene_permiso('reportes') %}
         <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Reportes</p>
         <a href="{{ url_for('reportes.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'reportes.index' %}active{% endif %}"><i class="fas fa-chart-bar w-5"></i> Reportes</a>
         {% endif %}
-        {% if current_user.tiene_permiso('estadisticas') %}
+        {% if current_user.tiene_permiso('estadisticas') or 'estadisticas' in secciones_enc %}
         {% if not current_user.tiene_permiso('reportes') %}<p class="sidebar-section pt-3 pb-1 px-3 uppercase">Reportes</p>{% endif %}
         <a href="{{ url_for('main.estadisticas') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.estadisticas' %}active{% endif %}"><i class="fas fa-chart-pie w-5"></i> Estadísticas</a>
         {% endif %}
         <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Sistema</p>
-        {% if current_user.tiene_permiso('configuracion') %}<a href="{{ url_for('main.config_sistema') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.config_sistema' %}active{% endif %}"><i class="fas fa-sliders-h w-5"></i> Config. Sistema</a>{% endif %}
+        {% if current_user.tiene_permiso('configuracion') or 'config_sistema' in secciones_enc %}<a href="{{ url_for('main.config_sistema') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.config_sistema' %}active{% endif %}"><i class="fas fa-sliders-h w-5"></i> Config. Sistema</a>{% endif %}
         <a href="{{ url_for('main.config_espacio_digital') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'main.config_espacio_digital' %}active{% endif %}"><i class="fas fa-cog w-5"></i> Config. Espacio Digital</a>
         {% if current_user.tiene_permiso('configuracion') %}
-        <a href="{{ url_for('importar.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'importar' in request.endpoint and 'horarios' not in request.endpoint %}active{% endif %}"><i class="fab fa-google-drive w-5"></i> Importar Drive</a>
+        {% if current_user.tiene_permiso('configuracion') or 'importar' in secciones_enc %}<a href="{{ url_for('importar.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'importar' in request.endpoint and 'horarios' not in request.endpoint %}active{% endif %}"><i class="fab fa-google-drive w-5"></i> Importar Drive</a>{% endif %}
         <a href="{{ url_for('importar.horarios_docentes') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint and 'horarios_docentes' in request.endpoint %}active{% endif %}"><i class="fas fa-calendar-alt w-5"></i> Horarios Docentes</a>
-        <a href="{{ url_for('notificaciones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'notificaciones' in request.endpoint %}active{% endif %}"><i class="fas fa-bell w-5"></i> Notificaciones</a>
-        <a href="{{ url_for('notificaciones.backup_index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'notificaciones.backup_index' %}active{% endif %}"><i class="fas fa-database w-5"></i> Backups</a>
-        <a href="{{ url_for('sesiones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'sesiones' in request.endpoint %}active{% endif %}"><i class="fas fa-user-clock w-5"></i> Sesiones</a>
-        <a href="{{ url_for('mantenimiento.limpiar_pruebas') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'mantenimiento' in request.endpoint %}active{% endif %}"><i class="fas fa-broom w-5"></i> Administrar Historial</a>
+        {% if current_user.tiene_permiso('configuracion') or 'notificaciones' in secciones_enc %}<a href="{{ url_for('notificaciones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'notificaciones' in request.endpoint %}active{% endif %}"><i class="fas fa-bell w-5"></i> Notificaciones</a>{% endif %}
+        {% if current_user.tiene_permiso('configuracion') or 'backups' in secciones_enc %}<a href="{{ url_for('notificaciones.backup_index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'notificaciones.backup_index' %}active{% endif %}"><i class="fas fa-database w-5"></i> Backups</a>{% endif %}
+        {% if current_user.tiene_permiso('configuracion') or 'sesiones' in secciones_enc %}<a href="{{ url_for('sesiones.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'sesiones' in request.endpoint %}active{% endif %}"><i class="fas fa-user-clock w-5"></i> Sesiones</a>{% endif %}
+        {% if current_user.tiene_permiso('configuracion') or 'mantenimiento' in secciones_enc %}<a href="{{ url_for('mantenimiento.limpiar_pruebas') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm {% if 'mantenimiento' in request.endpoint %}active{% endif %}"><i class="fas fa-broom w-5"></i> Administrar Historial</a>{% endif %}
         {% endif %}
     </nav>
     <div class="p-3 border-t border-white/10 space-y-0.5">
