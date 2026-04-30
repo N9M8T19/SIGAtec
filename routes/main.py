@@ -522,6 +522,7 @@ def config_sistema():
         return redirect(url_for('main.dashboard'))
 
     from models_extra.horarios_notificaciones import MATERIAS, MODULOS
+    from models.config_sistema import SECCIONES_DISPONIBLES
     import json
 
     # Leer configuración persistida (guardada en la tabla ConfigSistema si existe,
@@ -532,6 +533,17 @@ def config_sistema():
 
     if request.method == 'POST':
         accion = request.form.get('accion')
+
+        # ── 0. Guardar secciones del Encargado ──────────────────────────────
+        if accion == 'guardar_secciones':
+            claves_validas = {s[0] for s in SECCIONES_DISPONIBLES}
+            habilitadas = [
+                clave for clave in request.form.getlist('secciones')
+                if clave in claves_validas
+            ]
+            cfg.set_secciones_encargado(habilitadas)
+            flash(f'Secciones del Encargado actualizadas ({len(habilitadas)} habilitadas).', 'success')
+            return redirect(url_for('main.config_sistema'))
 
         # ── 1. Guardar materias / cargos ────────────────────────────────────
         if accion == 'guardar_materias':
@@ -571,6 +583,7 @@ def config_sistema():
     # GET — preparar datos para el template
     materias_actuales = cfg.get_materias() or MATERIAS
     modulos_actuales  = cfg.get_modulos()  or MODULOS
+    secciones_habilitadas = cfg.get_secciones_encargado()
 
     # Defaults de mail si no están configurados
     mail_retiro_carro     = cfg.mail_retiro_carro     or _mail_default_retiro_carro()
@@ -586,6 +599,8 @@ def config_sistema():
         mail_devolucion_carro=mail_devolucion_carro,
         mail_retiro_nb=mail_retiro_nb,
         mail_devolucion_nb=mail_devolucion_nb,
+        secciones_disponibles=SECCIONES_DISPONIBLES,
+        secciones_habilitadas=secciones_habilitadas,
     )
 
 

@@ -22,6 +22,11 @@
                 class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors">
             <i class="fas fa-envelope mr-2"></i>Templates de Mail
         </button>
+        <button onclick="mostrarSolapa('encargado')"
+                id="tab-encargado"
+                class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors">
+            <i class="fas fa-user-shield mr-2"></i>Secciones del Encargado
+        </button>
     </div>
 
     {# ═══════════════════════════════════════════════════════════════════════
@@ -285,6 +290,65 @@
         </div>
     </div>
 
+    {# ═══════════════════════════════════════════════════════════════════════
+       SOLAPA 4 — SECCIONES DEL ENCARGADO
+    ══════════════════════════════════════════════════════════════════════════ #}
+    <div id="panel-encargado" class="panel-solapa hidden">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-bold uppercase mb-1" style="color:var(--azul-oscuro)">
+                Secciones del Encargado
+            </h2>
+            <p class="text-sm text-gray-500 mb-5">
+                Elegí qué secciones del sistema puede ver y usar el rol <strong>Encargado</strong>.
+                Los roles <strong>Directivo</strong> y <strong>Administrador</strong> siempre tienen acceso completo.
+            </p>
+
+            <form method="POST">
+                <input type="hidden" name="accion" value="guardar_secciones">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                    {% for clave, label, descripcion in secciones_disponibles %}
+                    <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
+                           id="label-{{ clave }}"
+                           style="{% if clave in secciones_habilitadas %}border-color: var(--azul-medio); background-color: #eff6ff;{% else %}border-color: #e5e7eb; background-color: #f9fafb; opacity: 0.7;{% endif %}">
+                        <input type="checkbox"
+                               name="secciones"
+                               value="{{ clave }}"
+                               {% if clave in secciones_habilitadas %}checked{% endif %}
+                               class="mt-0.5 w-4 h-4 flex-shrink-0"
+                               style="accent-color: var(--azul-oscuro)"
+                               onchange="toggleLabel(this)">
+                        <div>
+                            <div class="text-sm font-semibold text-gray-800">{{ label }}</div>
+                            <div class="text-xs text-gray-500 mt-0.5">{{ descripcion }}</div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+
+                <div class="flex gap-3 items-center flex-wrap">
+                    <button type="submit"
+                            class="px-6 py-2 rounded-lg text-white text-sm font-semibold transition-colors"
+                            style="background-color:var(--azul-oscuro)"
+                            onmouseover="this.style.backgroundColor='var(--azul-hover)'"
+                            onmouseout="this.style.backgroundColor='var(--azul-oscuro)'">
+                        <i class="fas fa-save mr-2"></i>Guardar Secciones
+                    </button>
+                    <button type="button"
+                            onclick="marcarTodos(true)"
+                            class="px-4 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 hover:bg-gray-50">
+                        <i class="fas fa-check-double mr-1"></i>Habilitar todas
+                    </button>
+                    <button type="button"
+                            onclick="marcarTodos(false)"
+                            class="px-4 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 hover:bg-gray-50">
+                        <i class="fas fa-ban mr-1"></i>Deshabilitar todas
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
@@ -317,5 +381,27 @@
     // Restaurar solapa activa o abrir la primera
     const tabGuardada = localStorage.getItem('config-sistema-tab') || 'materias';
     mostrarSolapa(tabGuardada);
+
+    // Cambia el estilo visual del label al marcar/desmarcar
+    function toggleLabel(checkbox) {
+        const label = checkbox.closest('label');
+        if (checkbox.checked) {
+            label.style.borderColor = 'var(--azul-medio)';
+            label.style.backgroundColor = '#eff6ff';
+            label.style.opacity = '1';
+        } else {
+            label.style.borderColor = '#e5e7eb';
+            label.style.backgroundColor = '#f9fafb';
+            label.style.opacity = '0.7';
+        }
+    }
+
+    // Habilitar o deshabilitar todas las secciones
+    function marcarTodos(estado) {
+        document.querySelectorAll('input[name="secciones"]').forEach(cb => {
+            cb.checked = estado;
+            toggleLabel(cb);
+        });
+    }
 </script>
 {% endblock %}

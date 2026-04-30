@@ -168,6 +168,7 @@
                 <i class="fas fa-tachometer-alt w-5"></i> Dashboard
             </a>
 
+            {% if current_user.rol != 'Encargado' or 'mensajeria' in secciones_enc %}
             <a href="{{ url_for('mensajeria.index') }}"
                class="sidebar-link flex items-center justify-between px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint and 'mensajeria' in request.endpoint %}active{% endif %}">
@@ -178,43 +179,58 @@
                       class="hidden text-xs font-bold bg-red-500 text-white rounded-full
                              px-1.5 py-0.5 min-w-[1.25rem] text-center"></span>
             </a>
+            {% endif %}
 
             <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Inventario</p>
+            {% if current_user.rol != 'Encargado' or 'carros' in secciones_enc %}
             <a href="{{ url_for('carros.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if 'carros' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-box w-5"></i> Carros
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'servicio_tecnico' in secciones_enc %}
             <a href="{{ url_for('netbooks.servicio_tecnico') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint == 'netbooks.servicio_tecnico' %}active{% endif %}">
                 <i class="fas fa-laptop w-5"></i> Servicio Técnico
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'tickets_ba' in secciones_enc %}
             <a href="{{ url_for('tickets_ba.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if 'tickets_ba' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-ticket-alt w-5"></i> Tickets BA Colaborativa
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'pantallas' in secciones_enc %}
             <a href="{{ url_for('pantallas.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if 'pantallas' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-tv w-5"></i> Pantallas Digitales
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'impresoras3d' in secciones_enc %}
             <a href="{{ url_for('impresoras3d.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if 'impresoras3d' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-cube w-5"></i> Impresoras 3D
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'stock' in secciones_enc %}
             <a href="{{ url_for('stock.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint and 'stock' in request.endpoint and 'masivo' not in request.endpoint %}active{% endif %}">
                 <i class="fas fa-clipboard-check w-5"></i> Control de Stock
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'stock_masivo' in secciones_enc %}
             <a href="{{ url_for('stock.control_masivo') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint and 'masivo' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-layer-group w-5"></i> Stock Masivo
             </a>
+            {% endif %}
             {% if current_user.rol in ('Directivo', 'Administrador') %}
             <a href="{{ url_for('asignaciones.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
@@ -222,16 +238,20 @@
                 <i class="fas fa-user-tag w-5"></i> Asignaciones Internas
             </a>
             {% endif %}
+            {% if current_user.rol != 'Encargado' or 'tvs' in secciones_enc %}
             <a href="{{ url_for('tvs.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint and 'tvs' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-tv w-5"></i> Televisores
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'obsolescencia' in secciones_enc %}
             <a href="{{ url_for('obsolescencia.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint and 'obsolescencia' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-recycle w-5"></i> Obsolescencia
             </a>
+            {% endif %}
             {% if current_user.tiene_permiso('configuracion') or current_user.rol == 'Encargado' %}
             <a href="{{ url_for('transferencias.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
@@ -241,43 +261,57 @@
             {% endif %}
 
             <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Préstamos</p>
+            {% if current_user.rol != 'Encargado' or 'prestamos_carros' in secciones_enc %}
             <a href="{{ url_for('prestamos.carros') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint == 'prestamos.carros' %}active{% endif %}">
                 <i class="fas fa-key w-5"></i> Préstamos Carros
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'espacio_digital' in secciones_enc %}
             <a href="{{ url_for('prestamos.espacio_digital') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint == 'prestamos.espacio_digital' %}active{% endif %}">
                 <i class="fas fa-desktop w-5"></i> Espacio Digital
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'prestamos_tvs' in secciones_enc %}
             <a href="{{ url_for('tvs.prestamos_activos') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint == 'tvs.prestamos_activos' %}active{% endif %}">
                 <i class="fas fa-tv w-5"></i> Televisores
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'historial' in secciones_enc %}
             <a href="{{ url_for('prestamos.historial') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if request.endpoint == 'prestamos.historial' %}active{% endif %}">
                 <i class="fas fa-history w-5"></i> Historial
             </a>
+            {% endif %}
 
             <p class="sidebar-section pt-3 pb-1 px-3 uppercase">Personas</p>
+            {% if current_user.rol != 'Encargado' or 'docentes' in secciones_enc %}
             <a href="{{ url_for('docentes.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if 'docentes' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-chalkboard-teacher w-5"></i> Docentes
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'alumnos' in secciones_enc %}
             <a href="{{ url_for('alumnos.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if 'alumnos' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-user-graduate w-5"></i> Alumnos
             </a>
+            {% endif %}
+            {% if current_user.rol != 'Encargado' or 'etiquetas' in secciones_enc %}
             <a href="{{ url_for('etiquetas.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       {% if 'etiquetas' in request.endpoint %}active{% endif %}">
                 <i class="fas fa-tag w-5"></i> Etiquetas
             </a>
+            {% endif %}
             {% if current_user.tiene_permiso('estadisticas') %}
             <a href="{{ url_for('usuarios.index') }}"
                class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm

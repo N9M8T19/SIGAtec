@@ -54,6 +54,24 @@ def create_app():
     # Hacer utc_a_arg disponible en templates
     app.jinja_env.globals['utc_a_arg'] = utc_a_arg
 
+    # ── Context processor: secciones habilitadas para el Encargado ───────────
+    @app.context_processor
+    def inject_secciones_encargado():
+        """
+        Inyecta 'secciones_enc' en todos los templates.
+        - Para Encargado: lista de claves de secciones habilitadas (desde ConfigSistema)
+        - Para otros roles: lista vacía (no se usa — siempre tienen acceso completo)
+        """
+        from flask_login import current_user
+        try:
+            if current_user.is_authenticated and current_user.rol == 'Encargado':
+                from models import ConfigSistema
+                cfg = ConfigSistema.obtener()
+                return {'secciones_enc': cfg.get_secciones_encargado()}
+        except Exception:
+            pass
+        return {'secciones_enc': []}
+
     from services.mail import init_mail
     init_mail(app)
 
