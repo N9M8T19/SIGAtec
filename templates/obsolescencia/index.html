@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}OBSOLESCENCIA Y REEMPLAZOS{% endblock %}
+
+{% block content %}
+<div style="padding: 1.5rem;">
+
+  {# ── HEADER ── #}
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <h1 style="font-size:1.4rem; font-weight:700; color:var(--azul-oscuro); text-transform:uppercase; letter-spacing:.05em; margin:0;">
+        ♻️ Obsolescencia y Reemplazos
+      </h1>
+      <p style="margin:.25rem 0 0; color:#6b7280; font-size:.875rem;">
+        Registro de netbooks obsoletas e intercambios por equipos nuevos
+      </p>
+    </div>
+    <a href="{{ url_for('obsolescencia.nueva') }}"
+       style="background:var(--azul-oscuro); color:#fff; padding:.55rem 1.25rem; border-radius:.5rem; font-weight:600; font-size:.875rem; text-decoration:none; display:inline-flex; align-items:center; gap:.5rem;">
+      ➕ Registrar Obsolescencia
+    </a>
+  </div>
+
+  {# ── BADGE PENDIENTES ── #}
+  {% if total_pendientes > 0 %}
+  <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:.5rem; padding:.75rem 1rem; margin-bottom:1.25rem; display:flex; align-items:center; gap:.75rem;">
+    <span style="font-size:1.25rem;">⚠️</span>
+    <div>
+      <strong style="color:#856404;">{{ total_pendientes }} netbook{% if total_pendientes != 1 %}s{% endif %} con reemplazo PENDIENTE de asignación a carro</strong>
+      <span style="color:#856404; font-size:.85rem; margin-left:.5rem;">— Aparece{% if total_pendientes == 1 %}n{% endif %} en Novedades del día</span>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── FILTROS ── #}
+  <div style="display:flex; gap:.5rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+    {% for f, label in [('todas','Todas'), ('pendientes','⏳ Pendientes'), ('con_reemplazo','✅ Con reemplazo'), ('sin_reemplazo','❌ Sin reemplazo')] %}
+    <a href="{{ url_for('obsolescencia.index', filtro=f) }}"
+       style="padding:.4rem .9rem; border-radius:2rem; font-size:.8rem; font-weight:600; text-decoration:none;
+              {% if filtro == f %}background:var(--azul-oscuro); color:#fff;{% else %}background:#f3f4f6; color:#374151;{% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+
+  {# ── TABLA ── #}
+  {% if rows %}
+  <div style="background:#fff; border-radius:.75rem; box-shadow:0 1px 4px rgba(0,0,0,.08); overflow:hidden;">
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:.875rem;">
+        <thead>
+          <tr style="background:var(--azul-oscuro); color:#fff;">
+            <th style="padding:.75rem 1rem; text-align:left; font-weight:600;">Netbook obsoleta</th>
+            <th style="padding:.75rem 1rem; text-align:left; font-weight:600;">Motivo</th>
+            <th style="padding:.75rem 1rem; text-align:left; font-weight:600;">Fecha baja</th>
+            <th style="padding:.75rem 1rem; text-align:left; font-weight:600;">Reemplazo</th>
+            <th style="padding:.75rem 1rem; text-align:left; font-weight:600;">Carro destino</th>
+            <th style="padding:.75rem 1rem; text-align:left; font-weight:600;">Estado</th>
+            <th style="padding:.75rem 1rem; text-align:center; font-weight:600;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr style="border-bottom:1px solid #f3f4f6; {% if loop.even %}background:#fafafa;{% endif %}">
+
+            {# Netbook obsoleta #}
+            <td style="padding:.75rem 1rem;">
+              <div style="font-weight:600; color:var(--azul-oscuro);">
+                N°{{ r.nb_interno }} — {{ r.nb_serie }}
+              </div>
+              {% if r.nb_modelo %}
+              <div style="font-size:.78rem; color:#6b7280;">{{ r.nb_modelo }}</div>
+              {% endif %}
+              {% if r.carro_numero %}
+              <div style="font-size:.78rem; color:#9ca3af;">Carro {{ r.carro_numero }}</div>
+              {% endif %}
+            </td>
+
+            {# Motivo #}
+            <td style="padding:.75rem 1rem; color:#374151;">
+              {{ r.motivo }}
+              {% if r.observaciones %}
+              <div style="font-size:.78rem; color:#6b7280; margin-top:.2rem;">{{ r.observaciones }}</div>
+              {% endif %}
+            </td>
+
+            {# Fecha baja #}
+            <td style="padding:.75rem 1rem; color:#6b7280; white-space:nowrap;">
+              {{ r.fecha_baja | arg_datetime if r.fecha_baja else '—' }}
+              {% if r.registrado_por %}
+              <div style="font-size:.78rem;">{{ r.registrado_por }}</div>
+              {% endif %}
+            </td>
+
+            {# Reemplazo #}
+            <td style="padding:.75rem 1rem;">
+              {% if r.tiene_reemplazo %}
+                <div style="font-weight:600; color:#065f46;">{{ r.reemplazo_serie }}</div>
+                {% if r.reemplazo_modelo %}
+                <div style="font-size:.78rem; color:#6b7280;">{{ r.reemplazo_modelo }}</div>
+                {% endif %}
+                {% if r.fecha_reemplazo %}
+                <div style="font-size:.78rem; color:#9ca3af;">{{ r.fecha_reemplazo | arg_date if r.fecha_reemplazo else '' }}</div>
+                {% endif %}
+              {% else %}
+                <span style="color:#9ca3af; font-style:italic;">Sin reemplazo</span>
+              {% endif %}
+            </td>
+
+            {# Carro destino #}
+            <td style="padding:.75rem 1rem;">
+              {% if r.reemplazo_pendiente %}
+                <span style="background:#fff3cd; color:#856404; padding:.2rem .5rem; border-radius:.25rem; font-size:.78rem; font-weight:600;">
+                  ⏳ PENDIENTE
+                </span>
+              {% elif r.carro_reemplazo_numero %}
+                <span style="background:#d1fae5; color:#065f46; padding:.2rem .5rem; border-radius:.25rem; font-size:.78rem; font-weight:600;">
+                  Carro {{ r.carro_reemplazo_numero }}
+                </span>
+              {% else %}
+                <span style="color:#9ca3af;">—</span>
+              {% endif %}
+            </td>
+
+            {# Estado #}
+            <td style="padding:.75rem 1rem;">
+              {% if r.reemplazo_pendiente %}
+                <span style="background:#fef3c7; color:#d97706; padding:.3rem .7rem; border-radius:2rem; font-size:.75rem; font-weight:700;">
+                  ⏳ Pendiente
+                </span>
+              {% elif r.tiene_reemplazo %}
+                <span style="background:#d1fae5; color:#065f46; padding:.3rem .7rem; border-radius:2rem; font-size:.75rem; font-weight:700;">
+                  ✅ Reemplazada
+                </span>
+              {% else %}
+                <span style="background:#fee2e2; color:#991b1b; padding:.3rem .7rem; border-radius:2rem; font-size:.75rem; font-weight:700;">
+                  ❌ Sin reemplazo
+                </span>
+              {% endif %}
+            </td>
+
+            {# Acciones #}
+            <td style="padding:.75rem 1rem; text-align:center; white-space:nowrap;">
+              {% if r.reemplazo_pendiente %}
+                {# Formulario inline para asignar carro #}
+                <button onclick="abrirModalAsignar({{ r.id }}, '{{ r.reemplazo_serie }}')"
+                        style="background:var(--naranja); color:#fff; border:none; padding:.35rem .75rem; border-radius:.4rem; font-size:.78rem; font-weight:600; cursor:pointer;">
+                  📦 Asignar carro
+                </button>
+              {% elif not r.tiene_reemplazo %}
+                <a href="{{ url_for('obsolescencia.registrar_reemplazo', obs_id=r.id) }}"
+                   style="background:#059669; color:#fff; padding:.35rem .75rem; border-radius:.4rem; font-size:.78rem; font-weight:600; text-decoration:none;">
+                  🔄 Registrar reemplazo
+                </a>
+              {% else %}
+                <span style="color:#9ca3af; font-size:.78rem;">✓ Completo</span>
+              {% endif %}
+            </td>
+
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div style="text-align:center; padding:3rem; color:#9ca3af;">
+    <div style="font-size:2.5rem; margin-bottom:.75rem;">♻️</div>
+    <p style="font-size:1rem; font-weight:600;">No hay registros de obsolescencia</p>
+    <p style="font-size:.875rem;">Los equipos obsoletos o irreparables aparecerán aquí.</p>
+  </div>
+  {% endif %}
+
+</div>
+
+{# ── MODAL ASIGNAR CARRO ── #}
+<div id="modalAsignar" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:.75rem; padding:1.5rem; width:100%; max-width:420px; margin:1rem;">
+    <h3 style="margin:0 0 .25rem; color:var(--azul-oscuro); font-size:1rem; font-weight:700; text-transform:uppercase;">
+      📦 Asignar carro al reemplazo
+    </h3>
+    <p id="modalAsignarSerie" style="color:#6b7280; font-size:.85rem; margin:.25rem 0 1rem;"></p>
+
+    <form id="formAsignar" method="POST">
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem;">
+          Carro destino <span style="color:#dc2626;">*</span>
+        </label>
+        <select name="carro_destino_id" required
+                style="width:100%; padding:.5rem .75rem; border:1px solid #d1d5db; border-radius:.4rem; font-size:.875rem;">
+          <option value="">— Seleccionar carro —</option>
+          {% for carro in carros %}
+          <option value="{{ carro.id }}">Carro {{ carro.numero_fisico }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="margin-bottom:1.25rem;">
+        <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem;">
+          Número interno en el carro <span style="color:#9ca3af;">(opcional)</span>
+        </label>
+        <input type="number" name="numero_interno_nuevo" min="1" max="40"
+               placeholder="Ej: 15"
+               style="width:100%; padding:.5rem .75rem; border:1px solid #d1d5db; border-radius:.4rem; font-size:.875rem; box-sizing:border-box;">
+      </div>
+      <div style="display:flex; gap:.75rem; justify-content:flex-end;">
+        <button type="button" onclick="cerrarModalAsignar()"
+                style="padding:.5rem 1rem; border-radius:.4rem; border:1px solid #d1d5db; background:#fff; font-size:.875rem; cursor:pointer;">
+          Cancelar
+        </button>
+        <button type="submit"
+                style="padding:.5rem 1.25rem; border-radius:.4rem; border:none; background:var(--azul-oscuro); color:#fff; font-size:.875rem; font-weight:600; cursor:pointer;">
+          Confirmar asignación
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function abrirModalAsignar(obsId, serie) {
+  document.getElementById('modalAsignar').style.display = 'flex';
+  document.getElementById('modalAsignarSerie').textContent = 'Serie nueva: ' + serie;
+  document.getElementById('formAsignar').action = '/obsolescencia/' + obsId + '/asignar-carro';
+}
+function cerrarModalAsignar() {
+  document.getElementById('modalAsignar').style.display = 'none';
+}
+document.getElementById('modalAsignar').addEventListener('click', function(e) {
+  if (e.target === this) cerrarModalAsignar();
+});
+</script>
+{% endblock %}

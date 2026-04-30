@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}NUEVA OBSOLESCENCIA{% endblock %}
+
+{% block content %}
+<div style="padding:1.5rem; max-width:640px;">
+
+  <div style="margin-bottom:1.5rem;">
+    <a href="{{ url_for('obsolescencia.index') }}"
+       style="color:var(--azul-oscuro); font-size:.875rem; text-decoration:none;">← Volver</a>
+    <h1 style="font-size:1.3rem; font-weight:700; color:var(--azul-oscuro); text-transform:uppercase; margin:.5rem 0 .25rem;">
+      ♻️ Registrar Netbook Obsoleta
+    </h1>
+    <p style="color:#6b7280; font-size:.875rem; margin:0;">
+      Completá los datos de la netbook que queda fuera de servicio de forma definitiva.
+    </p>
+  </div>
+
+  <div style="background:#fff; border-radius:.75rem; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:1.5rem;">
+    <form method="POST">
+
+      {# Carro selector #}
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em;">
+          Carro de origen
+        </label>
+        <select id="sel_carro" onchange="cargarNetbooks(this.value)"
+                style="width:100%; padding:.55rem .75rem; border:1px solid #d1d5db; border-radius:.45rem; font-size:.875rem;">
+          <option value="">— Seleccionar carro —</option>
+          {% for c in carros %}
+          <option value="{{ c.id }}" {% if carro_id_sel and carro_id_sel|int == c.id %}selected{% endif %}>
+            Carro {{ c.numero_fisico }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Netbook selector #}
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em;">
+          Netbook <span style="color:#dc2626;">*</span>
+        </label>
+        <select id="sel_netbook" name="netbook_id" required
+                style="width:100%; padding:.55rem .75rem; border:1px solid #d1d5db; border-radius:.45rem; font-size:.875rem;">
+          <option value="">— Primero seleccioná un carro —</option>
+          {% for nb in netbooks_carro %}
+          <option value="{{ nb.id }}">N°{{ nb.numero_interno }} — {{ nb.numero_serie }} {% if nb.modelo %}({{ nb.modelo }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Motivo #}
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em;">
+          Motivo de baja <span style="color:#dc2626;">*</span>
+        </label>
+        <select name="motivo" required
+                style="width:100%; padding:.55rem .75rem; border:1px solid #d1d5db; border-radius:.45rem; font-size:.875rem;">
+          <option value="">— Seleccionar motivo —</option>
+          <option value="Irreparable — placa base quemada">Irreparable — placa base quemada</option>
+          <option value="Irreparable — pantalla rota sin reemplazo">Irreparable — pantalla rota sin reemplazo</option>
+          <option value="Daño por líquido irreparable">Daño por líquido irreparable</option>
+          <option value="Rotura total por caída">Rotura total por caída</option>
+          <option value="Vandalismo — daño irreparable">Vandalismo — daño irreparable</option>
+          <option value="Obsolescencia tecnológica">Obsolescencia tecnológica</option>
+          <option value="Robada / extraviada">Robada / extraviada</option>
+          <option value="Intercambiada por BA Colaborativa">Intercambiada por BA Colaborativa</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+
+      {# Observaciones #}
+      <div style="margin-bottom:1.5rem;">
+        <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em;">
+          Observaciones <span style="color:#9ca3af;">(opcional)</span>
+        </label>
+        <textarea name="observaciones" rows="3" placeholder="Describí brevemente el estado o la situación..."
+                  style="width:100%; padding:.55rem .75rem; border:1px solid #d1d5db; border-radius:.45rem; font-size:.875rem; resize:vertical; box-sizing:border-box;"></textarea>
+      </div>
+
+      {# Info box #}
+      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:.5rem; padding:.75rem 1rem; margin-bottom:1.25rem; font-size:.82rem; color:#1e40af;">
+        ℹ️ La netbook quedará marcada como <strong>de baja</strong> en el sistema. En el siguiente paso podrás registrar el equipo de reemplazo si ya llegó, o dejarlo pendiente para después.
+      </div>
+
+      <div style="display:flex; gap:.75rem; justify-content:flex-end;">
+        <a href="{{ url_for('obsolescencia.index') }}"
+           style="padding:.55rem 1.1rem; border:1px solid #d1d5db; border-radius:.45rem; color:#374151; text-decoration:none; font-size:.875rem;">
+          Cancelar
+        </a>
+        <button type="submit"
+                style="padding:.55rem 1.25rem; background:var(--azul-oscuro); color:#fff; border:none; border-radius:.45rem; font-weight:600; font-size:.875rem; cursor:pointer;">
+          Registrar baja →
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function cargarNetbooks(carroId) {
+  const sel = document.getElementById('sel_netbook');
+  sel.innerHTML = '<option value="">Cargando...</option>';
+  if (!carroId) {
+    sel.innerHTML = '<option value="">— Primero seleccioná un carro —</option>';
+    return;
+  }
+  fetch('/obsolescencia/netbooks-de-carro/' + carroId)
+    .then(r => r.json())
+    .then(data => {
+      sel.innerHTML = '<option value="">— Seleccionar netbook —</option>';
+      data.forEach(nb => {
+        const opt = document.createElement('option');
+        opt.value = nb.id;
+        opt.textContent = 'N°' + nb.numero_interno + ' — ' + nb.numero_serie + (nb.modelo ? ' (' + nb.modelo + ')' : '');
+        sel.appendChild(opt);
+      });
+    });
+}
+// Si venía con carro preseleccionado
+const selCarro = document.getElementById('sel_carro');
+if (selCarro.value) cargarNetbooks(selCarro.value);
+</script>
+{% endblock %}

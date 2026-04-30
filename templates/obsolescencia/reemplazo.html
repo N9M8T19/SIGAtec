@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}REGISTRAR REEMPLAZO{% endblock %}
+
+{% block content %}
+<div style="padding:1.5rem; max-width:640px;">
+
+  <div style="margin-bottom:1.5rem;">
+    <a href="{{ url_for('obsolescencia.index') }}"
+       style="color:var(--azul-oscuro); font-size:.875rem; text-decoration:none;">← Volver</a>
+    <h1 style="font-size:1.3rem; font-weight:700; color:var(--azul-oscuro); text-transform:uppercase; margin:.5rem 0 .25rem;">
+      🔄 Registrar Netbook de Reemplazo
+    </h1>
+  </div>
+
+  {# Resumen netbook obsoleta #}
+  <div style="background:#fee2e2; border:1px solid #fca5a5; border-radius:.5rem; padding:.9rem 1rem; margin-bottom:1.25rem;">
+    <div style="font-size:.78rem; font-weight:700; color:#991b1b; text-transform:uppercase; letter-spacing:.04em; margin-bottom:.35rem;">
+      Netbook obsoleta
+    </div>
+    <div style="font-weight:600; color:#7f1d1d;">
+      N°{{ obs.nb_interno }} — {{ obs.nb_serie }}
+    </div>
+    {% if obs.nb_modelo %}
+    <div style="font-size:.82rem; color:#991b1b;">{{ obs.nb_modelo }}</div>
+    {% endif %}
+    {% if obs.carro_numero %}
+    <div style="font-size:.82rem; color:#b91c1c;">Carro {{ obs.carro_numero }} — Motivo: {{ obs.motivo }}</div>
+    {% endif %}
+  </div>
+
+  <div style="background:#fff; border-radius:.75rem; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:1.5rem;">
+    <form method="POST">
+
+      <h3 style="font-size:.9rem; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:.04em; margin:0 0 1rem; border-bottom:1px solid #f3f4f6; padding-bottom:.5rem;">
+        Datos del equipo nuevo
+      </h3>
+
+      {# Serie nueva #}
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em;">
+          N° de serie del equipo nuevo <span style="color:#dc2626;">*</span>
+        </label>
+        <input type="text" name="reemplazo_serie" required
+               placeholder="Ej: NB-2024-00123"
+               style="width:100%; padding:.55rem .75rem; border:1px solid #d1d5db; border-radius:.45rem; font-size:.875rem; box-sizing:border-box;">
+      </div>
+
+      {# Modelo nuevo #}
+      <div style="margin-bottom:1.25rem;">
+        <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em;">
+          Modelo <span style="color:#9ca3af;">(opcional)</span>
+        </label>
+        <input type="text" name="reemplazo_modelo"
+               placeholder="Ej: Positivo BGH Q06"
+               value="{{ obs.nb_modelo or '' }}"
+               style="width:100%; padding:.55rem .75rem; border:1px solid #d1d5db; border-radius:.45rem; font-size:.875rem; box-sizing:border-box;">
+      </div>
+
+      <h3 style="font-size:.9rem; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:.04em; margin:0 0 1rem; border-bottom:1px solid #f3f4f6; padding-bottom:.5rem;">
+        Destino del equipo nuevo
+      </h3>
+
+      {# Radio destino #}
+      <div style="margin-bottom:1rem;">
+        <label style="display:flex; align-items:flex-start; gap:.75rem; padding:.75rem; border:2px solid #d1d5db; border-radius:.5rem; cursor:pointer; margin-bottom:.5rem;" id="label_carro">
+          <input type="radio" name="destino" value="carro" id="radio_carro" onchange="toggleDestino()"
+                 style="margin-top:.1rem; accent-color:var(--azul-oscuro);">
+          <div>
+            <div style="font-weight:600; color:#111827;">📦 Asignar a un carro ahora</div>
+            <div style="font-size:.8rem; color:#6b7280;">La netbook nueva entra directamente al carro seleccionado.</div>
+          </div>
+        </label>
+
+        <label style="display:flex; align-items:flex-start; gap:.75rem; padding:.75rem; border:2px solid #d1d5db; border-radius:.5rem; cursor:pointer;" id="label_pendiente">
+          <input type="radio" name="destino" value="pendiente" id="radio_pendiente" onchange="toggleDestino()" checked
+                 style="margin-top:.1rem; accent-color:var(--naranja);">
+          <div>
+            <div style="font-weight:600; color:#111827;">⏳ Dejar pendiente de asignación</div>
+            <div style="font-size:.8rem; color:#6b7280;">Aparecerá en <strong>Novedades del día</strong> hasta que se asigne a un carro.</div>
+          </div>
+        </label>
+      </div>
+
+      {# Panel asignar carro #}
+      <div id="panel_carro" style="display:none; background:#f0f9ff; border:1px solid #bae6fd; border-radius:.5rem; padding:1rem; margin-bottom:1rem;">
+        <div style="margin-bottom:.75rem;">
+          <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em;">
+            Carro destino <span style="color:#dc2626;">*</span>
+          </label>
+          <select id="sel_carro_destino" name="carro_destino_id"
+                  style="width:100%; padding:.55rem .75rem; border:1px solid #d1d5db; border-radius:.45rem; font-size:.875rem;">
+            <option value="">— Seleccionar carro —</option>
+            {% for c in carros %}
+            <option value="{{ c.id }}" {% if c.id == obs.nb_carro_id %}selected{% endif %}>
+              Carro {{ c.numero_fisico }}{% if c.id == obs.nb_carro_id %} (carro original){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label style="display:block; font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em;">
+            Número interno en el carro <span style="color:#9ca3af;">(opcional)</span>
+          </label>
+          <input type="number" name="numero_interno_nuevo" min="1" max="40"
+                 placeholder="Ej: {{ obs.nb_interno or '15' }}"
+                 style="width:100%; padding:.55rem .75rem; border:1px solid #d1d5db; border-radius:.45rem; font-size:.875rem; box-sizing:border-box;">
+          <div style="font-size:.75rem; color:#6b7280; margin-top:.25rem;">
+            Si no se ingresa, se usará el mismo número que tenía la netbook obsoleta (N°{{ obs.nb_interno }}).
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:1.25rem;">
+        <a href="{{ url_for('obsolescencia.index') }}"
+           style="padding:.55rem 1.1rem; border:1px solid #d1d5db; border-radius:.45rem; color:#374151; text-decoration:none; font-size:.875rem;">
+          Cancelar
+        </a>
+        <button type="submit" id="btn_submit"
+                style="padding:.55rem 1.25rem; background:var(--azul-oscuro); color:#fff; border:none; border-radius:.45rem; font-weight:600; font-size:.875rem; cursor:pointer;">
+          Confirmar reemplazo →
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function toggleDestino() {
+  const esCarro = document.getElementById('radio_carro').checked;
+  document.getElementById('panel_carro').style.display = esCarro ? 'block' : 'none';
+
+  const sel = document.getElementById('sel_carro_destino');
+  if (esCarro) sel.setAttribute('required', 'required');
+  else sel.removeAttribute('required');
+
+  // Estilos de borde
+  document.getElementById('label_carro').style.borderColor = esCarro ? 'var(--azul-oscuro)' : '#d1d5db';
+  document.getElementById('label_pendiente').style.borderColor = !esCarro ? 'var(--naranja)' : '#d1d5db';
+}
+// init
+toggleDestino();
+</script>
+{% endblock %}
