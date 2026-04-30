@@ -200,3 +200,43 @@
     </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+    const rolSelect = document.querySelector('select[name="rol"]');
+    const bloqueSecciones = document.getElementById('bloque-secciones');
+
+    function actualizarBloqueSecciones() {
+        if (rolSelect.value === 'Encargado') {
+            bloqueSecciones.style.display = 'block';
+        } else {
+            bloqueSecciones.style.display = 'none';
+            document.querySelectorAll('input[name="secciones"]').forEach(cb => {
+                cb.checked = false;
+                toggleSecLabel(cb);
+            });
+        }
+    }
+
+    function toggleSecLabel(checkbox) {
+        const label = checkbox.closest('label');
+        if (checkbox.checked) {
+            label.style.borderColor = 'var(--azul-medio)';
+            label.style.backgroundColor = '#eff6ff';
+        } else {
+            label.style.borderColor = '#e5e7eb';
+            label.style.backgroundColor = '#fff';
+        }
+    }
+
+    function marcarTodos(estado) {
+        document.querySelectorAll('input[name="secciones"]').forEach(cb => {
+            cb.checked = estado;
+            toggleSecLabel(cb);
+        });
+    }
+
+    rolSelect.addEventListener('change', actualizarBloqueSecciones);
+    actualizarBloqueSecciones();
+</script>
+{% endblock %}
