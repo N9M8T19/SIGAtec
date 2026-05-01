@@ -366,3 +366,128 @@ def enviar_planilla_movimientos(destinatario, pdf_buffer, remitente_nombre=''):
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(GMAIL_USER, GMAIL_PASSWORD)
         smtp.sendmail(GMAIL_FROM, destinatario, mensaje.as_bytes())
+
+
+# ── Notificaciones de TVs ──────────────────────────────────────────────────────
+#
+#  Se envían al docente (si tiene correo).
+#  PrestamoTV usa encargado_retiro_id / encargado_devolucion_id como FK a usuarios,
+#  no como string — se accede via .encargado_retiro.nombre_completo.
+
+def enviar_notificacion_retiro_tv(prestamo):
+    """Notifica al docente cuando retira una TV."""
+    if not prestamo.docente:
+        current_app.logger.warning(
+            f'[mail] Préstamo TV #{prestamo.id} sin docente — retiro omitido.'
+        )
+        return
+    correo = prestamo.docente.correo
+    if not correo:
+        current_app.logger.warning(
+            f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — retiro TV omitido.'
+        )
+        return
+
+    tv = prestamo.tv
+    encargado_nombre = (
+        prestamo.encargado_retiro.nombre_completo
+        if prestamo.encargado_retiro else '—'
+    )
+    componentes = ', '.join(tv.componentes_lista) or 'Sin accesorios'
+
+    asunto = f'Retiro de televisor {tv.codigo}'
+    cuerpo = (
+        f"Retiro de televisor\n\n"
+        f"Docente:      {prestamo.docente.nombre_completo}\n"
+        f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}"
+        f"{f' ({tv.pulgadas}\")' if tv.pulgadas else ''}\n"
+        f"Aula destino: {prestamo.aula_destino or '—'}\n"
+        f"Motivo:       {prestamo.motivo or '—'}\n"
+        f"Componentes:  {componentes}\n"
+        f"Hora:         {_hora_ar(prestamo.fecha_retiro)}\n"
+        f"Registró:     {encargado_nombre}\n"
+    )
+    try:
+        _enviar_mail(correo, asunto, cuerpo)
+        _log('retiro_tv', correo, asunto, enviado=True)
+        current_app.logger.info(f'[mail] Enviado a {correo} — {asunto}')
+    except Exception as e:
+        _log('retiro_tv', correo, asunto, enviado=False, error=traceback.format_exc())
+        current_app.logger.error(f'[mail] Error enviando a {correo}: {e}')
+
+
+def enviar_notificacion_devolucion_tv(prestamo):
+    """Notifica al docente cuando devuelve una TV."""
+    if not prestamo.docente:
+        current_app.logger.warning(
+            f'[mail] Préstamo TV #{prestamo.id} sin docente — devolución omitida.'
+        )
+        return
+    correo = prestamo.docente.correo
+    if not correo:
+        current_app.logger.warning(
+            f'[mail] Docente {prestamo.docente.nombre_completo} sin correo — devolución TV omitida.'
+        )
+        return
+
+    tv = prestamo.tv
+    encargado_nombre = (
+        prestamo.encargado_devolucion.nombre_completo
+        if prestamo.encargado_devolucion else '—'
+    )
+
+    # Duración
+    if prestamo.fecha_devolucion_real and prestamo.fecha_retiro:
+        mins = int(
+            (prestamo.fecha_devolucion_real - prestamo.fecha_retiro).total_seconds() / 60
+        )
+        duracion = f"{mins // 60}h {mins % 60}m"
+    else:
+        duracion = '—'
+
+    # Componentes devueltos vs. prestados
+    devueltos = []
+    faltantes  = []
+    pares = [
+        (tv.tiene_control_remoto,   prestamo.devuelto_control_remoto,  'Control remoto'),
+        (tv.tiene_cable_hdmi,       prestamo.devuelto_cable_hdmi,      'Cable HDMI'),
+        (tv.tiene_cable_vga,        prestamo.devuelto_cable_vga,       'Cable VGA'),
+        (tv.tiene_cable_corriente,  prestamo.devuelto_cable_corriente, 'Cable de corriente'),
+        (tv.tiene_soporte_pared,    prestamo.devuelto_soporte_pared,   'Soporte de pared'),
+        (tv.tiene_soporte_pie,      prestamo.devuelto_soporte_pie,     'Soporte de pie'),
+        (tv.tiene_chromecast,       prestamo.devuelto_chromecast,      'Chromecast'),
+        (tv.tiene_adaptador_hdmi,   prestamo.devuelto_adaptador_hdmi,  'Adaptador HDMI'),
+    ]
+    for tiene, devuelto, nombre in pares:
+        if tiene:
+            if devuelto:
+                devueltos.append(nombre)
+            else:
+                faltantes.append(nombre)
+
+    linea_devueltos = ', '.join(devueltos) if devueltos else 'Ninguno'
+    linea_faltantes = (
+        f"  ⚠️  FALTANTES: {', '.join(faltantes)}\n" if faltantes else ''
+    )
+
+    asunto = f'Devolución de televisor {tv.codigo}'
+    cuerpo = (
+        f"Devolución de televisor\n\n"
+        f"Docente:      {prestamo.docente.nombre_completo}\n"
+        f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}"
+        f"{f' ({tv.pulgadas}\")' if tv.pulgadas else ''}\n"
+        f"Retiro:       {_hora_ar(prestamo.fecha_retiro)}\n"
+        f"Devolución:   {_hora_ar(prestamo.fecha_devolucion_real)}\n"
+        f"Duración:     {duracion}\n"
+        f"Devueltos:    {linea_devueltos}\n"
+        f"{linea_faltantes}"
+        f"Observaciones:{' ' + prestamo.observaciones if prestamo.observaciones else ' —'}\n"
+        f"Registró:     {encargado_nombre}\n"
+    )
+    try:
+        _enviar_mail(correo, asunto, cuerpo)
+        _log('devolucion_tv', correo, asunto, enviado=True)
+        current_app.logger.info(f'[mail] Enviado a {correo} — {asunto}')
+    except Exception as e:
+        _log('devolucion_tv', correo, asunto, enviado=False, error=traceback.format_exc())
+        current_app.logger.error(f'[mail] Error enviando a {correo}: {e}')

@@ -186,6 +186,15 @@ def prestar(tv_id):
         tv.estado = 'prestada'
         db.session.add(p)
         db.session.commit()
+
+        # ── Enviar mail de retiro ──────────────────────────────────────────────
+        try:
+            from services.mail import enviar_notificacion_retiro_tv
+            enviar_notificacion_retiro_tv(p)
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f'[mail] Error enviando mail de retiro TV: {e}')
+
         flash(f'Préstamo de {tv.codigo} registrado.', 'success')
         return redirect(url_for('tvs.prestamos_activos'))
 
@@ -216,6 +225,15 @@ def devolver(prestamo_id):
         p.devuelto_adaptador_hdmi   = 'devuelto_adaptador_hdmi'  in f
         tv.estado = 'disponible'
         db.session.commit()
+
+        # ── Enviar mail de devolución ─────────────────────────────────────────
+        try:
+            from services.mail import enviar_notificacion_devolucion_tv
+            enviar_notificacion_devolucion_tv(p)
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f'[mail] Error enviando mail de devolución TV: {e}')
+
         flash(f'Devolución de {tv.codigo} registrada.', 'success')
         return redirect(url_for('tvs.prestamos_activos'))
 
