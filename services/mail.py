@@ -395,12 +395,12 @@ def enviar_notificacion_retiro_tv(prestamo):
     )
     componentes = ', '.join(tv.componentes_lista) or 'Sin accesorios'
 
+    pulgadas_str = f' ({tv.pulgadas}")' if tv.pulgadas else ''
     asunto = f'Retiro de televisor {tv.codigo}'
     cuerpo = (
         f"Retiro de televisor\n\n"
         f"Docente:      {prestamo.docente.nombre_completo}\n"
-        f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}"
-        f"{f' ({tv.pulgadas}\")' if tv.pulgadas else ''}\n"
+        f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}{pulgadas_str}\n"
         f"Aula destino: {prestamo.aula_destino or '—'}\n"
         f"Motivo:       {prestamo.motivo or '—'}\n"
         f"Componentes:  {componentes}\n"
@@ -470,12 +470,12 @@ def enviar_notificacion_devolucion_tv(prestamo):
         f"  ⚠️  FALTANTES: {', '.join(faltantes)}\n" if faltantes else ''
     )
 
+    pulgadas_str = f' ({tv.pulgadas}")' if tv.pulgadas else ''
     asunto = f'Devolución de televisor {tv.codigo}'
     cuerpo = (
         f"Devolución de televisor\n\n"
         f"Docente:      {prestamo.docente.nombre_completo}\n"
-        f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}"
-        f"{f' ({tv.pulgadas}\")' if tv.pulgadas else ''}\n"
+        f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}{pulgadas_str}\n"
         f"Retiro:       {_hora_ar(prestamo.fecha_retiro)}\n"
         f"Devolución:   {_hora_ar(prestamo.fecha_devolucion_real)}\n"
         f"Duración:     {duracion}\n"
