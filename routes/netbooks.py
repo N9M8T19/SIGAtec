@@ -308,9 +308,10 @@ def dar_de_baja(id):
 
     carro_id = nb.carro_id
 
-    # Guardar PDF en sesion (base64) para descargarlo luego
+    # Guardar PDF y carro_id en sesion para redirigir correctamente luego
     session['pdf_baja'] = base64.b64encode(buffer.getvalue()).decode('utf-8')
     session['pdf_baja_nombre'] = nombre
+    session['pdf_baja_carro_id'] = carro_id
 
     db.session.delete(nb)
     db.session.commit()
@@ -352,11 +353,14 @@ def descargar_baja_pdf():
     from io import BytesIO
     from flask import session, send_file
 
-    pdf_b64 = session.pop('pdf_baja', None)
-    nombre  = session.pop('pdf_baja_nombre', 'baja_netbook.pdf')
+    pdf_b64  = session.pop('pdf_baja', None)
+    nombre   = session.pop('pdf_baja_nombre', 'baja_netbook.pdf')
+    carro_id = session.pop('pdf_baja_carro_id', None)
 
     if not pdf_b64:
         flash('No hay PDF de baja disponible.', 'warning')
+        if carro_id:
+            return redirect(url_for('carros.netbooks', id=carro_id))
         return redirect(url_for('carros.index'))
 
     buffer = BytesIO(base64.b64decode(pdf_b64))
