@@ -285,9 +285,9 @@ def desasignar_alumno(netbook_id):
 @netbooks_bp.route('/<int:id>/dar-de-baja', methods=['POST'])
 @login_required
 def dar_de_baja(id):
-    """Da de baja una netbook: guarda el PDF en sesion, elimina la BD y redirige."""
+    """Da de baja una netbook: guarda el PDF en archivo temporal, elimina la BD y redirige."""
+    import tempfile, os
     from datetime import datetime
-    import base64
     from flask import session
     from services.pdf_reportes import generar_pdf_baja_netbook
 
@@ -308,8 +308,12 @@ def dar_de_baja(id):
 
     carro_id = nb.carro_id
 
-    # Guardar PDF y carro_id en sesion para redirigir correctamente luego
-    session['pdf_baja'] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    # Guardar PDF en archivo temporal en disco (evita overflow de cookie de sesion)
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf', prefix='sigatec_baja_')
+    tmp.write(buffer.getvalue())
+    tmp.close()
+
+    session['pdf_baja_tmp']    = tmp.name       # solo el path (~50 bytes en cookie)
     session['pdf_baja_nombre'] = nombre
     session['pdf_baja_carro_id'] = carro_id
 
@@ -348,21 +352,25 @@ def baja_masiva():
 @netbooks_bp.route('/descargar-baja-pdf')
 @login_required
 def descargar_baja_pdf():
-    """Descarga el PDF de baja guardado en sesion."""
-    import base64
+    """Descarga el PDF de baja guardado en archivo temporal."""
+    import os
     from io import BytesIO
     from flask import session, send_file
 
-    pdf_b64  = session.pop('pdf_baja', None)
+    tmp_path = session.pop('pdf_baja_tmp', None)
     nombre   = session.pop('pdf_baja_nombre', 'baja_netbook.pdf')
     carro_id = session.pop('pdf_baja_carro_id', None)
 
-    if not pdf_b64:
+    if not tmp_path or not os.path.exists(tmp_path):
         flash('No hay PDF de baja disponible.', 'warning')
         if carro_id:
             return redirect(url_for('carros.netbooks', id=carro_id))
         return redirect(url_for('carros.index'))
 
-    buffer = BytesIO(base64.b64decode(pdf_b64))
+    with open(tmp_path, 'rb') as f:
+        data = f.read()
+    os.unlink(tmp_path)   # borrar el temporal
+
+    buffer = BytesIO(data)
     return send_file(buffer, mimetype='application/pdf',
                      as_attachment=True, download_name=nombre)
