@@ -3,6 +3,252 @@
 {% block header %}Registrar Prestamo de Netbooks{% endblock %}
 
 {% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm p-6">
+
+        <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-6 flex items-center gap-3">
+            <i class="fas fa-user-check text-green-600"></i>
+            <div>
+                <div class="text-xs text-green-600">Encargado en sesion</div>
+                <div class="font-semibold text-green-800">{{ current_user.nombre_completo }}</div>
+            </div>
+        </div>
+
+        {% if carro %}
+        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6">
+            <div class="text-xs text-blue-500 mb-2 font-semibold uppercase tracking-wide">Carros del Espacio Digital</div>
+            <div class="flex items-center gap-2 text-blue-800 mb-1">
+                <i class="fas fa-laptop text-blue-600"></i>
+                <span class="font-semibold">{{ carro.display }}</span>
+                <span class="text-xs text-blue-500">{{ carro.aula or 'Sin aula' }}</span>
+                <span class="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                    {{ nb_carro1_disponibles|length }} disponibles
+                </span>
+            </div>
+            {% if carro_2 %}
+            <div class="flex items-center gap-2 text-blue-800 mt-1">
+                <i class="fas fa-laptop text-blue-500"></i>
+                <span class="font-semibold">{{ carro_2.display }}</span>
+                <span class="text-xs text-blue-500">{{ carro_2.aula or 'Sin aula' }}</span>
+                <span class="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                    {{ nb_carro2_disponibles|length }} disponibles
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <form method="POST">
+            <div class="mb-5">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-search mr-1"></i>Buscar Docente
+                </label>
+                <input type="text" id="buscar-docente" placeholder="Apellido o DNI..."
+                       autocomplete="off"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-2">
+                <div id="resultados-docente" class="border border-gray-200 rounded-lg overflow-hidden hidden"></div>
+                <input type="hidden" name="docente_id" id="docente_id" required>
+                <div id="docente-seleccionado" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mt-2">
+                    <div class="text-xs text-blue-500">Docente seleccionado</div>
+                    <div id="docente-nombre" class="font-semibold text-blue-800"></div>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-3">
+                    <i class="fas fa-laptop mr-1"></i>Seleccionar Netbooks (podés elegir varias)
+                </label>
+
+                {# ── DOS COLUMNAS SIDE BY SIDE ── #}
+                <div class="grid {% if carro_2 %}grid-cols-2{% else %}grid-cols-1{% endif %} gap-4">
+
+                    {# ── CARRO 1 ── #}
+                    {% if carro %}
+                    <div>
+                        <div class="flex items-center gap-2 bg-blue-900 text-white px-3 py-2 rounded-t-lg">
+                            <i class="fas fa-laptop text-sm"></i>
+                            <span class="font-semibold text-sm uppercase tracking-wide">{{ carro.display }}</span>
+                            <span class="text-blue-200 text-xs hidden xl:inline">{{ carro.aula or '' }}</span>
+                            <span class="ml-auto text-xs bg-blue-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                {{ nb_carro1_disponibles|length }} disp.
+                                {% if nb_carro1_prestadas %} / {{ nb_carro1_prestadas|length }} prest.{% endif %}
+                            </span>
+                        </div>
+                        <div class="border border-gray-200 border-t-0 rounded-b-lg overflow-hidden" style="max-height: 420px; overflow-y: auto;">
+                            {% for nb in nb_carro1_disponibles %}
+                            <label class="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-0 bg-white">
+                                <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
+                                       class="w-4 h-4 text-blue-600 cb-carro1 flex-shrink-0">
+                                <div class="min-w-0">
+                                    <span class="font-semibold text-blue-900 text-sm">N°{{ nb.numero_interno }}</span>
+                                    <span class="text-gray-400 text-xs ml-1 truncate">{{ nb.numero_serie or '' }}</span>
+                                    <div class="text-xs text-gray-500 truncate">{{ nb.alumno or 'Sin asignar' }}</div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                            {% for nb in nb_carro1_prestadas %}
+                            <div class="flex items-center gap-2 px-3 py-2 border-b last:border-0 bg-gray-100 opacity-60 cursor-not-allowed">
+                                <input type="checkbox" disabled class="w-4 h-4 text-gray-400 flex-shrink-0">
+                                <div class="min-w-0">
+                                    <span class="font-semibold text-gray-500 text-sm">N°{{ nb.numero_interno }}</span>
+                                    <span class="ml-1 text-xs bg-orange-100 text-orange-600 px-1 py-0.5 rounded font-semibold">
+                                        <i class="fas fa-lock" style="font-size:0.6rem"></i> Prestada
+                                    </span>
+                                    <div class="text-xs text-gray-400 truncate">{{ nb.alumno or 'Sin asignar' }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% if not nb_carro1_disponibles and not nb_carro1_prestadas %}
+                            <div class="px-3 py-4 text-sm text-gray-400 text-center">Sin netbooks operativas.</div>
+                            {% endif %}
+                        </div>
+                        {% if nb_carro1_disponibles %}
+                        <div class="flex gap-2 mt-1.5">
+                            <button type="button" onclick="selectGrupo('.cb-carro1', true)"
+                                    class="text-xs text-blue-600 hover:underline">Sel. todas</button>
+                            <span class="text-gray-300">|</span>
+                            <button type="button" onclick="selectGrupo('.cb-carro1', false)"
+                                    class="text-xs text-gray-400 hover:underline">Ninguna</button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {# ── CARRO 2 ── #}
+                    {% if carro_2 %}
+                    <div>
+                        <div class="flex items-center gap-2 bg-blue-700 text-white px-3 py-2 rounded-t-lg">
+                            <i class="fas fa-laptop text-sm"></i>
+                            <span class="font-semibold text-sm uppercase tracking-wide">{{ carro_2.display }}</span>
+                            <span class="text-blue-200 text-xs hidden xl:inline">{{ carro_2.aula or '' }}</span>
+                            <span class="ml-auto text-xs bg-blue-600 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                {{ nb_carro2_disponibles|length }} disp.
+                                {% if nb_carro2_prestadas %} / {{ nb_carro2_prestadas|length }} prest.{% endif %}
+                            </span>
+                        </div>
+                        <div class="border border-gray-200 border-t-0 rounded-b-lg overflow-hidden" style="max-height: 420px; overflow-y: auto;">
+                            {% for nb in nb_carro2_disponibles %}
+                            <label class="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-0 bg-white">
+                                <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
+                                       class="w-4 h-4 text-blue-600 cb-carro2 flex-shrink-0">
+                                <div class="min-w-0">
+                                    <span class="font-semibold text-blue-900 text-sm">N°{{ nb.numero_interno }}</span>
+                                    <span class="text-gray-400 text-xs ml-1 truncate">{{ nb.numero_serie or '' }}</span>
+                                    <div class="text-xs text-gray-500 truncate">{{ nb.alumno or 'Sin asignar' }}</div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                            {% for nb in nb_carro2_prestadas %}
+                            <div class="flex items-center gap-2 px-3 py-2 border-b last:border-0 bg-gray-100 opacity-60 cursor-not-allowed">
+                                <input type="checkbox" disabled class="w-4 h-4 text-gray-400 flex-shrink-0">
+                                <div class="min-w-0">
+                                    <span class="font-semibold text-gray-500 text-sm">N°{{ nb.numero_interno }}</span>
+                                    <span class="ml-1 text-xs bg-orange-100 text-orange-600 px-1 py-0.5 rounded font-semibold">
+                                        <i class="fas fa-lock" style="font-size:0.6rem"></i> Prestada
+                                    </span>
+                                    <div class="text-xs text-gray-400 truncate">{{ nb.alumno or 'Sin asignar' }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% if not nb_carro2_disponibles and not nb_carro2_prestadas %}
+                            <div class="px-3 py-4 text-sm text-gray-400 text-center">Sin netbooks operativas.</div>
+                            {% endif %}
+                        </div>
+                        {% if nb_carro2_disponibles %}
+                        <div class="flex gap-2 mt-1.5">
+                            <button type="button" onclick="selectGrupo('.cb-carro2', true)"
+                                    class="text-xs text-blue-600 hover:underline">Sel. todas</button>
+                            <span class="text-gray-300">|</span>
+                            <button type="button" onclick="selectGrupo('.cb-carro2', false)"
+                                    class="text-xs text-gray-400 hover:underline">Ninguna</button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                </div>{# fin grid #}
+
+                {# Mensaje si no hay ningún carro configurado #}
+                {% if not carro %}
+                <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-600 text-sm">
+                    No hay netbooks disponibles en este momento.
+                </div>
+                {% endif %}
+
+                {# Botones globales de selección #}
+                {% if nb_carro1_disponibles or nb_carro2_disponibles %}
+                <div class="flex gap-2 mt-3 pt-2 border-t border-gray-100">
+                    <span class="text-xs text-gray-500 font-semibold mr-1">Ambos carros:</span>
+                    <button type="button" onclick="selectAll(true)"
+                            class="text-xs text-blue-600 hover:underline">Seleccionar todas</button>
+                    <span class="text-gray-300">|</span>
+                    <button type="button" onclick="selectAll(false)"
+                            class="text-xs text-gray-400 hover:underline">Deseleccionar todas</button>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="flex gap-3">
+                <button type="submit"
+                        class="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-lg font-semibold">
+                    <i class="fas fa-check mr-2"></i>Confirmar Prestamo
+                </button>
+                <a href="{{ url_for('prestamos.espacio_digital') }}"
+                   class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const input = document.getElementById('buscar-docente');
+    const results = document.getElementById('resultados-docente');
+    const hiddenId = document.getElementById('docente_id');
+    const selBox = document.getElementById('docente-seleccionado');
+    const selNombre = document.getElementById('docente-nombre');
+    let timer;
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        const q = input.value.trim();
+        if (q.length < 2) { results.classList.add('hidden'); return; }
+        timer = setTimeout(async () => {
+            const res = await fetch(`/docentes/buscar?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            results.innerHTML = '';
+            data.forEach(d => {
+                const div = document.createElement('div');
+                div.className = 'px-4 py-3 hover:bg-blue-50 cursor-pointer text-sm border-b last:border-0';
+                div.innerHTML = `<strong>${d.nombre}</strong> <span class="text-gray-400 ml-2">DNI: ${d.dni}</span>`;
+                div.addEventListener('click', () => {
+                    hiddenId.value = d.id;
+                    selNombre.textContent = d.nombre;
+                    selBox.classList.remove('hidden');
+                    results.classList.add('hidden');
+                    input.value = d.nombre;
+                });
+                results.appendChild(div);
+            });
+            results.classList.remove('hidden');
+        }, 300);
+    });
+
+    function selectAll(state) {
+        document.querySelectorAll('input[name="netbook_ids"]:not([disabled])')
+            .forEach(cb => cb.checked = state);
+    }
+
+    function selectGrupo(clase, state) {
+        document.querySelectorAll(clase + ':not([disabled])')
+            .forEach(cb => cb.checked = state);
+    }
+</script>
+{% endblock %}
+
+{% block content %}
 <div class="max-w-2xl mx-auto">
     <div class="bg-white rounded-xl shadow-sm p-6">
 
