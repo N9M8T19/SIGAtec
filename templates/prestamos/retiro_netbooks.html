@@ -16,16 +16,25 @@
 
         {% if carro %}
         <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6">
-            <div class="text-xs text-blue-500 mb-1">Carros del Espacio Digital</div>
-            <div class="font-semibold text-blue-800">
-                <i class="fas fa-laptop mr-1"></i>{{ carro.display }} — {{ carro.aula or 'Sin aula' }}
+            <div class="text-xs text-blue-500 mb-2 font-semibold uppercase tracking-wide">Carros del Espacio Digital</div>
+            <div class="flex items-center gap-2 text-blue-800 mb-1">
+                <i class="fas fa-laptop text-blue-600"></i>
+                <span class="font-semibold">{{ carro.display }}</span>
+                <span class="text-xs text-blue-500">{{ carro.aula or 'Sin aula' }}</span>
+                <span class="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                    {{ nb_carro1_disponibles|length }} disponibles
+                </span>
             </div>
             {% if carro_2 %}
-            <div class="font-semibold text-blue-800 mt-1">
-                <i class="fas fa-laptop mr-1"></i>{{ carro_2.display }} — {{ carro_2.aula or 'Sin aula' }}
+            <div class="flex items-center gap-2 text-blue-800 mt-1">
+                <i class="fas fa-laptop text-blue-500"></i>
+                <span class="font-semibold">{{ carro_2.display }}</span>
+                <span class="text-xs text-blue-500">{{ carro_2.aula or 'Sin aula' }}</span>
+                <span class="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                    {{ nb_carro2_disponibles|length }} disponibles
+                </span>
             </div>
             {% endif %}
-            <div class="text-xs text-gray-500 mt-1">{{ disponibles|length }} netbook(s) disponibles en total</div>
         </div>
         {% endif %}
 
@@ -49,67 +58,134 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                     <i class="fas fa-laptop mr-1"></i>Seleccionar Netbooks (podés elegir varias)
                 </label>
-                {% if disponibles %}
-                <div class="border border-gray-200 rounded-lg overflow-hidden max-h-72 overflow-y-auto">
 
-                    {# ── Netbooks del Carro 1 ── #}
-                    {% set nb_carro1 = disponibles | selectattr('carro_id', 'equalto', carro.id) | list %}
-                    {% if nb_carro1 %}
-                    <div class="bg-blue-900 text-white px-4 py-1.5 text-xs font-semibold uppercase tracking-wide sticky top-0">
-                        <i class="fas fa-laptop mr-1"></i>{{ carro.display }} — {{ carro.aula or 'Sin aula' }}
+                {# ── CARRO 1 ── #}
+                {% if carro %}
+                <div class="mb-3">
+                    <div class="flex items-center gap-2 bg-blue-900 text-white px-4 py-2 rounded-t-lg">
+                        <i class="fas fa-laptop"></i>
+                        <span class="font-semibold text-sm uppercase tracking-wide">{{ carro.display }}</span>
+                        <span class="text-blue-200 text-xs">— {{ carro.aula or 'Sin aula' }}</span>
+                        <span class="ml-auto text-xs bg-blue-700 px-2 py-0.5 rounded-full" id="badge-c1">
+                            {{ nb_carro1_disponibles|length }} disp. / {{ nb_carro1_prestadas|length }} prest.
+                        </span>
                     </div>
-                    {% for nb in nb_carro1 %}
-                    <label class="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-0">
-                        <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
-                               class="w-4 h-4 text-blue-600">
-                        <div>
-                            <span class="font-semibold">N°{{ nb.numero_interno }}</span>
-                            <span class="text-gray-400 text-xs ml-2">{{ nb.numero_serie or 'Sin serie' }}</span>
-                            <div class="text-xs text-gray-500">{{ nb.alumno or 'Sin asignar' }}</div>
-                        </div>
-                    </label>
-                    {% endfor %}
-                    {% endif %}
-
-                    {# ── Netbooks del Carro 2 ── #}
-                    {% if carro_2 %}
-                    {% set nb_carro2 = disponibles | selectattr('carro_id', 'equalto', carro_2.id) | list %}
-                    {% if nb_carro2 %}
-                    <div class="bg-blue-700 text-white px-4 py-1.5 text-xs font-semibold uppercase tracking-wide sticky top-0">
-                        <i class="fas fa-laptop mr-1"></i>{{ carro_2.display }} — {{ carro_2.aula or 'Sin aula' }}
+                    <div class="border border-gray-200 border-t-0 rounded-b-lg overflow-hidden max-h-60 overflow-y-auto">
+                        {% if nb_carro1_disponibles or nb_carro1_prestadas %}
+                            {# Disponibles — ordenadas numéricamente #}
+                            {% for nb in nb_carro1_disponibles %}
+                            <label class="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 bg-white">
+                                <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
+                                       class="w-4 h-4 text-blue-600 cb-carro1">
+                                <div>
+                                    <span class="font-semibold text-blue-900">N°{{ nb.numero_interno }}</span>
+                                    <span class="text-gray-400 text-xs ml-2">{{ nb.numero_serie or 'Sin serie' }}</span>
+                                    <div class="text-xs text-gray-500">{{ nb.alumno or 'Sin asignar' }}</div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                            {# Prestadas — grisadas y deshabilitadas #}
+                            {% for nb in nb_carro1_prestadas %}
+                            <div class="flex items-center gap-3 px-4 py-3 border-b last:border-0 bg-gray-100 opacity-60 cursor-not-allowed">
+                                <input type="checkbox" disabled class="w-4 h-4 text-gray-400">
+                                <div>
+                                    <span class="font-semibold text-gray-500">N°{{ nb.numero_interno }}</span>
+                                    <span class="text-gray-400 text-xs ml-2">{{ nb.numero_serie or 'Sin serie' }}</span>
+                                    <span class="ml-2 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-semibold">
+                                        <i class="fas fa-lock mr-0.5"></i>Prestada
+                                    </span>
+                                    <div class="text-xs text-gray-400">{{ nb.alumno or 'Sin asignar' }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% if not nb_carro1_disponibles and not nb_carro1_prestadas %}
+                            <div class="px-4 py-3 text-sm text-gray-400">Sin netbooks operativas.</div>
+                            {% endif %}
+                        {% else %}
+                        <div class="px-4 py-3 text-sm text-gray-400">Sin netbooks en este carro.</div>
+                        {% endif %}
                     </div>
-                    {% for nb in nb_carro2 %}
-                    <label class="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-0">
-                        <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
-                               class="w-4 h-4 text-blue-600">
-                        <div>
-                            <span class="font-semibold">N°{{ nb.numero_interno }}</span>
-                            <span class="text-gray-400 text-xs ml-2">{{ nb.numero_serie or 'Sin serie' }}</span>
-                            <div class="text-xs text-gray-500">{{ nb.alumno or 'Sin asignar' }}</div>
-                        </div>
-                    </label>
-                    {% endfor %}
+                    {% if nb_carro1_disponibles %}
+                    <div class="flex gap-2 mt-1.5 mb-1">
+                        <button type="button" onclick="selectGrupo('.cb-carro1', true)"
+                                class="text-xs text-blue-600 hover:underline">Seleccionar todas las disponibles</button>
+                        <span class="text-gray-300">|</span>
+                        <button type="button" onclick="selectGrupo('.cb-carro1', false)"
+                                class="text-xs text-gray-400 hover:underline">Deseleccionar</button>
+                    </div>
                     {% endif %}
+                </div>
+                {% endif %}
+
+                {# ── CARRO 2 ── #}
+                {% if carro_2 %}
+                <div class="mb-3">
+                    <div class="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded-t-lg">
+                        <i class="fas fa-laptop"></i>
+                        <span class="font-semibold text-sm uppercase tracking-wide">{{ carro_2.display }}</span>
+                        <span class="text-blue-200 text-xs">— {{ carro_2.aula or 'Sin aula' }}</span>
+                        <span class="ml-auto text-xs bg-blue-600 px-2 py-0.5 rounded-full" id="badge-c2">
+                            {{ nb_carro2_disponibles|length }} disp. / {{ nb_carro2_prestadas|length }} prest.
+                        </span>
+                    </div>
+                    <div class="border border-gray-200 border-t-0 rounded-b-lg overflow-hidden max-h-60 overflow-y-auto">
+                        {% if nb_carro2_disponibles or nb_carro2_prestadas %}
+                            {% for nb in nb_carro2_disponibles %}
+                            <label class="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 bg-white">
+                                <input type="checkbox" name="netbook_ids" value="{{ nb.id }}"
+                                       class="w-4 h-4 text-blue-600 cb-carro2">
+                                <div>
+                                    <span class="font-semibold text-blue-900">N°{{ nb.numero_interno }}</span>
+                                    <span class="text-gray-400 text-xs ml-2">{{ nb.numero_serie or 'Sin serie' }}</span>
+                                    <div class="text-xs text-gray-500">{{ nb.alumno or 'Sin asignar' }}</div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                            {% for nb in nb_carro2_prestadas %}
+                            <div class="flex items-center gap-3 px-4 py-3 border-b last:border-0 bg-gray-100 opacity-60 cursor-not-allowed">
+                                <input type="checkbox" disabled class="w-4 h-4 text-gray-400">
+                                <div>
+                                    <span class="font-semibold text-gray-500">N°{{ nb.numero_interno }}</span>
+                                    <span class="text-gray-400 text-xs ml-2">{{ nb.numero_serie or 'Sin serie' }}</span>
+                                    <span class="ml-2 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-semibold">
+                                        <i class="fas fa-lock mr-0.5"></i>Prestada
+                                    </span>
+                                    <div class="text-xs text-gray-400">{{ nb.alumno or 'Sin asignar' }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="px-4 py-3 text-sm text-gray-400">Sin netbooks en este carro.</div>
+                        {% endif %}
+                    </div>
+                    {% if nb_carro2_disponibles %}
+                    <div class="flex gap-2 mt-1.5 mb-1">
+                        <button type="button" onclick="selectGrupo('.cb-carro2', true)"
+                                class="text-xs text-blue-600 hover:underline">Seleccionar todas las disponibles</button>
+                        <span class="text-gray-300">|</span>
+                        <button type="button" onclick="selectGrupo('.cb-carro2', false)"
+                                class="text-xs text-gray-400 hover:underline">Deseleccionar</button>
+                    </div>
                     {% endif %}
-
                 </div>
+                {% endif %}
 
-                {# Botones de selección rápida #}
-                <div class="flex gap-2 mt-2">
-                    <button type="button" onclick="selectAll(true)"
-                            class="text-xs text-blue-600 hover:underline">
-                        Seleccionar todas
-                    </button>
-                    <span class="text-gray-300">|</span>
-                    <button type="button" onclick="selectAll(false)"
-                            class="text-xs text-gray-400 hover:underline">
-                        Deseleccionar todas
-                    </button>
-                </div>
-
-                {% else %}
+                {# Mensaje si no hay ningún carro configurado #}
+                {% if not carro %}
                 <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-600 text-sm">
                     No hay netbooks disponibles en este momento.
+                </div>
+                {% endif %}
+
+                {# Botones globales de selección #}
+                {% if nb_carro1_disponibles or nb_carro2_disponibles %}
+                <div class="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                    <span class="text-xs text-gray-500 font-semibold mr-1">Todas:</span>
+                    <button type="button" onclick="selectAll(true)"
+                            class="text-xs text-blue-600 hover:underline">Seleccionar todas</button>
+                    <span class="text-gray-300">|</span>
+                    <button type="button" onclick="selectAll(false)"
+                            class="text-xs text-gray-400 hover:underline">Deseleccionar todas</button>
                 </div>
                 {% endif %}
             </div>
@@ -163,7 +239,12 @@
     });
 
     function selectAll(state) {
-        document.querySelectorAll('input[name="netbook_ids"]')
+        document.querySelectorAll('input[name="netbook_ids"]:not([disabled])')
+            .forEach(cb => cb.checked = state);
+    }
+
+    function selectGrupo(clase, state) {
+        document.querySelectorAll(clase + ':not([disabled])')
             .forEach(cb => cb.checked = state);
     }
 </script>

@@ -35,6 +35,7 @@ def _arg_full(dt):
 
 AZUL_ESCUELA = colors.HexColor('#1e3a8a')
 AZUL_CLARO   = colors.HexColor('#dbeafe')
+AZUL_OSCURO  = colors.HexColor('#1a2a6c')
 GRIS_CLARO   = colors.HexColor('#f3f4f6')
 NARANJA      = colors.HexColor('#f97316')
 ROJO         = colors.HexColor('#dc2626')
@@ -1244,7 +1245,7 @@ def pdf_alerta_demora_netbooks(prestamo_id):
     """
     Parte de Alerta para un préstamo de NETBOOKS (Espacio Digital) en demora.
     Incluye datos del docente, datos del préstamo y listado individual de
-    cada netbook (N° interno + N° de serie + alumno asignado).
+    cada netbook agrupado por carro (N° interno + N° de serie + alumno asignado).
     """
     from models import PrestamoNetbook
     prestamo   = PrestamoNetbook.query.get_or_404(prestamo_id)
@@ -1297,22 +1298,55 @@ def pdf_alerta_demora_netbooks(prestamo_id):
     story.append(t_prest)
     story.append(Spacer(1, 0.5*cm))
 
-    # ── Netbooks prestadas ────────────────────────────────────────
+    # ── Netbooks prestadas — agrupadas por carro ──────────────────
     if prestamo.items:
+        # Agrupar ítems por carro
+        from collections import OrderedDict
+        from models import Netbook, Carro
+        grupos = OrderedDict()   # {carro_display: [items]}
+        sin_carro = []
+        for item in sorted(prestamo.items,
+                           key=lambda i: int(i.numero_interno) if i.numero_interno and i.numero_interno.isdigit() else 9999):
+            nb = Netbook.query.get(item.netbook_id) if item.netbook_id else None
+            if nb and nb.carro:
+                key = nb.carro.display
+                grupos.setdefault(key, []).append(item)
+            else:
+                sin_carro.append(item)
+        if sin_carro:
+            grupos['Sin carro asignado'] = sin_carro
+
         story.append(Paragraph(
             f'NETBOOKS PRESTADAS ({len(prestamo.items)} equipo(s))',
             STYLE_SECCION))
-        nb_data = [['N°', 'N° Interno', 'N° de Serie', 'Alumno Asignado']]
-        for i, item in enumerate(prestamo.items, start=1):
-            nb_data.append([
-                str(i),
-                item.numero_interno or '—',
-                item.numero_serie or '—',
-                item.alumno or '—',
-            ])
-        t_nb = Table(nb_data, colWidths=[0.8*cm, 2.5*cm, 6*cm, 8.2*cm])
-        t_nb.setStyle(_tabla_estilo())
-        story.append(t_nb)
+
+        for carro_nombre, items in grupos.items():
+            # Sub-encabezado por carro (fondo azul oscuro)
+            sub_header = Table(
+                [[Paragraph(f'<b>{carro_nombre}</b> — {len(items)} netbook(s)',
+                            ParagraphStyle('sub', fontName='Helvetica-Bold',
+                                           fontSize=9, textColor=colors.white))]],
+                colWidths=[17.5*cm])
+            sub_header.setStyle(TableStyle([
+                ('BACKGROUND',    (0, 0), (-1, -1), AZUL_OSCURO),
+                ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+                ('TOPPADDING',    (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            story.append(sub_header)
+
+            nb_data = [['N°', 'N° Interno', 'N° de Serie', 'Alumno Asignado']]
+            for i, item in enumerate(items, start=1):
+                nb_data.append([
+                    str(i),
+                    item.numero_interno or '—',
+                    item.numero_serie or '—',
+                    item.alumno or '—',
+                ])
+            t_nb = Table(nb_data, colWidths=[0.8*cm, 2.5*cm, 6*cm, 8.2*cm])
+            t_nb.setStyle(_tabla_estilo())
+            story.append(t_nb)
+            story.append(Spacer(1, 0.3*cm))
 
     _bloque_firmas(story, ahora_arg)
     doc.build(story)

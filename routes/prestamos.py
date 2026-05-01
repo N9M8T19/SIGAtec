@@ -336,18 +336,35 @@ def retiro_netbooks():
     prestadas_ids = {item.netbook_id for p in PrestamoNetbook.query.filter_by(estado='activo').all()
                      for item in p.items}
 
-    # Netbooks disponibles de ambos carros
-    netbooks_carro_1 = [nb for nb in carro.netbooks
-                        if nb.estado == 'operativa' and nb.id not in prestadas_ids]
-    netbooks_carro_2 = [nb for nb in carro_2.netbooks
-                        if nb.estado == 'operativa' and nb.id not in prestadas_ids] if carro_2 else []
-    disponibles = netbooks_carro_1 + netbooks_carro_2
+    def _sort_num(nb_list):
+        """Ordena netbooks por numero_interno numérico."""
+        return sorted(nb_list,
+                      key=lambda nb: int(nb.numero_interno) if nb.numero_interno and nb.numero_interno.isdigit() else 9999)
+
+    # Carro 1 — disponibles y prestadas (solo operativas)
+    nb_carro1_disponibles = _sort_num([nb for nb in carro.netbooks
+                                       if nb.estado == 'operativa' and nb.id not in prestadas_ids])
+    nb_carro1_prestadas   = _sort_num([nb for nb in carro.netbooks
+                                       if nb.estado == 'operativa' and nb.id in prestadas_ids])
+
+    # Carro 2 — disponibles y prestadas (solo operativas)
+    nb_carro2_disponibles = _sort_num([nb for nb in carro_2.netbooks
+                                       if nb.estado == 'operativa' and nb.id not in prestadas_ids]) if carro_2 else []
+    nb_carro2_prestadas   = _sort_num([nb for nb in carro_2.netbooks
+                                       if nb.estado == 'operativa' and nb.id in prestadas_ids]) if carro_2 else []
+
+    # disponibles combinadas (para compatibilidad con cualquier referencia anterior)
+    disponibles = nb_carro1_disponibles + nb_carro2_disponibles
 
     docentes = Docente.query.filter_by(activo=True).order_by(Docente.apellido).all()
 
     return render_template('prestamos/retiro_netbooks.html',
                            docentes=docentes, disponibles=disponibles,
-                           carro=carro, carro_2=carro_2)
+                           carro=carro, carro_2=carro_2,
+                           nb_carro1_disponibles=nb_carro1_disponibles,
+                           nb_carro1_prestadas=nb_carro1_prestadas,
+                           nb_carro2_disponibles=nb_carro2_disponibles,
+                           nb_carro2_prestadas=nb_carro2_prestadas)
 
 
 @prestamos_bp.route('/espacio-digital/<int:prestamo_id>/devolucion-item/<int:item_id>', methods=['POST'])
