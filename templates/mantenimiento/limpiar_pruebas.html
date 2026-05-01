@@ -11,7 +11,7 @@
       🗂 Administrar Historial
     </h1>
     <p class="text-sm text-gray-500">
-      Eliminá préstamos de carros y del Espacio Digital por docente, por estado activo
+      Eliminá préstamos de carros, Espacio Digital y Televisores por docente, por estado activo
       o seleccionando préstamos individuales.
       Esta acción <strong>no se puede deshacer</strong>. Hacé un backup antes si es necesario.
     </p>
@@ -197,17 +197,25 @@
             <div class="text-xs text-orange-400 uppercase tracking-wide">Espacio Digital activos</div>
           </div>
         </div>
+        <div class="flex items-center gap-3 bg-purple-50 border border-purple-200
+                    rounded-xl px-5 py-3 min-w-[180px]">
+          <i class="fas fa-tv text-purple-500 text-xl"></i>
+          <div>
+            <div class="text-2xl font-bold text-purple-600">{{ activos_tvs }}</div>
+            <div class="text-xs text-purple-400 uppercase tracking-wide">TVs activas</div>
+          </div>
+        </div>
         <div class="flex items-center gap-3 bg-red-50 border border-red-200
                     rounded-xl px-5 py-3 min-w-[180px]">
           <i class="fas fa-exclamation-circle text-red-500 text-xl"></i>
           <div>
-            <div class="text-2xl font-bold text-red-600">{{ activos_carros + activos_ed }}</div>
+            <div class="text-2xl font-bold text-red-600">{{ activos_carros + activos_ed + activos_tvs }}</div>
             <div class="text-xs text-red-400 uppercase tracking-wide">Total a eliminar</div>
           </div>
         </div>
       </div>
 
-      {% if activos_carros + activos_ed > 0 %}
+      {% if activos_carros + activos_ed + activos_tvs > 0 %}
       <form method="POST" action="{{ url_for('mantenimiento.ejecutar_limpieza') }}"
             id="form-activos" onsubmit="return validarFormulario('form-activos', 'conf-activos')">
         <input type="hidden" name="modo" value="activos">
@@ -342,6 +350,36 @@
           </p>
         </div>
 
+        {# TVs #}
+        <div class="mb-6">
+          <h3 class="text-sm font-bold uppercase tracking-wide mb-2"
+              style="color: var(--azul-oscuro)">
+            <i class="fas fa-tv mr-1"></i> Préstamos de Televisores
+          </h3>
+          <div id="s3-tabla-tvs-wrap" class="overflow-x-auto rounded-xl border border-gray-200">
+            <table class="w-full text-sm">
+              <thead style="background-color: #f1f5f9">
+                <tr class="text-gray-600 text-left border-b text-xs uppercase tracking-wide">
+                  <th class="px-3 py-2 w-8">
+                    <input type="checkbox" id="sel-todos-tvs"
+                           onchange="toggleGrupo('tvs', this.checked)"
+                           class="rounded border-gray-300">
+                  </th>
+                  <th class="px-3 py-2">TV</th>
+                  <th class="px-3 py-2">Aula destino</th>
+                  <th class="px-3 py-2">Retiro</th>
+                  <th class="px-3 py-2">Devolución</th>
+                  <th class="px-3 py-2 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody id="s3-tbody-tvs"></tbody>
+            </table>
+          </div>
+          <p id="s3-sin-tvs" class="hidden text-xs text-gray-400 mt-2 px-1">
+            Este docente no tiene préstamos de televisores.
+          </p>
+        </div>
+
         {# Confirmación y submit #}
         <form method="POST"
               action="{{ url_for('mantenimiento.borrar_prestamos_individuales') }}"
@@ -349,6 +387,7 @@
               onsubmit="return validarS3()">
           <div id="s3-hidden-carros"></div>
           <div id="s3-hidden-ed"></div>
+          <div id="s3-hidden-tvs"></div>
 
           <div class="bg-red-50 border border-red-100 rounded-xl p-4">
             <p class="text-sm text-red-700 mb-3">
@@ -516,6 +555,34 @@ function cargarPrestamos(docenteId) {
         });
       }
 
+      // ── TVs ──
+      const tbodyTV = document.getElementById('s3-tbody-tvs');
+      const wrapTV  = document.getElementById('s3-tabla-tvs-wrap');
+      const sinTV   = document.getElementById('s3-sin-tvs');
+      tbodyTV.innerHTML = '';
+      if (!data.tvs || data.tvs.length === 0) {
+        wrapTV.classList.add('hidden');
+        sinTV.classList.remove('hidden');
+      } else {
+        wrapTV.classList.remove('hidden');
+        sinTV.classList.add('hidden');
+        data.tvs.forEach(p => {
+          tbodyTV.insertAdjacentHTML('beforeend', `
+            <tr class="border-b hover:bg-red-50 transition">
+              <td class="px-3 py-2">
+                <input type="checkbox" class="cb-s3 cb-s3-tvs rounded border-gray-300"
+                       data-id="${p.id}" data-tipo="tv"
+                       onchange="actualizarSelLabel()">
+              </td>
+              <td class="px-3 py-2 font-medium text-gray-800">${p.tv}</td>
+              <td class="px-3 py-2 text-gray-600">${p.aula_destino}</td>
+              <td class="px-3 py-2 text-gray-600">${p.fecha_retiro}</td>
+              <td class="px-3 py-2 text-gray-600">${p.fecha_devolucion || '<span class="text-orange-500">—</span>'}</td>
+              <td class="px-3 py-2 text-center">${badgeEstado(p.estado)}</td>
+            </tr>`);
+        });
+      }
+
       actualizarSelLabel();
     })
     .catch(() => {
@@ -526,13 +593,14 @@ function cargarPrestamos(docenteId) {
 }
 
 function validarS3() {
-  // Recopilar IDs seleccionados y meterlos en hidden inputs
   const hiddenC  = document.getElementById('s3-hidden-carros');
   const hiddenED = document.getElementById('s3-hidden-ed');
+  const hiddenTV = document.getElementById('s3-hidden-tvs');
   hiddenC.innerHTML  = '';
   hiddenED.innerHTML = '';
+  hiddenTV.innerHTML = '';
 
-  let totalC = 0, totalED = 0;
+  let totalC = 0, totalED = 0, totalTV = 0;
   document.querySelectorAll('.cb-s3:checked').forEach(cb => {
     const input = document.createElement('input');
     input.type  = 'hidden';
@@ -541,6 +609,11 @@ function validarS3() {
       input.value = cb.dataset.id;
       hiddenC.appendChild(input);
       totalC++;
+    } else if (cb.dataset.tipo === 'tv') {
+      input.name  = 'ids_tvs';
+      input.value = cb.dataset.id;
+      hiddenTV.appendChild(input);
+      totalTV++;
     } else {
       input.name  = 'ids_ed';
       input.value = cb.dataset.id;
@@ -549,7 +622,7 @@ function validarS3() {
     }
   });
 
-  if (totalC + totalED === 0) {
+  if (totalC + totalED + totalTV === 0) {
     alert('Seleccioná al menos un préstamo.');
     return false;
   }

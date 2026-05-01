@@ -219,6 +219,10 @@
                     <span><code>{encargado}</code> — Nombre del encargado que registró</span>
                     <span><code>{items}</code> — Lista de netbooks (solo en mails de netbooks)</span>
                     <span><code>{cantidad}</code> — Cantidad de netbooks devueltas</span>
+                    <span><code>{tv}</code> — Código de la TV (ej: TV-01)</span>
+                    <span><code>{aula_destino}</code> — Aula a la que se llevó la TV</span>
+                    <span><code>{motivo}</code> — Motivo del préstamo de TV</span>
+                    <span><code>{componentes}</code> — Lista de componentes de la TV</span>
                 </div>
             </div>
 
@@ -269,6 +273,28 @@
                         <textarea name="mail_devolucion_nb" rows="10"
                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
                                   style="resize:vertical">{{ mail_devolucion_nb }}</textarea>
+                    </div>
+
+                    {# Retiro de TV #}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">
+                            <i class="fas fa-tv text-green-600 mr-1"></i>
+                            Mail — Retiro de Televisor
+                        </label>
+                        <textarea name="mail_retiro_tv" rows="10"
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                                  style="resize:vertical">{{ mail_retiro_tv }}</textarea>
+                    </div>
+
+                    {# Devolución de TV #}
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">
+                            <i class="fas fa-tv text-blue-600 mr-1"></i>
+                            Mail — Devolución de Televisor
+                        </label>
+                        <textarea name="mail_devolucion_tv" rows="10"
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                                  style="resize:vertical">{{ mail_devolucion_tv }}</textarea>
                     </div>
                 </div>
 

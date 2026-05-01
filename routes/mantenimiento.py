@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem
+from models import db, Docente, PrestamoCarro, PrestamoNetbook, PrestamoNetbookItem, PrestamoTV
 from functools import wraps
 
 mantenimiento_bp = Blueprint('mantenimiento', __name__, url_prefix='/mantenimiento')
@@ -56,12 +56,14 @@ def limpiar_pruebas():
     # ── Totales globales de activos (sección 2) ──────────────────────────────
     activos_carros = PrestamoCarro.query.filter_by(estado='activo').count()
     activos_ed     = PrestamoNetbook.query.filter_by(estado='activo').count()
+    activos_tvs    = PrestamoTV.query.filter_by(estado='activo').count()
 
     return render_template(
         'mantenimiento/limpiar_pruebas.html',
         resumen=resumen,
         activos_carros=activos_carros,
         activos_ed=activos_ed,
+        activos_tvs=activos_tvs,
     )
 
 
@@ -80,6 +82,7 @@ def ejecutar_limpieza():
 
     total_carros = 0
     total_ed     = 0
+    total_tvs    = 0
 
     # ── Modo: por docente ────────────────────────────────────────────────────
     if modo == 'docente':
@@ -102,6 +105,12 @@ def ejecutar_limpieza():
                 q_carros = q_carros.filter_by(estado='activo')
             total_carros += q_carros.delete(synchronize_session=False)
 
+            # TVs
+            q_tvs = PrestamoTV.query.filter_by(docente_id=did)
+            if solo_activos:
+                q_tvs = q_tvs.filter_by(estado='activo')
+            total_tvs += q_tvs.delete(synchronize_session=False)
+
     # ── Modo: todos los activos ──────────────────────────────────────────────
     elif modo == 'activos':
         prestamos_ed_activos = PrestamoNetbook.query.filter_by(estado='activo').all()
@@ -113,16 +122,19 @@ def ejecutar_limpieza():
         total_carros = PrestamoCarro.query.filter_by(estado='activo').delete(
             synchronize_session=False
         )
+        total_tvs = PrestamoTV.query.filter_by(estado='activo').delete(
+            synchronize_session=False
+        )
 
     db.session.commit()
 
     tipo_txt = 'activos' if (solo_activos or modo == 'activos') else 'en total'
-    flash(
-        f'Limpieza completada ({tipo_txt}): '
-        f'{total_carros} préstamo(s) de carros y '
-        f'{total_ed} préstamo(s) del Espacio Digital eliminados.',
-        'success',
-    )
+    partes = [
+        f'{total_carros} préstamo(s) de carros',
+        f'{total_ed} préstamo(s) del Espacio Digital',
+        f'{total_tvs} préstamo(s) de TVs',
+    ]
+    flash(f'Limpieza completada ({tipo_txt}): ' + ' y '.join(partes) + ' eliminados.', 'success')
     return redirect(url_for('mantenimiento.limpiar_pruebas'))
 
 
@@ -173,7 +185,20 @@ def prestamos_docente():
             'cant_netbooks':    cant,
         })
 
-    return jsonify({'carros': carros_data, 'ed': ed_data})
+    tvs_data = []
+    tvs_qs = PrestamoTV.query.filter_by(docente_id=docente_id)\
+                .order_by(PrestamoTV.fecha_retiro.desc()).all()
+    for p in tvs_qs:
+        tvs_data.append({
+            'id':               p.id,
+            'tv':               p.tv.codigo if p.tv else '—',
+            'aula_destino':     p.aula_destino or '—',
+            'fecha_retiro':     fmt(p.fecha_retiro),
+            'fecha_devolucion': fmt(p.fecha_devolucion_real) if p.fecha_devolucion_real else None,
+            'estado':           p.estado,
+        })
+
+    return jsonify({'carros': carros_data, 'ed': ed_data, 'tvs': tvs_data})
 
 
 @mantenimiento_bp.route('/administrar-historial/borrar-prestamos', methods=['POST'])
@@ -188,13 +213,15 @@ def borrar_prestamos_individuales():
 
     ids_carros = request.form.getlist('ids_carros')
     ids_ed     = request.form.getlist('ids_ed')
+    ids_tvs    = request.form.getlist('ids_tvs')
 
-    if not ids_carros and not ids_ed:
+    if not ids_carros and not ids_ed and not ids_tvs:
         flash('No seleccionaste ningún préstamo.', 'warning')
         return redirect(url_for('mantenimiento.limpiar_pruebas'))
 
     total_carros = 0
     total_ed     = 0
+    total_tvs    = 0
 
     for pid in ids_carros:
         deleted = PrestamoCarro.query.filter_by(id=pid).delete()
@@ -205,11 +232,15 @@ def borrar_prestamos_individuales():
         deleted = PrestamoNetbook.query.filter_by(id=pid).delete()
         total_ed += deleted
 
+    for pid in ids_tvs:
+        deleted = PrestamoTV.query.filter_by(id=pid).delete()
+        total_tvs += deleted
+
     db.session.commit()
 
-    flash(
-        f'Eliminados: {total_carros} préstamo(s) de carros y '
-        f'{total_ed} préstamo(s) del Espacio Digital.',
-        'success',
-    )
+    partes = []
+    if total_carros: partes.append(f'{total_carros} préstamo(s) de carros')
+    if total_ed:     partes.append(f'{total_ed} préstamo(s) del Espacio Digital')
+    if total_tvs:    partes.append(f'{total_tvs} préstamo(s) de TVs')
+    flash('Eliminados: ' + ', '.join(partes) + '.', 'success')
     return redirect(url_for('mantenimiento.limpiar_pruebas'))

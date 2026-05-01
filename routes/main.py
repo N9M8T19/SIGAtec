@@ -575,6 +575,8 @@ def config_sistema():
             cfg.mail_devolucion_carro = request.form.get('mail_devolucion_carro', '').strip()
             cfg.mail_retiro_nb        = request.form.get('mail_retiro_nb', '').strip()
             cfg.mail_devolucion_nb    = request.form.get('mail_devolucion_nb', '').strip()
+            cfg.mail_retiro_tv        = request.form.get('mail_retiro_tv', '').strip()
+            cfg.mail_devolucion_tv    = request.form.get('mail_devolucion_tv', '').strip()
             cfg.guardar()
             flash('Templates de mail actualizados.', 'success')
 
@@ -590,6 +592,8 @@ def config_sistema():
     mail_devolucion_carro = cfg.mail_devolucion_carro or _mail_default_devolucion_carro()
     mail_retiro_nb        = cfg.mail_retiro_nb        or _mail_default_retiro_nb()
     mail_devolucion_nb    = cfg.mail_devolucion_nb    or _mail_default_devolucion_nb()
+    mail_retiro_tv        = cfg.mail_retiro_tv        or _mail_default_retiro_tv()
+    mail_devolucion_tv    = cfg.mail_devolucion_tv    or _mail_default_devolucion_tv()
 
     return render_template(
         'main/config_sistema.html',
@@ -599,6 +603,8 @@ def config_sistema():
         mail_devolucion_carro=mail_devolucion_carro,
         mail_retiro_nb=mail_retiro_nb,
         mail_devolucion_nb=mail_devolucion_nb,
+        mail_retiro_tv=mail_retiro_tv,
+        mail_devolucion_tv=mail_devolucion_tv,
         secciones_disponibles=SECCIONES_DISPONIBLES,
         secciones_habilitadas=secciones_habilitadas,
     )
@@ -645,3 +651,26 @@ Devolución: {hora_devolucion}
 Duración:   {duracion}
 Registró:   {encargado}
 Netbooks:   {cantidad}"""
+
+
+def _mail_default_retiro_tv():
+    return """Retiro de televisor
+
+Docente:      {docente}
+TV:           {tv}
+Aula destino: {aula_destino}
+Motivo:       {motivo}
+Componentes:  {componentes}
+Hora:         {hora}
+Registró:     {encargado}"""
+
+
+def _mail_default_devolucion_tv():
+    return """Devolución de televisor
+
+Docente:      {docente}
+TV:           {tv}
+Retiro:       {hora_retiro}
+Devolución:   {hora_devolucion}
+Duración:     {duracion}
+Registró:     {encargado}"""

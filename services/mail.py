@@ -394,19 +394,31 @@ def enviar_notificacion_retiro_tv(prestamo):
         if prestamo.encargado_retiro else '—'
     )
     componentes = ', '.join(tv.componentes_lista) or 'Sin accesorios'
-
     pulgadas_str = f' ({tv.pulgadas}")' if tv.pulgadas else ''
+
     asunto = f'Retiro de televisor {tv.codigo}'
-    cuerpo = (
-        f"Retiro de televisor\n\n"
-        f"Docente:      {prestamo.docente.nombre_completo}\n"
-        f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}{pulgadas_str}\n"
-        f"Aula destino: {prestamo.aula_destino or '—'}\n"
-        f"Motivo:       {prestamo.motivo or '—'}\n"
-        f"Componentes:  {componentes}\n"
-        f"Hora:         {_hora_ar(prestamo.fecha_retiro)}\n"
-        f"Registró:     {encargado_nombre}\n"
-    )
+    _tpl = _get_template_mail('mail_retiro_tv')
+    if _tpl:
+        cuerpo = _tpl.format(
+            docente=prestamo.docente.nombre_completo,
+            tv=f'{tv.codigo} — {tv.marca} {tv.modelo}{pulgadas_str}',
+            aula_destino=prestamo.aula_destino or '—',
+            motivo=prestamo.motivo or '—',
+            componentes=componentes,
+            hora=_hora_ar(prestamo.fecha_retiro),
+            encargado=encargado_nombre,
+        )
+    else:
+        cuerpo = (
+            f"Retiro de televisor\n\n"
+            f"Docente:      {prestamo.docente.nombre_completo}\n"
+            f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}{pulgadas_str}\n"
+            f"Aula destino: {prestamo.aula_destino or '—'}\n"
+            f"Motivo:       {prestamo.motivo or '—'}\n"
+            f"Componentes:  {componentes}\n"
+            f"Hora:         {_hora_ar(prestamo.fecha_retiro)}\n"
+            f"Registró:     {encargado_nombre}\n"
+        )
     try:
         _enviar_mail(correo, asunto, cuerpo)
         _log('retiro_tv', correo, asunto, enviado=True)
@@ -472,18 +484,29 @@ def enviar_notificacion_devolucion_tv(prestamo):
 
     pulgadas_str = f' ({tv.pulgadas}")' if tv.pulgadas else ''
     asunto = f'Devolución de televisor {tv.codigo}'
-    cuerpo = (
-        f"Devolución de televisor\n\n"
-        f"Docente:      {prestamo.docente.nombre_completo}\n"
-        f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}{pulgadas_str}\n"
-        f"Retiro:       {_hora_ar(prestamo.fecha_retiro)}\n"
-        f"Devolución:   {_hora_ar(prestamo.fecha_devolucion_real)}\n"
-        f"Duración:     {duracion}\n"
-        f"Devueltos:    {linea_devueltos}\n"
-        f"{linea_faltantes}"
-        f"Observaciones:{' ' + prestamo.observaciones if prestamo.observaciones else ' —'}\n"
-        f"Registró:     {encargado_nombre}\n"
-    )
+    _tpl = _get_template_mail('mail_devolucion_tv')
+    if _tpl:
+        cuerpo = _tpl.format(
+            docente=prestamo.docente.nombre_completo,
+            tv=f'{tv.codigo} — {tv.marca} {tv.modelo}{pulgadas_str}',
+            hora_retiro=_hora_ar(prestamo.fecha_retiro),
+            hora_devolucion=_hora_ar(prestamo.fecha_devolucion_real),
+            duracion=duracion,
+            encargado=encargado_nombre,
+        )
+    else:
+        cuerpo = (
+            f"Devolución de televisor\n\n"
+            f"Docente:      {prestamo.docente.nombre_completo}\n"
+            f"TV:           {tv.codigo} — {tv.marca} {tv.modelo}{pulgadas_str}\n"
+            f"Retiro:       {_hora_ar(prestamo.fecha_retiro)}\n"
+            f"Devolución:   {_hora_ar(prestamo.fecha_devolucion_real)}\n"
+            f"Duración:     {duracion}\n"
+            f"Devueltos:    {linea_devueltos}\n"
+            f"{linea_faltantes}"
+            f"Observaciones:{' ' + prestamo.observaciones if prestamo.observaciones else ' —'}\n"
+            f"Registró:     {encargado_nombre}\n"
+        )
     try:
         _enviar_mail(correo, asunto, cuerpo)
         _log('devolucion_tv', correo, asunto, enviado=True)

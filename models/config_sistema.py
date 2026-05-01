@@ -69,6 +69,8 @@ def _init_model(db):
         mail_devolucion_carro     = db.Column(db.Text, default='')
         mail_retiro_nb            = db.Column(db.Text, default='')
         mail_devolucion_nb        = db.Column(db.Text, default='')
+        mail_retiro_tv            = db.Column(db.Text, default='')
+        mail_devolucion_tv        = db.Column(db.Text, default='')
 
         @classmethod
         def obtener(cls):
