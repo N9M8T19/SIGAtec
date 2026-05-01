@@ -271,9 +271,21 @@ def espacio_digital():
     now       = datetime.utcnow()
     # IDs de prestamos que superaron el umbral de alerta segun el turno del docente
     alerta_ids = {p.id for p in prestamos if _umbral_alerta_netbooks(p)}
+
+    # Mapeo netbook_id → carro_id para agrupar ítems en el template
+    carro_id_1 = carro.id if carro else None
+    carro_id_2 = carro_2.id if carro_2 else None
+    nb_carro_map = {}   # {netbook_id: carro_id}
+    for c in [carro, carro_2]:
+        if c:
+            for nb in c.netbooks:
+                nb_carro_map[nb.id] = c.id
+
     return render_template('prestamos/espacio_digital.html',
                            prestamos=prestamos, carro=carro, carro_2=carro_2,
-                           config=config, now=now, alerta_ids=alerta_ids)
+                           config=config, now=now, alerta_ids=alerta_ids,
+                           nb_carro_map=nb_carro_map,
+                           carro_id_1=carro_id_1, carro_id_2=carro_id_2)
 
 
 @prestamos_bp.route('/espacio-digital/retiro', methods=['GET', 'POST'])

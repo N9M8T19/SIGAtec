@@ -87,24 +87,60 @@
                             <span><i class="fas fa-laptop mr-2"></i>Netbooks prestadas — {{ p.docente.nombre_completo }}</span>
                             <span class="text-blue-300 font-normal normal-case">Clic en una netbook para devolver individualmente</span>
                         </div>
-                        <div class="px-4 py-3 flex flex-wrap gap-2">
-                            {% for item in p.items %}
-                            <form method="POST"
-                                  action="{{ url_for('prestamos.devolucion_netbook_individual', prestamo_id=p.id, item_id=item.id) }}"
-                                  onsubmit="return confirm('Devolver N°{{ item.numero_interno }}{% if item.alumno %} ({{ item.alumno }}){% endif %}?')"
-                                  onclick="event.stopPropagation()">
-                                <button type="submit"
-                                        class="inline-flex items-center gap-2 bg-white border border-blue-200 hover:border-orange-400 hover:bg-orange-50 rounded-lg px-3 py-1.5 text-sm transition-colors group">
-                                    <i class="fas fa-laptop text-blue-600 text-xs group-hover:text-orange-500"></i>
-                                    <span class="font-bold text-blue-900">N°{{ item.numero_interno }}</span>
-                                    {% if item.alumno %}
-                                    <span class="text-gray-400 text-xs">— {{ item.alumno }}</span>
-                                    {% endif %}
-                                    <i class="fas fa-undo text-gray-300 text-xs group-hover:text-orange-500 ml-1"></i>
-                                </button>
-                            </form>
-                            {% endfor %}
+
+                        {# ── Agrupar ítems por carro usando nb_carro_map del servidor ── #}
+                        {% set ns1 = namespace(items=[]) %}
+                        {% set ns2 = namespace(items=[]) %}
+                        {% set ns_sin = namespace(items=[]) %}
+
+                        {% for item in p.items %}
+                            {% set cid = nb_carro_map.get(item.netbook_id, 0) %}
+                            {% if cid == carro_id_1 %}
+                                {% set ns1.items = ns1.items + [item] %}
+                            {% elif cid == carro_id_2 %}
+                                {% set ns2.items = ns2.items + [item] %}
+                            {% else %}
+                                {% set ns_sin.items = ns_sin.items + [item] %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {# ── Bloque por carro — macro inline ── #}
+                        {% for grupo_label, grupo_items, grupo_color in [
+                            (carro.display if carro else None,   ns1.items,   'bg-blue-800'),
+                            (carro_2.display if carro_2 else None, ns2.items, 'bg-blue-600'),
+                            ('Sin carro asignado',               ns_sin.items,'bg-gray-500')
+                        ] %}
+                        {% if grupo_label and grupo_items %}
+                        <div class="border-t border-blue-100 first:border-t-0">
+                            <div class="{{ grupo_color }} text-white px-4 py-1.5 text-xs font-semibold flex items-center gap-2">
+                                <i class="fas fa-laptop"></i>
+                                {{ grupo_label }}
+                                <span class="ml-1 bg-white bg-opacity-20 px-1.5 py-0.5 rounded-full text-white font-bold">
+                                    {{ grupo_items|length }}
+                                </span>
+                            </div>
+                            <div class="px-4 py-3 flex flex-wrap gap-2">
+                                {% for item in grupo_items %}
+                                <form method="POST"
+                                      action="{{ url_for('prestamos.devolucion_netbook_individual', prestamo_id=p.id, item_id=item.id) }}"
+                                      onsubmit="return confirm('Devolver N°{{ item.numero_interno }}{% if item.alumno %} ({{ item.alumno }}){% endif %}?')"
+                                      onclick="event.stopPropagation()">
+                                    <button type="submit"
+                                            class="inline-flex items-center gap-2 bg-white border border-blue-200 hover:border-orange-400 hover:bg-orange-50 rounded-lg px-3 py-1.5 text-sm transition-colors group">
+                                        <i class="fas fa-laptop text-blue-600 text-xs group-hover:text-orange-500"></i>
+                                        <span class="font-bold text-blue-900">N°{{ item.numero_interno }}</span>
+                                        {% if item.alumno %}
+                                        <span class="text-gray-400 text-xs">— {{ item.alumno }}</span>
+                                        {% endif %}
+                                        <i class="fas fa-undo text-gray-300 text-xs group-hover:text-orange-500 ml-1"></i>
+                                    </button>
+                                </form>
+                                {% endfor %}
+                            </div>
                         </div>
+                        {% endif %}
+                        {% endfor %}
+
                     </div>
                 </td>
             </tr>
